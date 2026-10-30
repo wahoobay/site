@@ -9,6 +9,13 @@ test -f dist/index.html || { echo "dist/ is missing; run npm run build first" >&
 # Staging must never be indexable: write its robots.txt into the build output BEFORE the syncs, so the
 # production file is never served from staging, not even briefly or after a failed later step.
 if [ "$ENV_NAME" = "staging" ]; then
+  # The CloudFront router fails open when the key-value store has no `auth` key, so refuse to publish
+  # anything until the password gate provably exists (production has no Basic auth, so no check there).
+  AUTH_KEYS="$(aws cloudfront-keyvaluestore list-keys --kvs-arn "$KVS_ARN" --query "Items[?Key=='auth'] | length(@)" --output text)"
+  if [ "${AUTH_KEYS:-0}" -lt 1 ] 2>/dev/null; then
+    echo "staging KVS has no auth key; refusing to publish an unprotected staging (see the README recipe \"Rotate the staging password\")" >&2
+    exit 1
+  fi
   printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
 fi
 
