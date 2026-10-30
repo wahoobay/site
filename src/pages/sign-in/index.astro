@@ -3,9 +3,11 @@
 // name on the device and signed staff in to the old review panel; this site has no accounts, so it only points the way.
 // The sighting review's address is not printed here; reviewers keep the link they were given.
 import Base from '../../layouts/Base.astro';
+import { aiUrl } from '../../lib/nav.mjs';
 
 const description = 'Where to sign in: the fish-identification review tool, and the sighting review.';
-const fishId = 'https://ai.wahoobay.net/login';
+// The fish-ID app's sign-in, on the same per-environment address as the nav's Fish ID (PUBLIC_AI_URL, else staging).
+const fishId = `${aiUrl(import.meta.env.PUBLIC_AI_URL)}login`;
 ---
 <Base title="Sign in to Wahoo Bay" description={description}>
   <div class="wb-container site-article">

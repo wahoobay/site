@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { aiUrl } from '../src/lib/nav.mjs';
 
 const PAGES = 'src/content/pages';
 
@@ -414,10 +415,25 @@ test('the home page has one script, the Instagram strip\'s; no other page has an
   }
 });
 
-test('/sign-in/ links the fish-ID sign-in and prints no review address', () => {
+// The fish-ID sign-in is on the same per-environment address as the nav's Fish ID (src/lib/nav.mjs): staging's on a
+// build without PUBLIC_AI_URL, production's when the production deploy sets it (2026-10-30: it was always production's).
+test('/sign-in/ links the fish-ID sign-in at this build\'s AI address: staging by default, production under PUBLIC_AI_URL', () => {
+  assert.equal(`${aiUrl(undefined)}login`, 'https://staging-ai.wahoobay.net/login');
+  assert.equal(`${aiUrl('https://ai.wahoobay.net/')}login`, 'https://ai.wahoobay.net/login');
+  const source = readFileSync('src/pages/sign-in/index.astro', 'utf8');
+  assert.match(source, /^import \{ aiUrl \} from '\.\.\/\.\.\/lib\/nav\.mjs';$/m);
+  assert.match(source, /\$\{aiUrl\(import\.meta\.env\.PUBLIC_AI_URL\)\}login/);
+  assert.doesNotMatch(source, /https:\/\/(staging-)?ai\.wahoobay\.net/, 'no address written into the page');
+  const html = readFileSync('dist/sign-in/index.html', 'utf8');
+  const login = `${aiUrl(process.env.PUBLIC_AI_URL)}login`;
+  const links = [...html.matchAll(/href="(https:\/\/[a-z-]*ai\.wahoobay\.net\/[^"]*)"/g)].map((m) => m[1]);
+  assert.ok(links.includes(login), `the fish-ID sign-in, ${login}`);
+  assert.deepEqual(links.filter((href) => href.endsWith('/login') && href !== login), [], 'no other environment\'s sign-in');
+});
+
+test('/sign-in/ has its heading and prints no review address', () => {
   const html = readFileSync('dist/sign-in/index.html', 'utf8');
   assert.equal(decode(html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1] ?? ''), 'Sign in to Wahoo Bay');
-  assert.ok(hrefIn(html, 'https://ai.wahoobay.net/login'), 'the fish-ID sign-in');
   assert.ok(!html.includes('review-'), 'no review address on the page');
   assert.doesNotMatch(html, /<form\b/, 'no form');
 });
