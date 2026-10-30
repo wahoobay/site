@@ -7,13 +7,16 @@ nav: Partners
 description: Stronger together — protecting oceans through partnership and purpose.
 section: get-involved
 order: 4
+actions:
+  - label: Partnerships power our mission. Join us today
+    href: /about/contact/
+  - label: Have an idea? Let's work together to make an impact
+    href: "#lets-make-waves-together"
+    variant: ghost
 ---
 
+<!-- katie: review: the first button under the introduction, "Partnerships power our mission. Join us today", went to the News page on the old site; it goes to Contact Us here. -->
 Wahoo Bay thrives because of collaboration. From schools and universities to conservation groups and local partners, our work is powered by people who share a vision for healthy oceans and thriving communities. By joining forces, we amplify impact, expand access to education, and build a stronger future for our coastlines and our communities.
-
-<!-- katie: review: "Partnerships power our mission. Join us today" went to the News page on the old site; it goes to Contact Us here. -->
-- [Partnerships power our mission. Join us today](/about/contact/)
-- [Have an idea? Let's work together to make an impact](#lets-make-waves-together)
 
 ## Partnership Impact
 

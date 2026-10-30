@@ -6,6 +6,9 @@ nav: Ambassadors
 description: Join our community of passionate volunteers dedicated to marine conservation and education
 section: get-involved
 order: 2
+actions:
+  - label: Start Your Ambassador Journey
+    href: https://docs.google.com/forms/d/e/1FAIpQLSf6wdjOekYndt6vKzT_XbM8RTWukh53pzOvXYQj2JZrg82Vqw/viewform
 ---
 
 ## What is a Wahoo Bay Ambassador?

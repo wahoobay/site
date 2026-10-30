@@ -100,12 +100,28 @@ main { flex: 1 0 auto; }
   padding-bottom: var(--wb-space-8);
 }
 .site-article > .wb-lead { margin-top: var(--wb-space-4); }
+/* The page's actions: a row of buttons under the lead. A long migrated label wraps instead of
+   running off a narrow screen, with room between its lines (the design's buttons assume one line). */
+.site-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wb-space-3);
+  margin-top: var(--wb-space-5);
+}
+.site-actions .wb-btn {
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.35;
+}
 .site-article__body { margin-top: var(--wb-space-6); }
 /* A photo fills the text column; a tall one stops at 36rem high and keeps its shape. */
 .site-article__body img {
   width: auto;
   max-height: 36rem;
 }
+
+/* A phone number never breaks at its hyphens. */
+a[href^="tel:"] { white-space: nowrap; }
 
 /* "In this section": the section's pages as one row of nav links that wraps on narrow screens;
    the link text lines up with the heading below it. */

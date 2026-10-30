@@ -7,14 +7,16 @@ nav: Request a field trip
 description: Ready to book your field experience? Fill out our request form to get started
 section: visit
 order: 5
+actions:
+  - label: Open Request Form
+    href: https://docs.google.com/forms/d/e/1FAIpQLSfoPfz_0S-LM9DZ0F_Ky5vqbdBTnVVE0S7dEB0DBM07v0lXdQ/viewform
+  - label: View Planning Guide
+    href: /visit/field-experiences/guide/
+    variant: ghost
 ---
 
-<!-- katie: review: the old page sent everyone straight to this Google Form, which still takes requests. The plan for the new site asked for an e-mail request instead until the site has its own form; both are here. Keep one, and check the e-mail wording ("Or e-mail …"), which is new. -->
-[Open Request Form](https://docs.google.com/forms/d/e/1FAIpQLSfoPfz_0S-LM9DZ0F_Ky5vqbdBTnVVE0S7dEB0DBM07v0lXdQ/viewform) — Google Form
-
+<!-- katie: review: the old page sent everyone straight to the Google Form behind "Open Request Form", which still takes requests. The plan for the new site asked for an e-mail request instead until the site has its own form; both are here. Keep one, and check the e-mail wording ("Or e-mail …"), which is new. The line under the heading ("Ready to book your field experience? …") is borrowed from the Book a Field Experience page: the old page's own lines only said it was redirecting. -->
 We'll work with you to create an unforgettable marine conservation experience for your students.
-
-[View Planning Guide](/visit/field-experiences/guide/)
 
 ## What to Expect in the Form
 
@@ -23,7 +25,7 @@ We'll work with you to create an unforgettable marine conservation experience fo
 - **Learning Objectives:** Curriculum goals and specific learning outcomes you'd like to achieve
 - **Contact Details:** Your contact information for scheduling and coordination
 
-Or e-mail these details to [info@wahoobay.org](mailto:info@wahoobay.org?subject=Field%20trip%20request).
+Or e-mail these details to [info@wahoobay.org](mailto:info@wahoobay.org?subject=Field%20trip%20request&body=School%20Information%3A%0D%0APreferred%20Dates%3A%0D%0ALearning%20Objectives%3A%0D%0AContact%20Details%3A%0D%0A).
 
 ## Before You Submit Your Request
 

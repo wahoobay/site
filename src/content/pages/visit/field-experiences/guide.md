@@ -5,14 +5,19 @@ nav: Field trip guide
 description: Access our comprehensive field trip planning guide for Wahoo Bay educational experiences
 section: visit
 order: 4
+actions:
+  - label: Access Field Trip Guide
+    href: https://docs.google.com/document/d/1_8pnuhRSJCz_1VGzQTA9Wzc0-UB0M-Qf/edit
+  - label: Watch Field Experience Video
+    href: /visit/field-experiences/video/
+    variant: ghost
 ---
 
 ## Comprehensive Planning Guide
 
 Download our detailed field trip planning guide with everything you need to know for your Wahoo Bay educational visit, including curriculum connections, safety guidelines, and hands-on activity plans.
 
-- [Access Field Trip Guide](https://docs.google.com/document/d/1_8pnuhRSJCz_1VGzQTA9Wzc0-UB0M-Qf/edit) — Google Document • Always up-to-date
-- [Watch Field Experience Video](/visit/field-experiences/video/)
+Google Document • Always up-to-date
 
 ## What's Included in the Guide
 

@@ -1,5 +1,5 @@
 ---
-// One page of the pages collection: its section's navigation, the h1, the lead, then the Markdown body.
+// One page of the pages collection: its section's navigation, the h1, the lead, its actions, then the Markdown body.
 import Base from './Base.astro';
 import { sectionPages, urlOf, type PageEntry } from '../lib/sections';
 
@@ -8,7 +8,7 @@ interface Props {
 }
 
 const { entry } = Astro.props;
-const { title, description, section, hero } = entry.data;
+const { title, description, section, hero, actions = [] } = entry.data;
 const here = urlOf(entry);
 const siblings = await sectionPages(section);
 
@@ -17,6 +17,9 @@ const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
 const body = flat(entry.body ?? '');
 const hasBody = body.replace(/<!--[\s\S]*?-->/g, '').trim() !== '';
 const showLead = !body.includes(flat(description));
+
+// A button to another site opens in a new tab and says so, like the nav's Donate.
+const isExternal = (href: string) => /^https?:\/\//.test(href);
 ---
 <Base title={title} description={description} image={hero}>
   {hero && <img class="site-article__hero" src={hero} alt="" fetchpriority="high">}
@@ -38,6 +41,17 @@ const showLead = !body.includes(flat(description));
     )}
     <h1>{title}</h1>
     {showLead && <p class="wb-lead">{description}</p>}
+    {actions.length > 0 && (
+      <div class="site-actions">
+        {actions.map(({ label, href, variant }) =>
+          isExternal(href) ? (
+            <a class={`wb-btn wb-btn--${variant}`} href={href} target="_blank" rel="noopener">{label}<span class="wb-sr-only"> (opens in a new tab)</span></a>
+          ) : (
+            <a class={`wb-btn wb-btn--${variant}`} href={href}>{label}</a>
+          ),
+        )}
+      </div>
+    )}
     {hasBody && <div class="wb-prose site-article__body"><slot /></div>}
   </div>
 </Base>

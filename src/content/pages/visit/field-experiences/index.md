@@ -1,11 +1,15 @@
 ---
-# From the old site's src/pages/other/BookFieldExperienceComprehensive.js. Its in-page "Experience Guide"
-# buttons are left out: the video, the guide and the request form each have their own page in this section.
+# From the old site's src/pages/other/BookFieldExperienceComprehensive.js. It opened with three buttons to its
+# own sections; the video, the guide and the request form now each have their own page in this section, and
+# the request button ("Request a Trip") leads the page.
 title: Book a Field Experience
 nav: Field experiences
 description: Discover immersive marine conservation education at Wahoo Bay Educational Marine Park
 section: visit
 order: 2
+actions:
+  - label: Request a Trip
+    href: /visit/field-experiences/request/
 ---
 
 ## From Classroom to Coastline—Learning Comes Alive at Wahoo Bay

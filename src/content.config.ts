@@ -19,6 +19,20 @@ const pages = defineCollection({
     order: z.number().optional(),
     /** A photo under public/ shown as the page's banner and used as its social-card image. */
     hero: z.string().optional(),
+    /**
+     * Up to three buttons under the lead: the page's main actions, where the old page led with buttons.
+     * `accent` is for Donate or Give only (the design keeps that colour for giving and "live now").
+     */
+    actions: z
+      .array(
+        z.object({
+          label: z.string(),
+          href: z.string(),
+          variant: z.enum(['action', 'accent', 'ghost']).default('action'),
+        }),
+      )
+      .max(3)
+      .optional(),
   }),
 });
 

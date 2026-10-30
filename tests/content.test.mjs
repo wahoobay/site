@@ -154,3 +154,45 @@ test('every site-relative link and image in the pages\' Markdown resolves to a b
     }
   }
 });
+
+// The buttons of a page: its `actions` row under the lead, and any .wb-btn link in the Markdown body.
+const mainOf = (html) => html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
+const actionsRow = (html) => html.match(/<div class="site-actions">([\s\S]*?)<\/div>/)?.[1] ?? '';
+const buttons = (html) =>
+  [...html.matchAll(/<a\b([^>]*\bclass="wb-btn wb-btn--(action|accent|ghost)"[^>]*)>([\s\S]*?)<\/a>/g)].map((m) => ({
+    attrs: m[1],
+    variant: m[2],
+    href: m[1].match(/\bhref="([^"]*)"/)?.[1] ?? '',
+    label: decode(m[3]),
+  }));
+
+test('every button on a Markdown page resolves; at most three actions; the accent is only for giving', () => {
+  for (const file of markdownFiles) {
+    const html = readFileSync(distOf(urlOf(file)), 'utf8');
+    const main = mainOf(html);
+    assert.ok(buttons(actionsRow(main)).length <= 3, `${file}: more than three actions`);
+    for (const { attrs, variant, href, label } of buttons(main)) {
+      const where = `${file}: "${label}" → ${href}`;
+      if (href.startsWith('#')) assert.match(main, new RegExp(`\\bid="${href.slice(1)}"`), where);
+      else if (href.startsWith('/')) assert.ok(existsSync(href.endsWith('/') ? distOf(href) : join('dist', href)), where);
+      else if (href.startsWith('mailto:') || href.startsWith('tel:')) assert.ok(href.length > 7, where);
+      else {
+        assert.match(href, /^https:\/\//, where);
+        assert.match(attrs, /\btarget="_blank"/, `${where}: opens in a new tab`);
+        assert.match(attrs, /\brel="noopener"/, where);
+        assert.match(label, /\(opens in a new tab\)$/, `${where}: says it opens a new tab`);
+      }
+      if (variant === 'accent') assert.match(label, /Donate|Give/, `${where}: the accent is for Donate only`);
+    }
+  }
+});
+
+test('the pages whose old version led with a button lead with it again', () => {
+  const first = (url) => buttons(actionsRow(mainOf(readFileSync(distOf(url), 'utf8'))))[0] ?? {};
+  assert.deepEqual(
+    (({ variant, label }) => ({ variant, label }))(first('/get-involved/support/')),
+    { variant: 'accent', label: 'Donate Now (opens in a new tab)' },
+  );
+  assert.equal(first('/visit/field-experiences/').variant, 'action');
+  assert.equal(first('/visit/field-experiences/request/').label, 'Open Request Form (opens in a new tab)');
+});

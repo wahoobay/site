@@ -5,6 +5,9 @@ nav: Field experience video
 description: Discover the immersive educational journey that awaits your students at Wahoo Bay
 section: visit
 order: 3
+actions:
+  - label: Watch Field Experience Video
+    href: https://drive.google.com/file/d/1we8bTFasa3lUPo-KXH-rBck9AuDCwKcu/view?usp=sharing
 ---
 
 ## Experience Marine Conservation Education

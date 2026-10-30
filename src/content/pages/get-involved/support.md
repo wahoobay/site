@@ -7,10 +7,14 @@ description: Your support connects students and communities with hands-on learni
 section: get-involved
 order: 3
 hero: /WB-1.jpg
+actions:
+  - label: Donate Now
+    href: https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-hero
+    variant: accent
+  - label: Explore Our Impact
+    href: "#our-impact-at-a-glance"
+    variant: ghost
 ---
-
-- [Donate Now](https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-hero)
-- [Explore Our Impact](#our-impact-at-a-glance)
 
 ## Our Impact at a Glance
 
@@ -57,9 +61,11 @@ Amounts shown reflect our current Zeffy giving campaign.
 - [Give $1,450 — Field Experience](https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-tier-1450): A complete Wahoo Bay field experience for ~25 students.
 
 <!-- katie: review: "Sponsor a School" opened the donation map on the old site, which the new site retires; it opens the Zeffy form here. Keep it, reword it, or drop it. -->
-- [Make a One-Time Gift](https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-onetime)
-- [Give Monthly](https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-monthly)
-- [Sponsor a School](https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2)
+<div class="site-actions">
+<a class="wb-btn wb-btn--ghost" href="https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-onetime" target="_blank" rel="noopener">Make a One-Time Gift<span class="wb-sr-only"> (opens in a new tab)</span></a>
+<a class="wb-btn wb-btn--ghost" href="https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-monthly" target="_blank" rel="noopener">Give Monthly<span class="wb-sr-only"> (opens in a new tab)</span></a>
+<a class="wb-btn wb-btn--ghost" href="https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2" target="_blank" rel="noopener">Sponsor a School<span class="wb-sr-only"> (opens in a new tab)</span></a>
+</div>
 
 Your donation is secure and tax-deductible.
 
@@ -72,7 +78,9 @@ Major gifts help us expand impact, strengthen our campus, advance research, and 
 - Conservation & Community-Science Initiatives
 - Underwater Cameras, Sensors & Research Equipment
 
-[Discuss a Major Gift](mailto:Katie@wahoobay.org)
+<div class="site-actions">
+<a class="wb-btn wb-btn--ghost" href="mailto:Katie@wahoobay.org">Discuss a Major Gift</a>
+</div>
 
 ![A manatee over the seagrass at Wahoo Bay](/images/get-involved/wb-3.jpg)
 
@@ -119,6 +127,8 @@ We are committed to transparency, accountability, and responsible stewardship of
 
 Your support today helps students, communities, and ecosystems thrive.
 
-[Support Wahoo Bay](https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-closing)
+<div class="site-actions">
+<a class="wb-btn wb-btn--action" href="https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-closing" target="_blank" rel="noopener">Support Wahoo Bay<span class="wb-sr-only"> (opens in a new tab)</span></a>
+</div>
 
 A copy of the official registration (registration no. CH47029) and financial information for the Shipwreck Park Inc. may be obtained from the Division of Consumer Services by calling toll free (800-435-7352) within the state. Registration does not imply endorsement, approval, or recommendation by the state.
