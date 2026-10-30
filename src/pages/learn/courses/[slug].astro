@@ -1,8 +1,10 @@
 ---
-// One course (the old /pages/courses/<slug>): the grades that list it, then its documents, each with what it is.
+// One course (the old /pages/courses/<slug>): a link back to /learn/, the grades that list it, then its documents,
+// each with what it is.
 // A document on another site opens in a new tab and says so; the site's own PDFs (/docs/…) open in place.
 import Base from '../../../layouts/Base.astro';
 import { allGrades, allLessons, gradesOf, gradeUrl, isExternal, KIND, type Lesson } from '../../../lib/lessons';
+import arrowLeft from '@wahoobay/design/icons/arrow-left.svg?raw';
 
 export async function getStaticPaths() {
   return (await allLessons()).map((lesson) => ({ params: { slug: lesson.slug }, props: { lesson } }));
@@ -15,21 +17,23 @@ interface Props {
 const { lesson } = Astro.props;
 const grades = gradesOf(lesson, await allGrades());
 const description = `${lesson.title}: a course for ${grades.map((g) => g.title).join(', ')}, from Wahoo Bay's educational resources.`;
+// The page is for its documents: the first is the primary action, any others are ghosts. A long label wraps.
+const button = (i: number) => `wb-btn ${i === 0 ? 'wb-btn--action' : 'wb-btn--ghost'} wb-btn--wrap`;
 ---
 <Base title={lesson.title} description={description}>
   <div class="wb-container site-article">
-    <p><a href="/learn/">&larr; Educational resources</a></p>
+    <a class="wb-back" href="/learn/"><Fragment set:html={arrowLeft} /> Educational resources</a>
     <h1>{lesson.title}</h1>
     <p class="site-course__for">For: {grades.map((grade, i) => (
       <>{i > 0 && ', '}<a href={gradeUrl(grade.slug)}>{grade.title}</a></>
     ))}</p>
     <ul class="site-course__links" role="list">
-      {lesson.links.map((link) => (
+      {lesson.links.map((link, i) => (
         <li>
           {isExternal(link.url) ? (
-            <a class="wb-btn wb-btn--ghost" href={link.url} target="_blank" rel="noopener">{link.label} <small>{KIND[link.kind]}</small><span class="wb-sr-only"> (opens in a new tab)</span></a>
+            <a class={button(i)} href={link.url} target="_blank" rel="noopener">{link.label} <span class="wb-btn__meta">{KIND[link.kind]}</span><span class="wb-sr-only"> (opens in a new tab)</span></a>
           ) : (
-            <a class="wb-btn wb-btn--ghost" href={link.url}>{link.label} <small>{KIND[link.kind]}</small></a>
+            <a class={button(i)} href={link.url}>{link.label} <span class="wb-btn__meta">{KIND[link.kind]}</span></a>
           )}
         </li>
       ))}

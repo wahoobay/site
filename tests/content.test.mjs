@@ -168,7 +168,7 @@ test('every site-relative link and image in the pages\' Markdown resolves to a b
 const mainOf = (html) => html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
 const actionsRow = (html) => html.match(/<div class="site-actions">([\s\S]*?)<\/div>/)?.[1] ?? '';
 const buttons = (html) =>
-  [...html.matchAll(/<a\b([^>]*\bclass="wb-btn wb-btn--(action|accent|ghost)"[^>]*)>([\s\S]*?)<\/a>/g)].map((m) => ({
+  [...html.matchAll(/<a\b([^>]*\bclass="wb-btn wb-btn--(action|accent|ghost)(?: wb-btn--wrap)?"[^>]*)>([\s\S]*?)<\/a>/g)].map((m) => ({
     attrs: m[1],
     variant: m[2],
     href: m[1].match(/\bhref="([^"]*)"/)?.[1] ?? '',
@@ -360,6 +360,17 @@ test('every grade page lists its courses; every course page has its links and li
     for (const url of lesson.urls) assert.ok(hrefIn(html, url), `${lesson.slug}: no link to ${url}`);
     for (const grade of lesson.grades) assert.ok(hrefIn(html, `/learn/${grade}/`), `${lesson.slug}: no link back to ${grade}`);
     assert.doesNotMatch(html, /\bwb-chip\b/, `${lesson.slug}: chips carry the accent, which is for "alive right now"`);
+  }
+});
+
+test('a course page\'s first document is its primary action; any others are ghosts (finish review, fix 4)', () => {
+  assert.ok(lessons.length > 0, 'there are lessons');
+  for (const lesson of lessons) {
+    const html = readFileSync(distOf(`/learn/courses/${lesson.slug}/`), 'utf8');
+    const links = html.match(/<ul class="site-course__links"[\s\S]*?<\/ul>/)?.[0] ?? '';
+    const variants = [...links.matchAll(/<a class="wb-btn wb-btn--(\w+)\b/g)].map((m) => m[1]);
+    assert.equal(variants.length, lesson.urls.length, `${lesson.slug}: one button per document`);
+    assert.deepEqual(variants, variants.map((_, i) => (i === 0 ? 'action' : 'ghost')), lesson.slug);
   }
 });
 

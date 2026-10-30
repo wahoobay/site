@@ -1,9 +1,10 @@
 ---
-// One news post: the h1, its date, its photo, the Markdown body and a link back to /news/.
+// One news post: a link back to /news/, the h1, its date, its photo and the Markdown body.
 import Base from './Base.astro';
 import { isoDay, longDay } from '../lib/dates';
 import { publicImageSize } from '../lib/public-image.mjs';
 import type { CollectionEntry } from 'astro:content';
+import arrowLeft from '@wahoobay/design/icons/arrow-left.svg?raw';
 
 interface Props {
   entry: CollectionEntry<'news'>;
@@ -15,7 +16,7 @@ const size = image ? await publicImageSize(image) : undefined;
 ---
 <Base title={title} description={description} image={image}>
   <div class="wb-container site-article">
-    <p><a href="/news/">&larr; All news</a></p>
+    <a class="wb-back" href="/news/"><Fragment set:html={arrowLeft} /> All news</a>
     <h1>{title}</h1>
     <p><time datetime={isoDay(date)}>{longDay(date)}</time></p>
     {image && size && <img class="site-post__image" src={image} width={size.width} height={size.height} alt="" fetchpriority="high">}

@@ -2,6 +2,7 @@
 // One grade of the old site's Educational resources (/pages/education/<old name>): its courses, by title.
 import Base from '../../layouts/Base.astro';
 import { allGrades, allLessons, lessonUrl, KIND, type Grade, type LessonLink } from '../../lib/lessons';
+import arrowLeft from '@wahoobay/design/icons/arrow-left.svg?raw';
 
 export async function getStaticPaths() {
   return (await allGrades()).map((grade) => ({ params: { grade: grade.slug }, props: { grade } }));
@@ -19,7 +20,7 @@ const formats = (links: LessonLink[]) => [...new Set(links.map((link) => KIND[li
 ---
 <Base title={grade.title} description={description}>
   <div class="wb-container site-article">
-    <p><a href="/learn/">&larr; Educational resources</a></p>
+    <a class="wb-back" href="/learn/"><Fragment set:html={arrowLeft} /> Educational resources</a>
     <h1>{grade.title}</h1>
     <ul class="site-courses" role="list">
       {courses.map((course) => (
