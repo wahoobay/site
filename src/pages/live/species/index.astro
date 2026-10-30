@@ -1,0 +1,83 @@
+---
+// /live/species/: every species in the committed snapshot of the Java API's lists (src/data/, written by hand with
+// `npm run sync:species`), grouped by category, each with its clips. Static: no script, and the browser never asks the
+// API for the lists; the thumbnails load from the API's image proxy or YouTube. Light page.
+import Base from '../../../layouts/Base.astro';
+import species from '../../../data/species.json';
+import media from '../../../data/media.json';
+import { categoryId, groupByCategory, initials, mediaFor } from '../../../lib/species.mjs';
+
+type Kind = 'image' | 'video';
+// katie: review (new link labels: a clip's link says what it is, numbered when a species has two of a kind; the hidden
+// words after it name the species and say it opens in a new tab, as the site's other new-tab links do)
+const KIND_LABEL: Record<Kind, string> = { image: 'Photo', video: 'Video' };
+// katie: review (the old page's meta description, verbatim)
+const description = 'Photos and video clips of every species the Wahoo Bay underwater cameras and volunteers have recorded';
+
+const card = (s: (typeof species)[number]) => {
+  const name = s.common_name ?? s.scientific_name;
+  const clips = mediaFor(s.id, media);
+  const label = (c: (typeof clips)[number]) => {
+    const same = clips.filter((x) => x.kind === c.kind);
+    const word = KIND_LABEL[c.kind as Kind];
+    return same.length > 1 ? `${word} ${same.indexOf(c) + 1}` : word;
+  };
+  return {
+    ...s,
+    name,
+    initials: initials(name),
+    thumb: clips.find((c) => c.thumb)?.thumb ?? null,
+    clips: clips.map((c) => ({ url: c.url, label: label(c) })),
+  };
+};
+
+// A category with no species has no heading: an empty "Shark & Ray" would say none were seen, and the API files the
+// sharks and rays it has under Fish.
+const groups = [...groupByCategory(species)]
+  .filter(([, list]) => list.length > 0)
+  .map(([title, list]) => ({ title, id: categoryId(title), cards: list.map(card) }));
+---
+<Base title="Species" description={description}>
+  <div class="wb-container site-article">
+    <!-- katie: review (new heading: the old page was "Species Photos & Videos") -->
+    <h1 id="species-title">Species</h1>
+    <!-- katie: review (the old gallery's lead, its first sentence; its second described the filters and votes this page does not have) -->
+    <p class="wb-lead">Photos and video clips from the Wahoo Bay underwater cameras and volunteers — pulled straight from the archive.</p>
+    <nav class="site-subnav site-species__jump" aria-labelledby="species-title">
+      <ul>
+        {groups.map((g) => (
+          <li><a class="wb-nav__link" href={`#${g.id}`}>{g.title}</a></li>
+        ))}
+      </ul>
+    </nav>
+    {groups.map((g) => (
+      <section class="site-species__group" aria-labelledby={g.id}>
+        <!-- katie: review (new heading: the old gallery's category) -->
+        <h2 id={g.id}>{g.title}</h2>
+        <ul class="site-species" role="list">
+          {g.cards.map((s) => (
+            <li class="wb-card site-species__card">
+              {s.thumb ? (
+                <img class="wb-card__media site-species__media" src={s.thumb} alt="" loading="lazy" decoding="async">
+              ) : (
+                <span class="wb-initials site-species__media" aria-hidden="true">{s.initials}</span>
+              )}
+              <div class="wb-card__body">
+                {s.common_name ? <h3>{s.common_name}</h3> : <h3><i>{s.scientific_name}</i></h3>}
+                {s.common_name && <p><i>{s.scientific_name}</i></p>}
+                {s.conservation_status && <p class="site-species__status"><span class="wb-chip">{s.conservation_status}</span></p>}
+                {s.clips.length > 0 && (
+                  <ul class="site-species__clips" role="list">
+                    {s.clips.map((c) => (
+                      <li><a href={c.url} target="_blank" rel="noopener">{c.label}<span class="wb-sr-only">: {s.name} (opens in a new tab)</span></a></li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </div>
+</Base>

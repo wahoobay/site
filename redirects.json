@@ -34,7 +34,7 @@
   {"from":"/pages/faq","to":"/learn/faq/"},
   {"from":"/pages/field-experience-video","to":"/visit/field-experiences/video/"},
   {"from":"/pages/field-trip-guide","to":"/visit/field-experiences/guide/"},
-  {"from":"/pages/fish-photos-videos","to":"/live/"},
+  {"from":"/pages/fish-photos-videos","to":"/live/species/"},
   {"from":"/pages/home","to":"/"},
   {"from":"/pages/intake/report","to":"/live/"},
   {"from":"/pages/login","to":"/sign-in/"},

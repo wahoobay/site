@@ -299,3 +299,45 @@ main { flex: 1 0 auto; }
 .site-dashboard { margin-top: var(--wb-space-6); }
 .site-dashboard .wb-video,
 .site-dashboard .wb-btn { margin-top: var(--wb-space-4); }
+
+/* Species: the category list under the lead, then each category's heading over its cards, two a row on phones, three
+   from 36rem, four from 48rem, five from 64rem. A card is a grid, not the design's side-by-side flex, so its picture
+   is over its words at every width and the cards of a row line up. The picture, a thumbnail or the design's initials
+   square, is a square as wide as the card; a thumbnail is cropped to it, never stretched. */
+.site-species__jump { margin-top: var(--wb-space-5); }
+.site-species__group { margin-top: var(--wb-space-6); }
+.site-species {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--wb-space-4);
+  margin: var(--wb-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 36rem) {
+  .site-species { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 48rem) {
+  .site-species { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 64rem) {
+  .site-species { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+.site-species__card {
+  display: grid;
+  align-content: start;
+}
+.site-species__media {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+.site-species__status,
+.site-species__clips { margin-top: var(--wb-space-2); }
+.site-species__clips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wb-space-1) var(--wb-space-3);
+  padding: 0;
+  list-style: none;
+}
