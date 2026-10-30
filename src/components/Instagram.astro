@@ -2,8 +2,9 @@
 // The home page's Instagram strip: the four latest posts from the Wahoo Bay API (the old home page's
 // InstagramFeedSection.js). The build ships four empty cards; the inline script fills them in the browser, and takes
 // the whole section away when there is nothing to show: no fetch, a failed or non-OK response, a refused envelope,
-// no posts, or no answer within ten seconds. It is the site's only client script (is:inline keeps it in the page).
-// Captions are set as text, never parsed as HTML; links and pictures must be https.
+// no posts, or no answer within ten seconds. A card whose picture fails to load is taken away, and the strip goes
+// when fewer than two cards are left. It is the site's only client script (is:inline keeps it in the page).
+// Captions are set as text, never parsed as HTML, and cut at a word boundary; links and pictures must be https.
 const cards = [1, 2, 3, 4];
 ---
 <section class="wb-container site-instagram" id="instagram" aria-labelledby="instagram-title">
@@ -18,18 +19,36 @@ const cards = [1, 2, 3, 4];
       var list = section.querySelector('ul');
       var cards = section.querySelectorAll('.site-instagram__post');
       var settled = false;
+      var gone = false;
       function hide() {
         settled = true;
+        gone = true;
         section.remove();
+      }
+      // Takes one card away; fewer than two cards are not a strip, so then the section goes too.
+      function drop(card) {
+        if (gone) return;
+        card.remove();
+        if (list.querySelectorAll('.site-instagram__post').length < 2) hide();
+      }
+      function dropWhenItFails(card) {
+        return function () { drop(card); };
       }
       if (typeof window.fetch !== 'function') return hide();
       var timer = setTimeout(function () { if (!settled) hide(); }, 10000);
       var https = function (url) { return typeof url === 'string' && url.indexOf('https://') === 0; };
       var picture = function (post) { return post.media_type === 'VIDEO' ? post.thumbnail_url : post.media_url; };
+      // At most 90 characters, cut at the last space within them (never inside a word), then an ellipsis. A caption
+      // with no space to cut at gives '', so the card says "Instagram post".
       var words = function (caption) {
         var text = String(caption || '').replace(/\s+/g, ' ').trim();
         var chars = Array.from ? Array.from(text) : text.split('');
-        return chars.length > 90 ? chars.slice(0, 90).join('').trim() + '…' : text;
+        if (chars.length <= 90) return text;
+        var head = chars.slice(0, 91).join('');
+        var end = head.lastIndexOf(' ');
+        if (end <= 0) return '';
+        var kept = head.slice(0, end).replace(/[\s,;:.!?\u2013\u2014-]+$/, '');
+        return kept ? kept + '…' : '';
       };
       window
         .fetch('https://api.wahoobay.net/api/v1/instagram/posts/latest', { headers: { Accept: 'application/json' } })
@@ -45,7 +64,7 @@ const cards = [1, 2, 3, 4];
           for (var i = 0; i < cards.length; i++) {
             var post = posts[i];
             if (!post) {
-              cards[i].remove();
+              drop(cards[i]);
               continue;
             }
             var link = document.createElement('a');
@@ -55,6 +74,7 @@ const cards = [1, 2, 3, 4];
             link.rel = 'noopener';
             var img = document.createElement('img');
             img.className = 'wb-card__media';
+            img.addEventListener('error', dropWhenItFails(cards[i]));
             img.src = picture(post);
             img.alt = '';
             img.width = 320;
