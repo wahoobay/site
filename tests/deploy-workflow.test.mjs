@@ -28,7 +28,7 @@ test('production release tags use the site-prod- prefix', () => {
 
 test('node comes from .nvmrc and the build step runs before any deploy', () => {
   assert.match(yml, /node-version-file: \.nvmrc/);
-  assert.match(yml, /npm ci && npm run build && npm test && npm run check/);
+  assert.match(yml, /npm ci && npm run build && npm test && npm run check && npm run check:links/);
   assert.ok(yml.indexOf('npm run check') < yml.indexOf('scripts/deploy.sh staging'));
 });
 

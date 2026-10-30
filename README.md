@@ -12,10 +12,11 @@ npm run dev         # local server with live reload, http://localhost:4321
 npm run build       # type-check (astro check), then build the site into dist/
 npm test            # node --test 'tests/*.test.mjs', against dist/ (build first)
 npm run check       # the Impeccable design detector on dist/
+npm run check:links # every internal link and image in dist/ resolves
 npm run preview     # serve dist/ locally
 ```
 
-CI runs `npm ci`, `npm run build`, `npm test` and `npm run check` on every pull request and on every push to `main`; all four must pass. Deploys (`deploy:staging`, `deploy:prod`) go through GitHub Actions only, never from a laptop.
+CI runs `npm ci`, `npm run build`, `npm test`, `npm run check` and `npm run check:links` on every pull request and on every push to `main`; all five must pass. Deploys (`deploy:staging`, `deploy:prod`) go through GitHub Actions only, never from a laptop.
 
 ## Where things go
 
@@ -23,6 +24,6 @@ Page copy goes in `src/content/` as Markdown, JSON or YAML, one file per page or
 
 ## Deploying
 
-The `deploy` workflow (`.github/workflows/deploy.yml`) is the only way to deploy. A push to `main` builds, tests and deploys to staging (`staging.wahoobay.net`, behind Basic auth), then verifies it. Production is a manual dispatch with a commit SHA that is already on `main` and the word `deploy` to confirm; it records a `site-prod-…` release.
+The `deploy` workflow (`.github/workflows/deploy.yml`) is the only way to deploy. A push to `main` builds, tests, runs the design check (`npm run check`) and the link check (`npm run check:links`), and deploys to staging (`staging.wahoobay.net`, behind Basic auth), then verifies it. Production is a manual dispatch with a commit SHA that is already on `main` and the word `deploy` to confirm; it records a `site-prod-…` release.
 
 It reads these repository variables: `STAGING_ROLE_ARN`, `STAGING_BUCKET`, `STAGING_DISTRIBUTION_ID`, `STAGING_KVS_ARN`, `STAGING_HOSTNAME`, and the secret `STAGING_BASIC_AUTH`; production uses the `PROD_*` variables (`PROD_ROLE_ARN`, `PROD_BUCKET`, `PROD_DISTRIBUTION_ID`, `PROD_KVS_ARN`, `PROD_DISTRIBUTION_DOMAIN`). Their values are the outputs of the `site-wahoobay-staging` and `site-wahoobay-prod` stacks.

@@ -7,7 +7,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist");
+// Optional first argument: the directory to check (default: dist/ at the repo root).
+const OUT = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist");
 
 function walk(dir, acc = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

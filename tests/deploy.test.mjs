@@ -16,6 +16,7 @@ function runDeploy(envName) {
   const log = join(dir, 'aws.log');
   writeFileSync(join(dir, 'bin/aws'), `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "${log}"
+case "$*" in s3\\ sync*) echo "$(tr '\\n' ' ' < dist/robots.txt 2>/dev/null)" >> "${log}.robots";; esac
 case "$*" in
   *list-keys*) echo '{"Items": []}';;
   *describe-key-value-store*) echo '{"ETag": "e1"}';;
@@ -29,7 +30,9 @@ esac
     encoding: 'utf8',
   });
   assert.equal(res.status, 0, res.stderr);
-  return readFileSync(log, 'utf8').trim().split('\n');
+  const lines = readFileSync(log, 'utf8').trim().split('\n');
+  lines.robotsAtSync = readFileSync(`${log}.robots`, 'utf8').trim().split('\n');
+  return lines;
 }
 
 test('both sync passes delete what the build no longer produces', () => {
@@ -39,7 +42,10 @@ test('both sync passes delete what the build no longer produces', () => {
   assert.match(syncs[1], /--include \*\.html/);
 });
 
-test('staging overrides robots.txt after the sync, production does not', () => {
-  assert.ok(runDeploy('staging').some((l) => l.startsWith('s3 cp - s3://b/robots.txt')));
-  assert.ok(!runDeploy('prod').some((l) => l.includes('robots.txt')));
+test('staging disallows everything from the first sync on; production ships the built robots.txt', () => {
+  const staging = runDeploy('staging');
+  assert.equal(staging.robotsAtSync.length, 2);
+  for (const r of staging.robotsAtSync) assert.equal(r.trim(), 'User-agent: * Disallow: /');
+  assert.ok(!staging.some((l) => l.startsWith('s3 cp ')), 'no after-the-fact robots upload');
+  for (const r of runDeploy('prod').robotsAtSync) assert.equal(r.trim(), '');
 });
