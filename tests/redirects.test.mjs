@@ -54,3 +54,20 @@ test('no from twice once the trailing slash is stripped, and no redirect chains'
   assert.equal(new Set(froms).size, froms.length);
   for (const { from, to } of redirects) assert.ok(!froms.includes(bare(to)), `${from} -> ${to} is itself redirected`);
 });
+
+test('the old interactive URLs and /pages/about, /pages/donate land on their new pages; /pages/ai stays unmapped', () => {
+  const required = {
+    '/pages/powerbi/overview': '/live/data/',
+    '/pages/dashpage': '/live/data/',
+    '/pages/intake/report': '/live/log-a-sighting/',
+    '/pages/fish-photos-videos': '/live/species/',
+    '/pages/mapbox': '/visit/map/',
+    '/pages/map': '/visit/map/',
+    '/pages/best-of-video': '/live/highlights/',
+    '/pages/underwater-camera': '/live/',
+    '/pages/about': '/about/',
+    '/pages/donate': '/get-involved/support/',
+  };
+  for (const [from, target] of Object.entries(required)) assert.equal(to(from), target, from);
+  assert.equal(to('/pages/ai'), undefined, '/pages/ai awaits Katie');
+});

@@ -1,4 +1,5 @@
 [
+  {"from":"/pages/about","to":"/about/"},
   {"from":"/pages/ambassador-learn-more","to":"/get-involved/ambassadors/"},
   {"from":"/pages/become-ambassador","to":"/get-involved/ambassadors/"},
   {"from":"/pages/best-of-video","to":"/live/highlights/"},
@@ -23,6 +24,7 @@
   {"from":"/pages/courses/university-partner-opportunities","to":"/learn/courses/university-partner-opportunities/"},
   {"from":"/pages/dashpage","to":"/live/data/"},
   {"from":"/pages/dive-in/donation-sandbox","to":"/get-involved/support/"},
+  {"from":"/pages/donate","to":"/get-involved/support/"},
   {"from":"/pages/donation-map","to":"/get-involved/support/"},
   {"from":"/pages/education","to":"/learn/"},
   {"from":"/pages/education/Art%20&%20Science","to":"/learn/art-and-science/"},
