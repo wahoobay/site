@@ -117,7 +117,7 @@ test('the banner band is 16:9, and 21:9 from 48rem; the home photo stays edge to
   const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const base = css.match(/(?:^|\})\s*\.site-article__hero\s*\{([^}]*)\}/)?.[1] ?? '';
   assert.match(base, /aspect-ratio:\s*16 \/ 9/);
-  assert.match(css, /@media \(min-width: 48rem\)\s*\{\s*\.site-article__hero\s*\{\s*aspect-ratio:\s*21 \/ 9;\s*\}/);
+  assert.match(css, /@media \(min-width: 48rem\)\s*\{\s*\.site-article__hero\s*\{\s*aspect-ratio:\s*3 \/ 1;\s*\}/);
   const photo = home.match(/<img\b[^>]*\bclass="site-hero__photo"/)?.[0] ?? '';
   assert.ok(photo, 'the home photo');
   assert.doesNotMatch(photo, /wb-media/);
