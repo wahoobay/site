@@ -458,7 +458,7 @@
   {
     "id": 169,
     "common_name": "Florida Mantis Shrimp",
-    "scientific_name": "Neogonodactylus Wennerae",
+    "scientific_name": "Neogonodactylus wennerae",
     "family": "Gonodactylidae",
     "category": "Invertebrate",
     "conservation_status": null
@@ -1306,7 +1306,7 @@
   {
     "id": 52,
     "common_name": "Spotted Porcupinefish",
-    "scientific_name": "Diodon Hystrix",
+    "scientific_name": "Diodon hystrix",
     "family": "Diodontidae",
     "category": null,
     "conservation_status": null

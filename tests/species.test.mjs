@@ -169,6 +169,14 @@ test('a clip\'s link: only the allow-listed hosts, no query parameter but v and 
   }
 });
 
+// The committed snapshot as the sync writes it now (Ruling AE; final review, minor 3), and the page from it.
+test('the snapshot: every scientific name as "Genus species", every clip\'s link in its allow-listed form', () => {
+  for (const s of species) assert.equal(s.scientific_name, binomial(s.scientific_name), `species ${s.id}`);
+  assert.doesNotThrow(() => assertLinks(media));
+  const html = read('dist/live/species/index.html');
+  assert.ok(html.includes('<i>Diodon hystrix</i>') && !html.includes('Diodon Hystrix'), 'the page prints the normalised name');
+});
+
 // Ruling N: no placeholder row is public. These patterns are the ruling's, kept here apart from the script's own list.
 test('no row of the snapshot is a placeholder or a test entry', () => {
   const placeholder = (name) => name !== null && (/^TBC\b/i.test(name) || /\btest\b/i.test(name) || /^homo sapiens$/i.test(name.trim()));
