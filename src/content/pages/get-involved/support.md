@@ -6,7 +6,7 @@ nav: Support us
 description: Your support connects students and communities with hands-on learning, conservation, emerging technology, and career pathways.
 section: get-involved
 order: 3
-hero: /WB-1.jpg
+hero: /images/get-involved/parade.jpg
 actions:
   - label: Donate Now
     href: https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-hero

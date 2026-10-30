@@ -5,7 +5,7 @@ nav: Ways to visit
 description: Wahoo Bay sits within the Hillsboro Inlet at Roy L. Rogers Family Park. Daily visits, monthly open snorkels, and guided programs are managed by Pompano Beach Parks and Recreation.
 section: visit
 order: 1
-hero: /WB-1.jpg
+hero: /images/about/2024-pxl_20250611_144923455.mp.jpg
 ---
 
 - **Open daily: 10 am – 4 pm.** Open swim daily, subject to change for private events. No lifeguard on duty — swim at your own risk.

@@ -7,4 +7,5 @@ nav: Get involved
 description: Join our conservation mission and inspire others to protect marine ecosystems.
 section: get-involved
 order: 1
+hero: /images/about/2025-gd-wb-816-lwb-06.jpg
 ---

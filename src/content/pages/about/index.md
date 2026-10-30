@@ -6,6 +6,7 @@ nav: Our story
 description: Wahoo Bay is a public marine education park at the Hillsboro Inlet, inspiring ocean literacy through hands-on learning, immersive field experiences, and community conservation.
 section: about
 order: 1
+hero: /images/about/2019-hillsboro-inlet-1947.jpg
 ---
 
 <!-- katie: review: this page joins the old "Sea Our Start" and "Our Stories" pages under one title, "Our story". Its Mission part repeats the Mission page (/about/mission/) almost word for word, as the old page did: keep it here, there, or both. -->
