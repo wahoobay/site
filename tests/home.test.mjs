@@ -1,4 +1,6 @@
-// Run after `npm run build`: the home page. The hero panel is raised over its photograph (finish review, fix 3).
+// Run after `npm run build`: the home page, in the Deep Field presentation (@wahoobay/design 0.2.1, spec §4.3): the
+// stage (the headline on a full-height photograph, the nav over its top), the dark live band, the four impact figures,
+// the photo doorways, the map teaser on the park aerial, the news teaser, the Instagram strip and the dark footer.
 // The Instagram script runs against a small stand-in for the DOM (fix 5 and note 3): a picture that fails takes its card away, the strip goes when fewer than two cards
 // are left, and a caption is cut at a word boundary, never inside a word.
 import { test } from 'node:test';
@@ -78,12 +80,166 @@ const post = (n, caption = `Post ${n}`) => ({
   caption,
 });
 
-test('the hero panel is the raised panel over the photograph; its buttons may wrap', () => {
-  assert.match(html, /<div class="wb-panel wb-panel--raised site-hero__panel">/);
-  const actions = html.match(/<div class="site-hero__actions">([\s\S]*?)<\/div>/)?.[1] ?? '';
-  const buttons = actions.match(/<a class="wb-btn [^"]*"/g) ?? [];
-  assert.equal(buttons.length, 2);
-  for (const a of buttons) assert.match(a, /\bwb-btn--wrap\b/, a);
+const home = () => html;
+const STAGING_AI = 'https://staging-ai.wahoobay.net/';
+const AI_URL = process.env.PUBLIC_AI_URL ?? STAGING_AI;
+const frontMatterField = (file, name) => {
+  const raw = readFileSync(file, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1].match(new RegExp(`^${name}:\\s*(.*)$`, 'm'))?.[1].trim() ?? '';
+  return raw.startsWith('"') ? JSON.parse(raw) : raw;
+};
+const escapeHtml = (text) => text.replaceAll('&', '&amp;').replaceAll("'", '&#39;').replaceAll('"', '&quot;');
+const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+test('home opens on a full-height stage with the headline on the photograph', () => {
+  const html = home();
+  assert.match(html, /<section class="wb-stage[^"]*"/);
+  assert.match(html, /<h1 class="wb-stage__title"[^>]*>Art\. Conservation\. Education<\/h1>/);
+  // The nav is the site's <nav aria-label="Main"> (tests/build.test.mjs, tests/nav.test.mjs), laid over the stage.
+  assert.match(html, /<nav class="wb-nav wb-nav--over"/);
+  const stage = html.match(/<section class="wb-stage[^"]*"[\s\S]*?<\/section>/)?.[0] ?? '';
+  assert.match(stage, /<img class="wb-stage__photo[^"]*" src="\/images\/about\/2025-gd-wb-816-lwb-06\.jpg"/);
+  assert.match(stage, /<div class="wb-stage__scrim"><\/div>/);
+  assert.match(stage, /<p class="wb-stage__lead"[^>]*>Wahoo Bay is a public marine education park at the Hillsboro Inlet, inspiring ocean literacy through hands-on learning, immersive field experiences, and community conservation\.<\/p>/);
+  const actions = stage.match(/<div class="wb-stage__actions">([\s\S]*?)<\/div>/)?.[1] ?? '';
+  const buttons = [...actions.matchAll(/<a class="(wb-btn [^"]*)" href="([^"]+)">([^<]+)<\/a>/g)].map((m) => m.slice(1));
+  assert.deepEqual(buttons.map(([, href, label]) => [href, label]), [['/visit/', 'Explore Wahoo Bay'], ['/live/', 'Underwater Camera']]);
+  assert.match(buttons[0][0], /\bwb-btn--action\b/);
+  assert.match(buttons[1][0], /\bwb-btn--ghost\b/);
+});
+
+test('the live band is the one dark surface and links to the camera, Fish ID and the reel', () => {
+  const band = home().match(/<section class="wb-band[^"]*" data-theme="dark"[\s\S]*?<\/section>/)[0];
+  assert.match(band, /class="wb-live"/);
+  assert.match(band, /href="\/live\/"/);
+  assert.match(band, new RegExp(`href="${escapeRe(AI_URL)}"`));
+  assert.match(band, /href="\/live\/highlights\/"/);
+  assert.doesNotMatch(band, /min ago|°C/); // no sample data in production
+  // The badge sits on the still, positioned by layout CSS (.wb-video clips and does not position its children).
+  assert.match(band, /<div class="wb-video site-band__still">\s*<img\b[^>]*\bsrc="\/images\/learn\/wb-camera\.jpg"[^>]*>[\s\S]*?<span class="wb-live"[^>]*>Live<\/span>\s*<\/div>/);
+  // The words are the camera page's own: its title and description.
+  const camera = 'src/content/live/camera.md';
+  assert.match(band, new RegExp(`<h2[^>]*>${escapeRe(escapeHtml(frontMatterField(camera, 'title')))}</h2>`));
+  assert.match(band, new RegExp(`<p class="wb-lead">${escapeRe(escapeHtml(frontMatterField(camera, 'description')))}</p>`));
+  const labels = [...band.matchAll(/<a class="wb-btn[^"]*"[^>]*>([^<]+)/g)].map((m) => m[1]);
+  assert.deepEqual(labels, ['Watch live', 'Fish ID dashboard', 'Best of the reef']);
+  // The one dark surface in the page's main content; the page itself stays light.
+  const main = home().match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
+  assert.equal(main.match(/data-theme="dark"/g)?.length, 1);
+  assert.doesNotMatch(home(), /<html\b[^>]*data-theme=/);
+});
+
+test('the four figures come from figures.json and match the Support page', () => {
+  const figures = JSON.parse(readFileSync('src/content/figures.json', 'utf8'));
+  assert.equal(figures.length, 4);
+  const support = readFileSync('src/content/pages/get-involved/support.md', 'utf8');
+  for (const f of figures) assert.match(support, new RegExp(`\\*\\*${f.value.toLocaleString('en-US')}\\*\\* ${f.label}`));
+  const html = home();
+  for (const f of figures) assert.match(html, new RegExp(`<b class="wb-figure__value"[^>]*>${f.value.toLocaleString('en-US')}</b>`));
+  const block = html.match(/<div class="wb-figures">[\s\S]*?<\/div>\s*<\/section>/)?.[0] ?? '';
+  const pairs = [...block.matchAll(/<div class="wb-figure"><b class="wb-figure__value"[^>]*>([^<]+)<\/b><span class="wb-figure__label">([^<]+)<\/span><\/div>/g)];
+  assert.deepEqual(pairs.map((m) => [m[1], m[2]]), figures.map((f) => [f.value.toLocaleString('en-US'), f.label]));
+});
+
+test('three photo doorways, three news items, the map teaser on the aerial, a dark footer', () => {
+  const html = home();
+  assert.equal((html.match(/<a class="wb-door"/g) || []).length, 3);
+  assert.equal((html.match(/<a class="wb-feature"/g) || []).length, 1);
+  // The design has no map-teaser component: the band is site layout on the design's raised panel and media.
+  assert.match(html, /class="site-map-teaser[\s\S]*?\/WB-1\.jpg/);
+  assert.match(html, /<footer class="wb-footer[^"]*" data-theme="dark"/);
+});
+
+test('the doorways keep their three sections, sentences and photos', () => {
+  const doors = [...home().matchAll(/<a class="wb-door" href="([^"]+)">\s*<img class="wb-door__photo" src="([^"]+)"[^>]*>\s*<div class="wb-door__body"><h2 class="wb-door__title"[^>]*>([^<]+)<\/h2><p class="wb-door__text"[^>]*>([^<]+)<\/p><\/div>\s*<\/a>/g)];
+  assert.deepEqual(doors.map((m) => m.slice(1)), [
+    ['/visit/', '/images/home/diver.jpg', 'Visit', 'Wahoo Bay sits within the Hillsboro Inlet at Roy L. Rogers Family Park.'],
+    ['/learn/', '/images/home/students.jpg', 'Learn', 'Explore the many educational resources available right here on our website.'],
+    ['/get-involved/', '/images/home/manatee.jpg', 'Get involved', 'Join our conservation mission and inspire others to protect marine ecosystems.'],
+  ]);
+});
+
+test('the map teaser is the map page\'s title and description on a raised panel, with one action and the map still', () => {
+  const teaser = home().match(/<section class="site-map-teaser"[\s\S]*?<\/section>/)?.[0] ?? '';
+  assert.match(teaser, /^<section class="site-map-teaser"[^>]*>\s*<img\b[^>]*\bclass="site-map-teaser__photo"/);
+  assert.match(teaser, /<img\b[^>]*\bsrc="\/WB-1\.jpg"[^>]*\balt=""/);
+  const panel = teaser.match(/<div class="wb-panel wb-panel--raised[^"]*">([\s\S]*?)<\/div>/)?.[1] ?? '';
+  const map = 'src/content/pages/visit/map.md';
+  assert.match(panel, new RegExp(`<h2[^>]*>${escapeRe(escapeHtml(frontMatterField(map, 'title')))}</h2>`));
+  assert.match(panel, new RegExp(`<p>${escapeRe(escapeHtml(frontMatterField(map, 'description')))}</p>`));
+  const links = [...teaser.matchAll(/<a\b[^>]*\bhref="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(links, [['/visit/map/', 'Open the map']]);
+  assert.match(teaser, /<img class="wb-media[^"]*" src="\/images\/map\.png"[^>]*\balt="Map of Wahoo Bay"/);
+  assert.doesNotMatch(home(), /log-a-sighting/, 'the sighting page arrives with Task 7');
+});
+
+test('the news teaser is the three newest posts: one feature, then two cards; its heading links to /news/', async () => {
+  const { readdirSync } = await import('node:fs');
+  const posts = readdirSync('src/content/news')
+    .filter((name) => name.endsWith('.md'))
+    .map((name) => ({ slug: name.slice(0, -3), file: `src/content/news/${name}` }))
+    .map((p) => ({ ...p, date: frontMatterField(p.file, 'date'), title: frontMatterField(p.file, 'title'), description: frontMatterField(p.file, 'description'), image: frontMatterField(p.file, 'image') }))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 3);
+  const news = home().match(/<section\b[^>]*aria-labelledby="news-title"[\s\S]*?<\/section>/)?.[0] ?? '';
+  assert.match(news, /<h2 id="news-title"><a href="\/news\/">News<\/a><\/h2>/);
+  const feature = news.match(/<a class="wb-feature"[\s\S]*?<\/a>/)?.[0] ?? '';
+  assert.match(feature, new RegExp(`^<a class="wb-feature" href="/news/${posts[0].slug}/">`));
+  assert.match(feature, new RegExp(`<img class="wb-feature__photo" src="${escapeRe(posts[0].image)}"[^>]*\\balt=""`));
+  assert.match(feature, new RegExp(`<h3 class="wb-feature__title"[^>]*>${escapeRe(escapeHtml(posts[0].title))}</h3>`));
+  assert.match(feature, new RegExp(`<p class="wb-feature__text"[^>]*>${escapeRe(escapeHtml(posts[0].description))}</p>`));
+  const cards = [...news.matchAll(/<a class="wb-card" href="([^"]+)">([\s\S]*?)<\/a>/g)];
+  assert.deepEqual(cards.map((m) => m[1]), posts.slice(1).map((p) => `/news/${p.slug}/`));
+  cards.forEach(([, , body], i) => {
+    assert.match(body, new RegExp(`<h3>${escapeRe(escapeHtml(posts[i + 1].title))}</h3>`));
+    assert.match(body, new RegExp(`<p>${escapeRe(escapeHtml(posts[i + 1].description))}</p>`));
+    if (posts[i + 1].image) assert.match(body, /<img class="wb-card__media"[^>]*\balt=""/);
+  });
+});
+
+test('the sections run stage, live band, figures, doorways, map teaser, news, Instagram', () => {
+  const html = home();
+  const at = (re) => html.search(re);
+  const order = [/<section class="wb-stage/, /<section class="wb-band/, /<div class="wb-figures">/, /<a class="wb-door"/, /<section class="site-map-teaser"/, /aria-labelledby="news-title"/, /id="instagram"/, /<footer\b/];
+  const positions = order.map(at);
+  for (const [i, p] of positions.entries()) assert.ok(p >= 0, String(order[i]));
+  assert.deepEqual([...positions].sort((a, b) => a - b), positions);
+});
+
+// The 320-360px capture (Task 2): with an auto track, the news grid grew to the 16:9 feature's height-derived width
+// and the page scrolled sideways. Every home grid that holds a photo link sets its tracks.
+test('the home grids set minmax(0, 1fr) tracks, so no photo link widens a phone screen', () => {
+  const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const selector of ['.site-doors', '.site-news-teaser__grid', '.site-news-teaser__list']) {
+    const body = css.match(new RegExp(`(?:^|\\})\\s*${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+    assert.match(body, /grid-template-columns:\s*minmax\(0, 1fr\);/, selector);
+  }
+});
+
+// Ruling A: the detector cannot see a photograph or the scrim, so text set on one carries the low-contrast waiver right
+// after its class; so do the brand-blue figures (large text, 3:1). Nowhere else.
+const WAIVED = ['wb-stage__title', 'wb-stage__lead', 'wb-door__title', 'wb-door__text', 'wb-feature__title', 'wb-feature__text', 'wb-figure__value', 'wb-nav__link'];
+test('the low-contrast waiver sits on text on a photograph and on the figures, right after the class, and nowhere else', () => {
+  const html = home();
+  const waived = [...html.matchAll(/<[a-z0-9]+\b([^>]*)\bdata-impeccable-ignore="low-contrast"/g)].map((m) => m[1]);
+  assert.ok(waived.length > 0);
+  for (const attrs of waived) {
+    const cls = attrs.match(/^\s*class="([^"]+)"\s*$/)?.[1];
+    assert.ok(cls, `the waiver follows the class attribute: ${attrs}`);
+    assert.ok(cls.split(/\s+/).some((c) => WAIVED.includes(c)), `waiver on .${cls}`);
+  }
+  for (const cls of WAIVED.filter((c) => c !== 'wb-nav__link')) {
+    const tags = [...html.matchAll(new RegExp(`<[a-z0-9]+ class="${cls}"[^>]*>`, 'g'))].map((m) => m[0]);
+    assert.ok(tags.length > 0, cls);
+    for (const tag of tags) assert.match(tag, new RegExp(`class="${cls}" data-impeccable-ignore="low-contrast"`), tag);
+  }
+  assert.equal(html.match(/class="wb-figure__value" data-impeccable-ignore="low-contrast"/g)?.length, 4);
+  const nav = html.match(/<nav\b[^>]*aria-label="Main"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? '';
+  const links = [...nav.matchAll(/<a class="(wb-nav__link[^"]*)"([^>]*)>/g)];
+  assert.equal(links.length, 7, 'six section links and Sign in');
+  for (const [tag, , rest] of links) assert.match(rest, /^ data-impeccable-ignore="low-contrast"/, tag);
+  for (const file of ['dist/about/index.html', 'dist/live/index.html', 'dist/404.html']) {
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /low-contrast/, `${file}: no waiver off the home page`);
+  }
 });
 
 test('the script listens for a failed picture with addEventListener, not an onerror attribute', () => {

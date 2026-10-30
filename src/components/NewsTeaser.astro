@@ -1,0 +1,35 @@
+---
+// The home page's news: the three newest posts (src/content/news), the newest as the design's feature (its photo, title
+// and description; the title and sentence on the picture carry the low-contrast waiver, Ruling A), the next two as
+// cards. Every photo is decorative inside its link (alt=""): the title names the link.
+import { getCollection } from 'astro:content';
+import { publicImageSize } from '../lib/public-image.mjs';
+
+const posts = (await getCollection('news')).sort((a, b) => b.data.date.getTime() - a.data.date.getTime()).slice(0, 3);
+const [feature, ...rest] = await Promise.all(
+  posts.map(async (post) => ({ post, size: post.data.image ? await publicImageSize(post.data.image) : undefined })),
+);
+---
+<section class="wb-container site-news-teaser" aria-labelledby="news-title">
+  <h2 id="news-title"><a href="/news/">News</a></h2>
+  <div class="site-news-teaser__grid">
+    {feature && (
+      <a class="wb-feature" href={`/news/${feature.post.id}/`}>
+        {feature.post.data.image && feature.size && (
+          <img class="wb-feature__photo" src={feature.post.data.image} width={feature.size.width} height={feature.size.height} alt="" loading="lazy">
+        )}
+        <div class="wb-feature__body"><h3 class="wb-feature__title" data-impeccable-ignore="low-contrast">{feature.post.data.title}</h3><p class="wb-feature__text" data-impeccable-ignore="low-contrast">{feature.post.data.description}</p></div>
+      </a>
+    )}
+    <ul class="site-news-teaser__list" role="list">
+      {rest.map(({ post, size }) => (
+        <li>
+          <a class="wb-card" href={`/news/${post.id}/`}>
+            {post.data.image && size && <img class="wb-card__media" src={post.data.image} width={size.width} height={size.height} alt="" loading="lazy">}
+            <div class="wb-card__body"><h3>{post.data.title}</h3><p>{post.data.description}</p></div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>

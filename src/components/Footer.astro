@@ -1,5 +1,11 @@
 ---
 // The organisation line from the old site's footer (src/layouts/Footer.js).
+// `theme: 'dark'` sets it on the dark ground: the home page's footer only (CLAUDE.md; spec §4.3, Deep Field).
+interface Props {
+  theme?: 'light' | 'dark';
+}
+
+const { theme = 'light' } = Astro.props;
 const year = new Date().getFullYear();
 const links = [
   { label: 'Instagram', href: 'https://www.instagram.com/wahoobaypompano/' },
@@ -8,7 +14,7 @@ const links = [
   { label: 'Shipwreck Park', href: 'https://shipwreckparkpompano.org' },
 ];
 ---
-<footer class="wb-footer">
+<footer class="wb-footer" data-theme={theme === 'dark' ? 'dark' : undefined}>
   <div class="site-footer__org">
     <p>© {year} Wahoo Bay by Shipwreck Park, Inc. · 501(c)(3) non-profit organization — all donations are tax-deductible to the extent permitted by law.</p>
     <!-- katie: review: the address, e-mail and phone are from the old Contact Us page, not its footer; that page also lists a separate Donations & Mailing Address (100 W. Atlantic Blvd. Fourth Floor, Pompano Beach, FL 33060). -->

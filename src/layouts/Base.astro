@@ -13,12 +13,16 @@ interface Props {
   description: string;
   /** "dark" is for the live-camera pages only (spec §4.3); every other page is light. */
   theme?: 'light' | 'dark';
+  /** The nav lies over the top of the page's first section, a photograph: the home page's stage only. */
+  navOver?: boolean;
+  /** "dark" sets the footer on the dark ground: the home page only (spec §4.3, Deep Field). */
+  footerTheme?: 'light' | 'dark';
   image?: string;
   /** Keep the page out of search results and name no canonical URL (the 404 page). */
   noindex?: boolean;
 }
 
-const { title, description, theme = 'light', image, noindex = false } = Astro.props;
+const { title, description, theme = 'light', navOver = false, footerTheme = 'light', image, noindex = false } = Astro.props;
 ---
 <!doctype html>
 <html lang="en" data-theme={theme === 'dark' ? 'dark' : undefined}>
@@ -32,10 +36,10 @@ const { title, description, theme = 'light', image, noindex = false } = Astro.pr
   </head>
   <body>
     <a class="wb-skip" href="#main">Skip to content</a>
-    <Nav />
+    <Nav over={navOver} />
     <main id="main">
       <slot />
     </main>
-    <Footer />
+    <Footer theme={footerTheme} />
   </body>
 </html>

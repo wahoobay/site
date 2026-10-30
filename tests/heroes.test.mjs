@@ -1,6 +1,8 @@
 // Run after `npm run build`: the banner photos. Dan's staging review (2026-10-30): the park aerial, /WB-1.jpg, was the
 // home page's photo and the banner of /visit/ and /get-involved/support/ ("used far too much"). It stays on the home
-// page, where it says "this is the park"; each section page opens on a photograph of its own.
+// page only, where it says "this is the park": since the Deep Field home page (Task 2) it is the map teaser's
+// photograph, and the stage opens on the divers (/images/about/2025-gd-wb-816-lwb-06.jpg), the home page's hero.
+// Each section page opens on a photograph of its own.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -17,17 +19,21 @@ const heroOf = (file) => readFileSync(file, 'utf8').match(/^---\r?\n[\s\S]*?\r?\
 const builtOf = (file) => join('dist', file.slice(PAGES.length + 1).replace(/\.md$/, '').replace(/(^|\/)index$/, ''), 'index.html');
 
 const home = readFileSync('dist/index.html', 'utf8');
-const HOME_HERO = home.match(/<img\b[^>]*\bclass="site-hero__photo"[^>]*\bsrc="([^"]+)"/)?.[1];
-// The home page's three doorway cards: their photos are not banners anywhere.
-const DOORWAYS = [...home.matchAll(/<img class="wb-card__media" src="([^"]+)"/g)].map((m) => m[1]);
+// The stage's photograph is the home page's hero; the aerial is the map teaser's photograph.
+const HOME_HERO = home.match(/<img\b[^>]*\bclass="wb-stage__photo[^"]*"[^>]*\bsrc="([^"]+)"/)?.[1];
+const AERIAL = home.match(/<img\b[^>]*\bclass="site-map-teaser__photo"[^>]*\bsrc="([^"]+)"/)?.[1];
+// The home page's three doorways: their photos are not banners anywhere.
+const DOORWAYS = [...home.matchAll(/<img class="wb-door__photo" src="([^"]+)"/g)].map((m) => m[1]);
 const heroes = markdownFiles.filter(heroOf).map((file) => ({ file, src: heroOf(file) }));
 
 // The section pages that open on a photo. /learn/ is an Astro page whose layout has no banner, so it has none.
 const SECTION_PAGES = ['visit/index.md', 'get-involved/index.md', 'get-involved/support.md', 'about/index.md'].map((f) => `${PAGES}/${f}`);
 
-test('the park aerial is the home page\'s photo and no other page\'s banner', () => {
-  assert.equal(HOME_HERO, '/WB-1.jpg');
+test('the stage opens on the divers; the park aerial is on the home page only, behind the map teaser', () => {
+  assert.equal(HOME_HERO, '/images/about/2025-gd-wb-816-lwb-06.jpg');
+  assert.equal(AERIAL, '/WB-1.jpg');
   for (const { file, src } of heroes) assert.doesNotMatch(src, /\/WB-1\b/, `${file}: hero ${src}`);
+  for (const { file, src } of heroes) assert.notEqual(src, HOME_HERO, `${file}: the home stage's photo is its banner`);
   for (const { file } of heroes) {
     assert.match(readFileSync(builtOf(file), 'utf8'), new RegExp(`<img class="wb-media[^"]* site-article__hero" src="${heroOf(file).replace(/[.]/g, '\\.')}"`), `${file}: its banner is built`);
   }
@@ -58,7 +64,7 @@ const imageSize = (buf) => {
 };
 
 test('every banner is a file under public/, at most 1600 px wide and 400 KB', () => {
-  for (const src of [HOME_HERO, ...heroes.map(({ src }) => src)]) {
+  for (const src of [HOME_HERO, AERIAL, ...heroes.map(({ src }) => src)]) {
     const path = join('public', decodeURI(src));
     assert.ok(existsSync(path), `${src} is under public/`);
     const { width } = imageSize(readFileSync(path));
@@ -68,8 +74,8 @@ test('every banner is a file under public/, at most 1600 px wide and 400 KB', ()
 });
 
 // Dan's staging review (2026-10-30): every large photo is rounded like the tiles. A page's banner and a post's photo
-// are the design's .wb-media (12px corners), inset in the article's column; the home photo stays edge to edge, the one
-// stage its panel sits on. `heroPosition` keeps a subject in frame where the band crops the photo.
+// are the design's .wb-media (12px corners), inset in the article's column; the home stage's photo and the aerial
+// behind the map teaser stay edge to edge. `heroPosition` keeps a subject in frame where the band crops the photo.
 const positionOf = (file) => readFileSync(file, 'utf8').match(/^---\r?\n[\s\S]*?\r?\n---/)?.[0].match(/^heroPosition:\s*(\S+)\s*$/m)?.[1];
 
 test('heroPosition is top, center or bottom, or absent, on pages and news posts; anything else fails the build', () => {
@@ -113,14 +119,16 @@ test('a news post\'s photo is .wb-media too, with its heroPosition', () => {
   assert.ok(photos >= 3, `${photos} posts with a photo`);
 });
 
-test('the banner band is 16:9, and 21:9 from 48rem; the home photo stays edge to edge and is not .wb-media', () => {
+test('the banner band is 16:9, and 21:9 from 48rem; the home photos stay edge to edge and are not .wb-media', () => {
   const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const base = css.match(/(?:^|\})\s*\.site-article__hero\s*\{([^}]*)\}/)?.[1] ?? '';
   assert.match(base, /aspect-ratio:\s*16 \/ 9/);
   assert.match(css, /@media \(min-width: 48rem\)\s*\{\s*\.site-article__hero\s*\{\s*aspect-ratio:\s*3 \/ 1;\s*\}/);
-  const photo = home.match(/<img\b[^>]*\bclass="site-hero__photo"/)?.[0] ?? '';
-  assert.ok(photo, 'the home photo');
-  assert.doesNotMatch(photo, /wb-media/);
+  for (const cls of ['wb-stage__photo', 'site-map-teaser__photo']) {
+    const photo = home.match(new RegExp(`<img\\b[^>]*\\bclass="${cls}[^"]*"`))?.[0] ?? '';
+    assert.ok(photo, `the home photo .${cls}`);
+    assert.doesNotMatch(photo, /wb-media/, photo);
+  }
 });
 
 // Photos with a logo or words drawn in; a banner is cropped differently at every width, so none of them is one.

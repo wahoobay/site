@@ -1,76 +1,66 @@
 ---
+// The home page, Deep Field (spec §4.3; @wahoobay/design 0.2.1): the stage (the headline on a full-height photograph,
+// the nav over its top), the dark live band, the four impact figures, the photo doorways, the map teaser on the park
+// aerial, the news teaser, the Instagram strip, then the dark footer.
+import { getEntry } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import LiveBand from '../components/LiveBand.astro';
+import Figures from '../components/Figures.astro';
+import Doorways from '../components/Doorways.astro';
+import MapTeaser from '../components/MapTeaser.astro';
+import NewsTeaser from '../components/NewsTeaser.astro';
 import Instagram from '../components/Instagram.astro';
+import { aiUrl } from '../lib/nav.mjs';
 
 // The old home page's hero copy, verbatim (wahoobay-net-frontend, src/components/MainPage/HeroSection.js).
 const headline = 'Art. Conservation. Education';
 const intro =
   'Wahoo Bay is a public marine education park at the Hillsboro Inlet, inspiring ocean literacy through hands-on learning, immersive field experiences, and community conservation.';
 
-// One sentence each, from the old site: WaysToVisit.js, MainPage/EducationSection.js, MainPage/GetInvolvedSection.js.
-// The photos are decorative (alt=""): each card is one link, named by its heading and sentence.
-const doorways = [
-  {
-    title: 'Visit',
-    href: '/visit/',
-    text: 'Wahoo Bay sits within the Hillsboro Inlet at Roy L. Rogers Family Park.',
-    image: '/images/home/diver.jpg',
-    width: 800,
-    height: 533,
-  },
-  {
-    title: 'Learn',
-    href: '/learn/',
-    text: 'Explore the many educational resources available right here on our website.',
-    image: '/images/home/students.jpg',
-    width: 800,
-    height: 602,
-  },
-  {
-    title: 'Get involved',
-    href: '/get-involved/',
-    text: 'Join our conservation mission and inspire others to protect marine ecosystems.',
-    image: '/images/home/manatee.jpg',
-    width: 800,
-    height: 533,
-  },
-];
+// The headline and lead are white on the photograph over the design's scrim, so they carry the low-contrast waiver
+// (Ruling A), as in the design's docs: the detector sees neither the photograph nor the scrim.
+
+// The live band's words are the camera page's own (src/content/live/camera.md).
+const camera = await getEntry('live', 'camera');
+if (!camera) throw new Error('src/content/live/camera.md is missing');
 ---
-<Base title="Wahoo Bay" description={intro}>
-  <section class="site-hero" aria-labelledby="hero-title">
+<Base title="Wahoo Bay" description={intro} navOver footerTheme="dark">
+  <section class="wb-stage site-stage" aria-labelledby="stage-title">
     <img
-      class="site-hero__photo"
-      src="/WB-1.jpg"
-      srcset="/WB-1-800.jpg 800w, /WB-1.jpg 1600w"
-      sizes="100vw"
+      class="wb-stage__photo"
+      src="/images/about/2025-gd-wb-816-lwb-06.jpg"
       width="1600"
-      height="900"
-      alt="The park from the air: palms along the seawall, the dock on the inlet and the bridge behind"
+      height="1066"
+      alt="Volunteer divers surveying the reef at Wahoo Bay"
       fetchpriority="high"
     >
-    <div class="wb-container site-hero__inner">
-      <div class="wb-panel wb-panel--raised site-hero__panel">
-        <h1 id="hero-title">{headline}</h1>
-        <p class="wb-lead">{intro}</p>
-        <div class="site-hero__actions">
-          <a class="wb-btn wb-btn--action wb-btn--wrap" href="/visit/">Explore Wahoo Bay</a>
-          <a class="wb-btn wb-btn--ghost wb-btn--wrap" href="/live/">Underwater Camera</a>
-        </div>
+    <div class="wb-stage__scrim"></div>
+    <div class="wb-container wb-stage__body">
+      <h1 class="wb-stage__title" data-impeccable-ignore="low-contrast" id="stage-title">{headline}</h1>
+      <p class="wb-stage__lead" data-impeccable-ignore="low-contrast">{intro}</p>
+      <div class="wb-stage__actions">
+        <a class="wb-btn wb-btn--action wb-btn--wrap" href="/visit/">Explore Wahoo Bay</a>
+        <a class="wb-btn wb-btn--ghost wb-btn--wrap" href="/live/">Underwater Camera</a>
       </div>
     </div>
   </section>
 
-  <section class="wb-container site-doorways" aria-label="Ways in">
-    {doorways.map((door) => (
-      <a class="wb-card" href={door.href}>
-        <img class="wb-card__media" src={door.image} width={door.width} height={door.height} alt="" loading="lazy">
-        <div class="wb-card__body">
-          <h2>{door.title}</h2>
-          <p>{door.text}</p>
-        </div>
-      </a>
-    ))}
+  <LiveBand
+    still="/images/learn/wb-camera.jpg"
+    heading={camera.data.title}
+    text={camera.data.description}
+    ai={aiUrl(import.meta.env.PUBLIC_AI_URL)}
+  />
+
+  <section class="wb-container site-figures" aria-label="Our Impact at a Glance">
+    <Figures />
   </section>
+
+  <Doorways />
+
+  <MapTeaser />
+
+  <NewsTeaser />
 
   <Instagram />
 </Base>

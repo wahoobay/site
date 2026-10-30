@@ -1,0 +1,37 @@
+---
+// The home page's live band: the reef camera's still with the Live badge, the camera page's own title and
+// description, and the ways to watch. It is the design's .wb-band on the dark ground (data-theme="dark"): with the
+// footer, the home page's only dark surface (CLAUDE.md; spec §4.3, Deep Field). .wb-video clips and does not position
+// its children, so the badge's place on the still is layout, in site.css (.site-band__still).
+// The badge carries data-impeccable-ignore="pulsing-dot", as on /live/ and in the design's docs (.impeccable/config.json).
+interface Props {
+  /** A still of the camera, under public/. */
+  still: string;
+  /** The live camera entry's title (src/content/live/camera.md). */
+  heading: string;
+  /** The live camera entry's description. */
+  text: string;
+  /** The fish-ID app's address for this build (src/lib/nav.mjs). */
+  ai: string;
+}
+
+const { still, heading, text, ai } = Astro.props;
+---
+<section class="wb-band" data-theme="dark" id="live" aria-labelledby="live-title">
+  <div class="wb-container wb-band__inner">
+    <div class="wb-video site-band__still">
+      <img src={still} width="1600" height="1066" alt="The SeaHIVE reef camera" loading="lazy">
+      <!-- katie: review: this badge says "Live" whether or not the stream is up; it starts following the stream in step 2b of the rebuild. Keep it until then, or hide it. -->
+      <span class="wb-live" data-impeccable-ignore="pulsing-dot">Live</span>
+    </div>
+    <div class="site-band__words">
+      <h2 id="live-title">{heading}</h2>
+      <p class="wb-lead">{text}</p>
+      <div class="site-page__actions">
+        <a class="wb-btn wb-btn--action" href="/live/">Watch live</a>
+        <a class="wb-btn wb-btn--ghost" href={ai} target="_blank" rel="noopener">Fish ID dashboard<span class="wb-sr-only"> (opens in a new tab)</span></a>
+        <a class="wb-btn wb-btn--ghost" href="/live/highlights/">Best of the reef</a>
+      </div>
+    </div>
+  </div>
+</section>

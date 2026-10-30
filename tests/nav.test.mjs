@@ -49,3 +49,13 @@ test('on phones the nav\'s links wrap onto rows instead of scrolling (@wahoobay/
   assert.match(readFileSync('package.json', 'utf8'), /"@wahoobay\/design": "github:wahoobay\/design#v0\.2\.1"/);
   assert.equal(JSON.parse(readFileSync('node_modules/@wahoobay/design/package.json', 'utf8')).version, '0.2.1', 'npm install after the bump');
 });
+
+// The home page's stage (Task 2): the nav lies over the top of the photograph, transparent, its links white
+// (wb-nav--over). Only there; every other page keeps the nav on its own ground.
+test('the nav lies over the photograph on the home page only', () => {
+  const navTag = (file) => readFileSync(file, 'utf8').match(/<nav\b[^>]*aria-label="Main"[^>]*>/)?.[0] ?? '';
+  assert.match(navTag('dist/index.html'), /^<nav class="wb-nav wb-nav--over" aria-label="Main">$/);
+  for (const file of ['dist/about/index.html', 'dist/live/index.html', 'dist/news/index.html', 'dist/404.html']) {
+    assert.match(navTag(file), /^<nav class="wb-nav" aria-label="Main">$/, file);
+  }
+});

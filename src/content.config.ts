@@ -129,4 +129,16 @@ const live = defineCollection({
   }),
 });
 
-export const collections = { pages, news, board, partners, grades, lessons, live };
+// The home page's four impact figures (src/components/Figures.astro), the same four as the Support page's "Our Impact at
+// a Glance" list, which stays there for Katie; tests/home.test.mjs holds the two to the same numbers.
+// <!-- katie: review: figures copied by hand from the old dashboard; check before launch. -->
+const figures = defineCollection({
+  loader: file('src/content/figures.json'),
+  schema: z.object({
+    id: z.string(),
+    value: z.number(),
+    label: z.string(),
+  }),
+});
+
+export const collections = { pages, news, board, partners, grades, lessons, live, figures };

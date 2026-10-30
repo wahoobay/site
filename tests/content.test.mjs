@@ -392,10 +392,16 @@ test('the live pages embed YouTube without cookies or autoplay, and they alone a
   assert.ok(hrefIn(mainOf(highlights), '/live/'), '/live/highlights/ links back to /live/ from its body');
   assert.match(live, /<span class="wb-live"[^>]*>Live<\/span>/, '/live/ has the live badge');
   assert.doesNotMatch(highlights, /class="wb-live"/, 'the highlights are not live');
+  // CLAUDE.md: the dark theme is for the live-camera pages and, on the home page only, the live band and the footer.
   const dark = new Set(['dist/live/index.html', 'dist/live/highlights/index.html']);
   for (const file of filesUnder('dist').filter((f) => f.endsWith('.html'))) {
-    const isDark = /<html\b[^>]*\bdata-theme="dark"/.test(readFileSync(file, 'utf8'));
-    assert.equal(isDark, dark.has(file), `${file}: dark is for the live pages only`);
+    const html = readFileSync(file, 'utf8');
+    const isDark = /<html\b[^>]*\bdata-theme="dark"/.test(html);
+    assert.equal(isDark, dark.has(file), `${file}: a dark page is a live page`);
+    const darkParts = [...html.matchAll(/<([a-z]+)\b[^>]*\bdata-theme="dark"[^>]*>/g)]
+      .map(([tag, name]) => (name === 'html' ? null : `${name}.${tag.match(/\bclass="([^" ]+)/)?.[1]}`))
+      .filter(Boolean);
+    assert.deepEqual(darkParts, file === 'dist/index.html' ? ['section.wb-band', 'footer.wb-footer'] : [], `${file}: dark sections`);
   }
 });
 
@@ -446,4 +452,20 @@ test('/visit/map/ is a page of the Visit section, with the map image and the sit
     assert.ok(text.includes(site), `the map page names ${site}`);
   }
   assert.match(linkIn(sectionNav(html), '/visit/map/'), /\baria-current="page"/);
+});
+
+// Task 2: the home page's four impact figures are data, src/content/figures.json (the Support page keeps its own list
+// for Katie; tests/home.test.mjs holds the two to the same numbers).
+test('the figures are a collection read from src/content/figures.json, with Katie\'s note beside it', () => {
+  const config = readFileSync('src/content.config.ts', 'utf8');
+  const figures = config.match(/(?:\/\/[^\n]*\n)*const figures = defineCollection\(\{[\s\S]*?\n\}\);/)?.[0] ?? '';
+  assert.match(figures, /loader: file\('src\/content\/figures\.json'\)/);
+  assert.match(figures, /id: z\.string\(\)/);
+  assert.match(figures, /value: z\.number\(\)/);
+  assert.match(figures, /label: z\.string\(\)/);
+  assert.match(figures, /katie: review: figures copied by hand from the old dashboard; check before launch/);
+  assert.match(config, /export const collections = \{[^}]*\bfigures\b[^}]*\}/);
+  const data = JSON.parse(readFileSync('src/content/figures.json', 'utf8'));
+  assert.deepEqual(data.map(({ id }) => id), ['community', 'students', 'educators', 'species']);
+  for (const f of data) assert.ok(Number.isInteger(f.value) && f.value > 0, f.id);
 });

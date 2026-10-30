@@ -59,11 +59,16 @@ test('the home page has a canonical URL; the 404 page is noindex and names none'
   assert.doesNotMatch(notFound, /og:url/);
 });
 
-test('photos inside the doorway links are decorative, so each link is named by its text', () => {
+test('photos inside the doorway, feature and news links are decorative, so each link is named by its text', () => {
   const html = readFileSync('dist/index.html', 'utf8');
-  const cards = [...html.matchAll(/<a class="wb-card"[\s\S]*?<\/a>/g)].map((m) => m[0]);
-  assert.equal(cards.length, 3);
-  for (const card of cards) assert.match(card, /<img class="wb-card__media"[^>]*\balt=""/, card.slice(0, 60));
+  const doors = [...html.matchAll(/<a class="wb-door"[\s\S]*?<\/a>/g)].map((m) => m[0]);
+  assert.equal(doors.length, 3);
+  for (const door of doors) assert.match(door, /<img class="wb-door__photo"[^>]*\balt=""/, door.slice(0, 60));
+  const links = [...html.matchAll(/<a class="wb-(?:feature|card)"[\s\S]*?<\/a>/g)].map((m) => m[0]);
+  assert.equal(links.length, 3, 'the news teaser\'s feature and two cards');
+  for (const link of links) {
+    for (const [img] of link.matchAll(/<img\b[^>]*>/g)) assert.match(img, /\balt=""/, img);
+  }
 });
 
 test('dist/robots.txt is the allow version, naming the sitemap', () => {

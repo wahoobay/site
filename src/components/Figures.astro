@@ -1,0 +1,15 @@
+---
+// The four impact figures (src/content/figures.json), large in brand blue: the design's .wb-figures. Brand blue on white
+// is large text here (3:1, as the design's tile numbers), which the detector cannot tell from its clamp() size, so each
+// number carries the low-contrast waiver, as in the design's docs (Ruling A).
+import { getCollection } from 'astro:content';
+
+const order = ['community', 'students', 'educators', 'species'];
+const figures = (await getCollection('figures')).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+const fmt = new Intl.NumberFormat('en-US');
+---
+<div class="wb-figures">
+  {figures.map(({ data }) => (
+    <div class="wb-figure"><b class="wb-figure__value" data-impeccable-ignore="low-contrast">{fmt.format(data.value)}</b><span class="wb-figure__label">{data.label}</span></div>
+  ))}
+</div>

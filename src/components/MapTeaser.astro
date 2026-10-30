@@ -1,0 +1,24 @@
+---
+// The home page's map teaser: the park aerial edge to edge behind a raised panel (the design's panel over a
+// photograph) with the map page's own title and description and one action, beside the map's still. The design has no
+// map-teaser component; the aerial's placement is layout, in site.css (.site-map-teaser). The aerial is decorative here
+// (alt=""): the panel says what the band is. The sighting action arrives with its page (Task 7).
+import { getEntry } from 'astro:content';
+
+const map = await getEntry('pages', 'visit/map');
+if (!map) throw new Error('src/content/pages/visit/map.md is missing');
+const { title, description } = map.data;
+---
+<section class="site-map-teaser" aria-labelledby="map-title">
+  <img class="site-map-teaser__photo" src="/WB-1.jpg" srcset="/WB-1-800.jpg 800w, /WB-1.jpg 1600w" sizes="100vw" width="1600" height="900" alt="" loading="lazy">
+  <div class="wb-container site-map-teaser__inner">
+    <div class="wb-panel wb-panel--raised site-map-teaser__panel">
+      <h2 id="map-title">{title}</h2>
+      <p>{description}</p>
+      <div class="site-page__actions">
+        <a class="wb-btn wb-btn--action" href="/visit/map/">Open the map</a>
+      </div>
+    </div>
+    <img class="wb-media site-map-teaser__still" src="/images/map.png" width="616" height="504" alt="Map of Wahoo Bay" loading="lazy">
+  </div>
+</section>

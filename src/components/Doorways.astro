@@ -1,0 +1,42 @@
+---
+// The home page's three ways in, as the design's photo doorways: each 4:5 photograph is one link, its title and
+// sentence on the picture over the scrim. The photos are decorative (alt=""): the link is named by its heading and
+// sentence. The text on the photograph carries the low-contrast waiver (Ruling A): the detector sees neither the
+// photograph nor the scrim.
+
+// One sentence each, from the old site: WaysToVisit.js, MainPage/EducationSection.js, MainPage/GetInvolvedSection.js.
+const doorways = [
+  {
+    title: 'Visit',
+    href: '/visit/',
+    text: 'Wahoo Bay sits within the Hillsboro Inlet at Roy L. Rogers Family Park.',
+    image: '/images/home/diver.jpg',
+    width: 800,
+    height: 533,
+  },
+  {
+    title: 'Learn',
+    href: '/learn/',
+    text: 'Explore the many educational resources available right here on our website.',
+    image: '/images/home/students.jpg',
+    width: 800,
+    height: 602,
+  },
+  {
+    title: 'Get involved',
+    href: '/get-involved/',
+    text: 'Join our conservation mission and inspire others to protect marine ecosystems.',
+    image: '/images/home/manatee.jpg',
+    width: 800,
+    height: 533,
+  },
+];
+---
+<section class="wb-container site-doors" aria-label="Ways in">
+  {doorways.map((door) => (
+    <a class="wb-door" href={door.href}>
+      <img class="wb-door__photo" src={door.image} width={door.width} height={door.height} alt="" loading="lazy">
+      <div class="wb-door__body"><h2 class="wb-door__title" data-impeccable-ignore="low-contrast">{door.title}</h2><p class="wb-door__text" data-impeccable-ignore="low-contrast">{door.text}</p></div>
+    </a>
+  ))}
+</section>

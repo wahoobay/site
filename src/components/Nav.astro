@@ -1,8 +1,19 @@
 ---
 // The one navigation bar: the five sections with Fish ID after Live reef (src/lib/nav.mjs), Donate (the old site's
 // Zeffy form), then sign-in.
+// `over` lays it over the top of the home page's stage photograph (the design's wb-nav--over: transparent, the logo
+// and links white). Its links then carry the low-contrast waiver, as in the design's docs (Ruling A): the detector sees
+// neither the photograph nor the scrim's top band under them and measures white on the page ground.
 import Logo from './Logo.astro';
 import { aiUrl, mainNav } from '../lib/nav.mjs';
+
+interface Props {
+  over?: boolean;
+}
+
+const { over = false } = Astro.props;
+// The waiver attribute, right after the class, on each link of the overlaid nav only.
+const waiver = over ? { 'data-impeccable-ignore': 'low-contrast' } : {};
 
 // The fish-ID app's address differs per environment: the deploy workflow sets PUBLIC_AI_URL at build time.
 const items = mainNav(aiUrl(import.meta.env.PUBLIC_AI_URL));
@@ -15,19 +26,19 @@ const path = Astro.url.pathname;
 const isOn = (href: string) => path.startsWith(href);
 const current = (href: string) => (path === href ? 'page' : isOn(href) ? 'true' : undefined);
 ---
-<nav class="wb-nav" aria-label="Main">
+<nav class:list={['wb-nav', { 'wb-nav--over': over }]} aria-label="Main">
   <a class="wb-nav__logo" href="/"><Logo /></a>
   <ul class="wb-nav__links">
     {items.map(({ label, href, external }) => (
       <li>
         {external ? (
-          <a class="wb-nav__link" href={href}>{label}</a>
+          <a class="wb-nav__link" {...waiver} href={href}>{label}</a>
         ) : (
-          <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(href) }]} href={href} aria-current={current(href)}>{label}</a>
+          <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(href) }]} {...waiver} href={href} aria-current={current(href)}>{label}</a>
         )}
       </li>
     ))}
   </ul>
   <a class="wb-btn wb-btn--accent wb-nav__cta" href={donate} target="_blank" rel="noopener">Donate<span class="wb-sr-only"> (opens in a new tab)</span></a>
-  <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(signIn.href) }]} href={signIn.href} aria-current={current(signIn.href)}>{signIn.label}</a>
+  <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(signIn.href) }]} {...waiver} href={signIn.href} aria-current={current(signIn.href)}>{signIn.label}</a>
 </nav>
