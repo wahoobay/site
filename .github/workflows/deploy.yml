@@ -1,0 +1,86 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit SHA to deploy to production (must already have run on staging)
+        required: true
+      confirm:
+        description: Type "deploy" to confirm a production deployment
+        required: true
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  staging:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency: { group: wahoobay-site-staging, cancel-in-progress: false }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm ci && npm run build && npm test && npm run check
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.STAGING_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Deploy to staging
+        env:
+          BUCKET: ${{ vars.STAGING_BUCKET }}
+          DISTRIBUTION_ID: ${{ vars.STAGING_DISTRIBUTION_ID }}
+          KVS_ARN: ${{ vars.STAGING_KVS_ARN }}
+        run: scripts/deploy.sh staging
+      - name: Verify staging
+        env: { HOST: "${{ vars.STAGING_HOSTNAME }}", AUTH: "${{ secrets.STAGING_BASIC_AUTH }}" }
+        run: |
+          sleep 30
+          for page in / /about/ /learn/; do
+            test "$(curl -s -o /dev/null -w '%{http_code}' "https://$HOST$page")" = "401"
+          done
+          BASIC_AUTH="wahoobay:$AUTH" node scripts/check-robots.mjs "https://$HOST/robots.txt" disallow
+          curl -sf -u "wahoobay:$AUTH" "https://$HOST/" | grep -q '<title>'
+  production:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions: { contents: write, id-token: write }  # the release tag
+    concurrency: { group: wahoobay-site-prod, cancel-in-progress: false }
+    steps:
+      - name: Guard
+        if: inputs.confirm != 'deploy'
+        run: |
+          echo "::error::Refusing to deploy: the confirm input must be exactly 'deploy'."
+          exit 1
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.sha }}", fetch-depth: 0 }
+      - name: Only commits that reached main
+        env: { SHA: "${{ inputs.sha }}" }
+        run: scripts/assert-on-main.sh "$SHA"
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm ci && npm run build && npm test && npm run check
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PROD_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Deploy to production
+        env:
+          BUCKET: ${{ vars.PROD_BUCKET }}
+          DISTRIBUTION_ID: ${{ vars.PROD_DISTRIBUTION_ID }}
+          KVS_ARN: ${{ vars.PROD_KVS_ARN }}
+        run: scripts/deploy.sh prod
+      - name: Verify production storage via the distribution
+        env: { HOST: "${{ vars.PROD_DISTRIBUTION_DOMAIN }}" }
+        run: |
+          sleep 30
+          node scripts/check-robots.mjs "https://$HOST/robots.txt" allow
+          curl -sf "https://$HOST/" | grep -q '<title>'
+      - name: Record a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ inputs.sha }}
+        run: |
+          tag="site-prod-$(date -u +%Y%m%d-%H%M)-${DEPLOY_SHA::7}"
+          gh release create "$tag" --target "$DEPLOY_SHA" --title "$tag" --notes "Production deploy of $DEPLOY_SHA"
