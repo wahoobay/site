@@ -65,7 +65,7 @@ const groups = [...groupByCategory(species)]
               <div class="wb-card__body">
                 {s.common_name ? <h3>{s.common_name}</h3> : <h3><i>{s.scientific_name}</i></h3>}
                 {s.common_name && <p><i>{s.scientific_name}</i></p>}
-                {s.conservation_status && <p class="site-species__status"><span class="wb-chip">{s.conservation_status}</span></p>}
+                {s.conservation_status && <p class="site-species__status"><span class="wb-caption">{s.conservation_status}</span></p>}
                 {s.clips.length > 0 && (
                   <ul class="site-species__clips" role="list">
                     {s.clips.map((c) => (

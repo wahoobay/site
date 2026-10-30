@@ -14,9 +14,16 @@ const TIMEOUT_MS = 20_000;
 const MEDIA_BUDGET_BYTES = 400 * 1024;
 const MEDIA_KEEP = 500;
 
-// Rows of the species list that are test entries, not animals of the bay, and whose names could be a person's: id 205
-// (category "human like") and id 210, both with no taxonomy and no clips. Checked by hand on 2026-10-30.
+// The exclusion list (controller ruling N, 2026-10-30): rows of the species list that are not public.
+// - By id, test entries, not animals of the bay, whose names could be a person's: id 205 (category "human like") and
+//   id 210, both with no taxonomy and no clips. Checked by hand; the sync logs their ids, not their names.
+// - By name (common or scientific): a "TBC n" placeholder for an animal not yet identified, a name with the word
+//   "test" in it, and Homo sapiens (people on the cameras).
 const NOT_A_SPECIES = new Set([205, 210]);
+const PLACEHOLDER = [/^TBC\b/i, /\btest\b/i, /^homo sapiens$/i];
+const isPlaceholder = (row) =>
+  [row.common_name, row.scientific_name].some((name) => typeof name === 'string' && PLACEHOLDER.some((re) => re.test(name.trim())));
+const isExcluded = (row) => NOT_A_SPECIES.has(row.species_id) || isPlaceholder(row);
 
 /** A string field, trimmed; missing or blank is null. */
 const text = (value) => (typeof value === 'string' && value.trim() !== '' ? value.trim() : null);
@@ -41,10 +48,22 @@ const byName = (a, b) =>
   (a.scientific_name ?? '').localeCompare(b.scientific_name ?? '', 'en') ||
   a.id - b.id;
 
-/** The species the gallery lists: the old gallery's gate, then the whitelist, by the name the card shows. */
+/**
+ * The rows the exclusion list leaves out, for the sync's log: the id and the row's name (common, else scientific); a
+ * row listed by id is logged without its name, which could be a person's.
+ */
+export const excludedSpecies = (rows) =>
+  rows
+    .filter((row) => !isProvisional(row) && isExcluded(row))
+    .map((row) => ({
+      id: row.species_id,
+      name: NOT_A_SPECIES.has(row.species_id) ? null : text(row.common_name) ?? text(row.scientific_name),
+    }));
+
+/** The species the gallery lists: the old gallery's gate and the exclusion list, then the whitelist, by the name the card shows. */
 export const selectSpecies = (rows) =>
   rows
-    .filter((row) => !isProvisional(row) && !NOT_A_SPECIES.has(row.species_id))
+    .filter((row) => !isProvisional(row) && !isExcluded(row))
     .map(toSpecies)
     .filter((s) => s.id !== null)
     .sort(byName);
@@ -190,6 +209,9 @@ const nulls = (rows) =>
 export async function main(out = new URL('../src/data/', import.meta.url)) {
   const [speciesRows, mediaRows] = await Promise.all([getRows('/species'), getRows('/media?limit=1000')]);
   const species = selectSpecies(speciesRows);
+  for (const { id, name } of excludedSpecies(speciesRows)) {
+    console.log(`excluded: species ${id}${name === null ? ' (test row; name not logged)' : ` "${name}"`}`);
+  }
   const checked = await checkMedia(selectMedia(mediaRows, species));
   console.log(`thumbnails: ${checked.dropped} dropped (no image), ${checked.gone} clips left out (thumbnail and link both gone)`);
   let media = checked.media;

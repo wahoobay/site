@@ -14,6 +14,7 @@ npm test            # node --test 'tests/*.test.mjs', against dist/ (build first
 npm run check       # the Impeccable design detector on dist/
 npm run check:links # every internal link and image in dist/ resolves
 npm run preview     # serve dist/ locally
+npm run sync:species # by hand only, never in CI: re-read the Java API's species and media lists into src/data/ for /live/species/; commit the two files
 ```
 
 CI runs `npm ci`, `npm run build`, `npm test`, `npm run check` and `npm run check:links` on every pull request and on every push to `main`; all five must pass. Deploys (`deploy:staging`, `deploy:prod`) go through GitHub Actions only, never from a laptop.

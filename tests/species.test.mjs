@@ -89,12 +89,19 @@ test('the sync keeps the whitelist, writes null for a missing field, and decides
 
 test('the sync leaves out the rows the old gallery hid, and sorts species by name and media newest first', () => {
   const rows = [
-    { species_id: 1, common_name: 'Zebra test', scientific_name: 'Z z', category: 'Fish', name_status: 'accepted' },
+    { species_id: 1, common_name: 'Zebra wrasse', scientific_name: 'Z z', category: 'Fish', name_status: 'accepted' },
     { species_id: 2, common_name: 'Guess', scientific_name: '[unverified] A guess', category: null, name_status: 'provisional' },
-    { species_id: 3, common_name: 'Angel test', scientific_name: 'A a', category: 'Fish', name_status: 'accepted' },
+    { species_id: 3, common_name: 'Angel wrasse', scientific_name: 'A a', category: 'Fish', name_status: 'accepted' },
     { species_id: 205, common_name: 'Listed by hand', scientific_name: 'B b', category: 'human like', name_status: null },
+    // Ruling N: placeholders are not public, by either name.
+    { species_id: 6, common_name: null, scientific_name: 'TBC 4', category: null, name_status: 'unidentified' },
+    { species_id: 7, common_name: 'tbc crab', scientific_name: 'C c', category: 'Invertebrate', name_status: null },
+    { species_id: 8, common_name: 'A test fish', scientific_name: 'D d', category: 'Fish', name_status: null },
+    { species_id: 9, common_name: null, scientific_name: ' homo SAPIENS ', category: 'Mammal', name_status: null },
+    { species_id: 10, common_name: 'Testudo test', scientific_name: 'Testudo graeca', category: 'Reptile', name_status: 'accepted' },
+    { species_id: 11, common_name: 'Spur-thighed tortoise', scientific_name: 'Testudo graeca', category: 'Reptile', name_status: 'accepted' },
   ];
-  assert.deepEqual(selectSpecies(rows).map((s) => s.id), [3, 1], 'provisional, [unverified] and the test rows are left out');
+  assert.deepEqual(selectSpecies(rows).map((s) => s.id), [3, 11, 1], 'provisional, [unverified], placeholder and test rows are left out');
   assert.ok(!species.some((s) => [205, 210].includes(s.id)), 'the snapshot has neither test row');
   const clip = (id, speciesId, date) => ({ media_id: id, species_id: speciesId, media_kind: 'photo', url: `https://example.org/${id}.jpg`, media_date: date });
   const clips = selectMedia([clip(1, 3, '2026-01-01T00:00'), clip(2, 3), clip(3, 3, '2026-03-01T00:00'), clip(4, 2, '2026-04-01T00:00')], selectSpecies(rows));
@@ -125,6 +132,16 @@ test('the sync drops a thumbnail that does not answer with an image, and a clip 
   assert.deepEqual([out.dropped, out.gone], [1, 1]);
   assert.equal(asked.filter((u) => u === 'https://t.test/2').length, 2, 'a failed thumbnail is asked twice before it is dropped');
   assert.ok(!asked.includes('https://l.test/1') && !asked.includes('https://l.test/4'), 'a link is checked only when its thumbnail fails');
+});
+
+// Ruling N: no placeholder row is public. These patterns are the ruling's, kept here apart from the script's own list.
+test('no row of the snapshot is a placeholder or a test entry', () => {
+  const placeholder = (name) => name !== null && (/^TBC\b/i.test(name) || /\btest\b/i.test(name) || /^homo sapiens$/i.test(name.trim()));
+  for (const s of species) {
+    assert.ok(!placeholder(s.common_name), `species ${s.id}: common name`);
+    assert.ok(!placeholder(s.scientific_name), `species ${s.id}: scientific name`);
+  }
+  assert.ok(!species.some((s) => [205, 210].includes(s.id)), 'neither test id');
 });
 
 test('groupByCategory covers every species once, unknown categories under Other', () => {
@@ -172,7 +189,7 @@ test('the category list jumps to each heading with plain anchors', () => {
   assert.deepEqual(hrefs, [...html.matchAll(/<h2 id="([^"]+)"/g)].map((m) => m[1]));
 });
 
-test('each card: a lazy thumbnail or the initials square, the names, the status chip, and the clips in a new tab', () => {
+test('each card: a lazy thumbnail or the initials square, the names, the status caption, and the clips in a new tab', () => {
   const html = read('dist/live/species/index.html');
   const cards = [...html.matchAll(/<li class="wb-card site-species__card">([\s\S]*?)<\/li>\s*(?=<li class="wb-card|<\/ul>)/g)].map((m) => m[1]);
   assert.equal(cards.length, species.length);
@@ -196,8 +213,13 @@ test('each card: a lazy thumbnail or the initials square, the names, the status 
   assert.equal(thumbs, withMedia.size);
   assert.equal(squares, species.length - withMedia.size);
   assert.equal((html.match(/target="_blank" rel="noopener">(Photo|Video)/g) || []).length, media.length, 'a link per clip');
+  // Ruling O: the status is caption text after the scientific name, not a chip (the accent is for "alive right now").
+  assert.doesNotMatch(html, /\bwb-chip\b/);
   for (const s of species.filter((x) => x.conservation_status)) {
-    assert.ok(html.includes(`<span class="wb-chip">${s.conservation_status}</span>`), s.conservation_status);
+    const card = cards.find((c) => c.includes(`<span class="wb-caption">${s.conservation_status}</span>`)) ?? '';
+    assert.ok(card, s.conservation_status);
+    const at = (needle) => card.indexOf(needle);
+    assert.ok(at(s.scientific_name) >= 0 && at(s.scientific_name) < at('class="wb-caption"'), `${s.id}: the status follows the scientific name`);
   }
   assert.ok(byName.size > 0);
   for (const s of species.filter((x) => x.common_name && x.scientific_name).slice(0, 20)) {
@@ -220,6 +242,7 @@ test('the old gallery address redirects here; the sync runs by hand, never in CI
   const froms = redirects.map((r) => r.from);
   assert.deepEqual(froms, [...froms].sort(), 'redirects.json stays sorted');
   assert.equal(JSON.parse(read('package.json')).scripts['sync:species'], 'node scripts/sync-species.mjs');
+  assert.match(read('README.md'), /^npm run sync:species +# .*by hand.*commit/m, 'the README documents the sync');
   for (const file of readdirSync('.github/workflows')) {
     assert.doesNotMatch(read(`.github/workflows/${file}`), /sync[-:]species/, file);
   }
