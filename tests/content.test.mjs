@@ -309,9 +309,10 @@ const OLD_COURSE_SLUGS = [
 ];
 
 test('the old site\'s fifteen courses and six grades are data; each slug is lodash\'s kebabCase of the title', () => {
-  assert.equal(lessons.length, 15, 'fifteen lessons');
   const names = filesUnder(LESSONS).filter((f) => f.endsWith('.yaml')).map((f) => f.slice(LESSONS.length + 1, -'.yaml'.length));
-  assert.deepEqual(names.sort(), OLD_COURSE_SLUGS, 'the lesson files are exactly the old course addresses');
+  for (const slug of OLD_COURSE_SLUGS) assert.ok(names.includes(slug), `${slug}.yaml: the old course address needs its lesson`);
+  for (const name of names) assert.match(name, /^[a-z0-9-]+$/, `${name}: lesson file name`);
+  assert.equal(new Set(names).size, names.length, 'lesson file names are unique');
   assert.deepEqual(grades.map((g) => g.slug), ['educators', 'art-and-science', 'collegiate', 'prek', 'fourth-grade', 'ninth-grade']);
   const slugs = new Set();
   for (const lesson of lessons) {

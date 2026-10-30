@@ -6,7 +6,24 @@ import { join } from 'node:path';
 
 const redirects = JSON.parse(readFileSync('redirects.json', 'utf8'));
 const grades = JSON.parse(readFileSync('src/content/grades.json', 'utf8'));
-const lessonSlugs = readdirSync('src/content/lessons').filter((f) => f.endsWith('.yaml')).map((f) => f.replace(/\.yaml$/, '')).sort();
+// The old site's fifteen course addresses; a new lesson has no old address and needs no redirect.
+const OLD_COURSE_SLUGS = [
+  'build-a-backbone',
+  'coral-reefs',
+  'crustacean-creations',
+  'field-based-activities',
+  'field-experience-guide',
+  'intertidal-zone',
+  'mangrove-trees',
+  'microplastic-beach-protocol',
+  'rapid-oyster-community-assessment-datasheet',
+  'sampling-for-microplastics',
+  'teaching-climate-change-through-art-s-fl-habitats',
+  'teaching-climate-change-through-art-wahoo-bay',
+  'the-great-plankton-race',
+  'traveling-trunk-program',
+  'university-partner-opportunities',
+];
 const distOf = (url) => join('dist', url, 'index.html');
 const bare = (from) => (from.length > 1 && from.endsWith('/') ? from.slice(0, -1) : from);
 const to = (from) => redirects.find((r) => r.from === from)?.to;
@@ -22,8 +39,7 @@ test('the six grade entries are the encoded old names', () => {
 });
 
 test('every one of the 15 old course addresses redirects to its lesson', () => {
-  assert.equal(lessonSlugs.length, 15);
-  for (const slug of lessonSlugs) assert.equal(to(`/pages/courses/${slug}`), `/learn/courses/${slug}/`);
+  for (const slug of OLD_COURSE_SLUGS) assert.equal(to(`/pages/courses/${slug}`), `/learn/courses/${slug}/`);
 });
 
 test('every to is / or ends in /, and is a built page', () => {
