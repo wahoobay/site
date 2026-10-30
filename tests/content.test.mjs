@@ -416,8 +416,15 @@ test('the home page has one script, the Instagram strip\'s; no other page has an
   assert.match(code, /\.remove\(\)/, 'it removes the section when there is nothing to show');
   const strip = html.match(/<section\b[^>]*id="instagram"[\s\S]*?<\/section>/)?.[0] ?? '';
   assert.equal(strip.match(/class="wb-card site-instagram__post"/g)?.length, 4, 'four empty cards');
+  // The one exception is the park map (tests/map.test.mjs): in a build with PUBLIC_MAPBOX_TOKEN, /visit/map/ has
+  // Astro's loader for its island; without the token that page has no script either.
   for (const file of filesUnder('dist').filter((f) => f.endsWith('.html') && f !== 'dist/index.html')) {
-    assert.doesNotMatch(readFileSync(file, 'utf8'), /<script\b/, `${file}: no client script in this step`);
+    const page = readFileSync(file, 'utf8');
+    if (file === 'dist/visit/map/index.html' && process.env.PUBLIC_MAPBOX_TOKEN) {
+      assert.match(page, /<astro-island\b[^>]*\bclient="visible"/, `${file}: the map's island`);
+      continue;
+    }
+    assert.doesNotMatch(page, /<script\b/, `${file}: no client script in this step`);
   }
 });
 

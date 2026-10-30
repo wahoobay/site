@@ -4,6 +4,7 @@ import { getCollection, render } from 'astro:content';
 import Page from '../layouts/Page.astro';
 import People from '../components/People.astro';
 import LogoGrid from '../components/LogoGrid.astro';
+import ParkMapSection from '../components/ParkMapSection.astro';
 
 export async function getStaticPaths() {
   const pages = await getCollection('pages');
@@ -16,8 +17,13 @@ const { Content } = await render(entry);
 // The two pages whose body is followed by a data collection (src/content/board, src/content/partners).
 const below: Record<string, any> = { 'about/board': People, 'get-involved/partners': LogoGrid };
 const Below = below[entry.id];
+// The page whose body is preceded by a section of its own: the park map, where the page's picture was, so the page
+// reads as before (src/content/pages/visit/map.md).
+const above: Record<string, any> = { 'visit/map': ParkMapSection };
+const Above = above[entry.id];
 ---
 <Page entry={entry}>
+  {Above && <Above slot="before" />}
   <Content />
   {Below && <Below slot="after" />}
 </Page>

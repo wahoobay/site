@@ -1,6 +1,6 @@
 ---
 // One page of the pages collection: its banner (inset, rounded), its section's navigation, the h1, the lead, its
-// actions, then the Markdown body.
+// actions, then the Markdown body. A page's own section goes in the `before` slot (above the body) or `after` (below).
 import Base from './Base.astro';
 import SectionNav from '../components/SectionNav.astro';
 import { urlOf, type PageEntry } from '../lib/sections';
@@ -40,6 +40,7 @@ const isExternal = (href: string) => /^https?:\/\//.test(href);
         )}
       </div>
     )}
+    <slot name="before" />
     {hasBody && <div class="wb-prose site-article__body"><slot /></div>}
     <slot name="after" />
   </div>

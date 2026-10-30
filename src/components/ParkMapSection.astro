@@ -1,0 +1,33 @@
+---
+// The park map on /visit/map/, between the page's lead and its text, where the page's picture was. With the build-time
+// PUBLIC_MAPBOX_TOKEN (a public token, restricted to the site's hostnames; the deploy workflow reads it from the
+// MAPBOX_TOKEN repository variable) it is the Mapbox island, with the picture for readers without script. Without one
+// (local builds, CI, until the variable exists) it is the picture alone: the old site's map, src/assets/images/map.png
+// of the old home page.
+import { getEntry } from 'astro:content';
+import ParkMap from '../islands/ParkMap';
+import datasources from '../data/datasources.json';
+import { markersFrom } from '../lib/map.mjs';
+import { publicImageSize } from '../lib/public-image.mjs';
+
+const token = import.meta.env.PUBLIC_MAPBOX_TOKEN;
+// The token is written into the page: only a public token (pk.…) may be, never a secret one (sk.…).
+if (token && !token.startsWith('pk.')) throw new Error('PUBLIC_MAPBOX_TOKEN is not a public Mapbox token (pk.…); the build stops so it is not published');
+
+const camera = await getEntry('live', 'camera');
+if (!camera) throw new Error('src/content/live/camera.md is missing');
+const markers = markersFrom(datasources, camera.data.video);
+
+const STILL = '/images/map.png';
+const { width, height } = await publicImageSize(STILL);
+// The picture's description, word for word as the page's text gave it before the picture moved here.
+const ALT = 'The old site’s map: an aerial view of the Hillsboro Inlet, with markers for the Wahoo Bay weather station, water quality sensor and camera';
+---
+{token ? (
+  <>
+    <ParkMap client:visible token={token} markers={markers} />
+    <noscript><img class="wb-media site-map__still" src={STILL} width={width} height={height} alt={ALT}></noscript>
+  </>
+) : (
+  <img class="wb-media site-map__still" src={STILL} width={width} height={height} alt={ALT} loading="lazy" decoding="async">
+)}
