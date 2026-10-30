@@ -161,7 +161,7 @@ test('the doorways keep their three sections, sentences and photos', () => {
   ]);
 });
 
-test('the map teaser is the map page\'s title and description on a raised panel, with one action and the map still', () => {
+test('the map teaser is the map page\'s title and description on a raised panel, with its two actions and the map still', () => {
   const teaser = home().match(/<section class="site-map-teaser"[\s\S]*?<\/section>/)?.[0] ?? '';
   // The manatee's signature sits at its bottom right: the band keeps the top of the frame (wb-media--top).
   assert.match(teaser, /^<section class="site-map-teaser"[^>]*>\s*<img class="site-map-teaser__photo wb-media--top" src="\/images\/home\/manatee-wide\.jpg"[^>]*\balt=""/);
@@ -169,10 +169,11 @@ test('the map teaser is the map page\'s title and description on a raised panel,
   const map = 'src/content/pages/visit/map.md';
   assert.match(panel, new RegExp(`<h2[^>]*>${escapeRe(escapeHtml(frontMatterField(map, 'title')))}</h2>`));
   assert.match(panel, new RegExp(`<p>${escapeRe(escapeHtml(frontMatterField(map, 'description')))}</p>`));
-  const links = [...teaser.matchAll(/<a\b[^>]*\bhref="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map((m) => [m[1], m[2]]);
-  assert.deepEqual(links, [['/visit/map/', 'Open the map']]);
+  // Ruling D: the sighting action arrived with its page (Task 7), the map page's ghost beside its action.
+  const links = [...teaser.matchAll(/<a class="([^"]+)" href="([^"]+)">([^<]+)<\/a>/g)].map((m) => [m[1], m[2], m[3]]);
+  assert.deepEqual(links, [['wb-btn wb-btn--action', '/visit/map/', 'Open the map'], ['wb-btn wb-btn--ghost', '/live/log-a-sighting/', 'Log a sighting']]);
+  assert.match(teaser, /<div class="site-page__actions">\s*<a class="wb-btn wb-btn--action" href="\/visit\/map\/">Open the map<\/a>\s*<a class="wb-btn wb-btn--ghost" href="\/live\/log-a-sighting\/">Log a sighting<\/a>\s*<\/div>/);
   assert.match(teaser, /<img class="wb-media[^"]*" src="\/images\/map\.png"[^>]*\balt="Map of Wahoo Bay"/);
-  assert.doesNotMatch(home(), /log-a-sighting/, 'the sighting page arrives with Task 7');
 });
 
 test('the news teaser is the three newest posts: one feature, then two cards; its heading links to /news/', async () => {

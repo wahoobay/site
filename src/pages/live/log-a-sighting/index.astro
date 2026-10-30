@@ -1,0 +1,30 @@
+---
+// /live/log-a-sighting/: the old site's sighting form (wahoobay-net-frontend, src/pages/intake/IntakeForm.js, at
+// /pages/intake/report) rebuilt as an island (src/islands/SightingForm.tsx) on the Java API's own endpoints. The
+// cameras are the committed datasource snapshot's rows with a stream (src/data/datasources.json), the species list
+// the committed species snapshot (src/data/species.json); the build's PUBLIC_SITE_ENV (set by each deploy job; staging
+// when unset) tells the island whether its submissions are real. Light page: the camera plays inside the form.
+// Without script the form cannot send, so site.css leaves it out and the no-script paragraph says where to go.
+import Base from '../../../layouts/Base.astro';
+import SightingForm from '../../../islands/SightingForm';
+import datasources from '../../../data/datasources.json';
+import species from '../../../data/species.json';
+
+const cameras = datasources.flatMap((d) => ('video' in d && d.video ? [{ id: d.id, name: d.name, video: d.video }] : []));
+const list = species.map(({ id, common_name, scientific_name }) => ({ id, common_name, scientific_name }));
+const env = import.meta.env.PUBLIC_SITE_ENV ?? 'staging';
+
+// The old form's lead, word for word; it is the page's description too.
+const LEAD = 'Watch the reef in real time. Spotted a species? Rewind, mark the moment, and log it below — every entry is reviewed before it’s verified.';
+const OLD = 'https://wahoobay.net/pages/intake/report';
+---
+<Base title="Log a sighting" description={LEAD}>
+  <div class="wb-container site-article">
+    <!-- katie: review (the heading is the old site's link to the form, "Log a Sighting"; the old form's own was the camera page's, "Live Underwater Camera") -->
+    <h1>Log a sighting</h1>
+    <p class="wb-lead">{LEAD}</p>
+    <SightingForm client:load cameras={cameras} species={list} env={env} />
+    <!-- katie: review (new sentence; the old address redirects here once wahoobay.net moves to this site) -->
+    <noscript><p>This form needs JavaScript. The previous form is still at <a href={OLD}>{OLD}</a>.</p></noscript>
+  </div>
+</Base>

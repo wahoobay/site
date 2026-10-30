@@ -1,8 +1,8 @@
 ---
 // The home page's map teaser: the manatee edge to edge behind a raised panel (the design's panel over a photograph)
-// with the map page's own title and description and one action, beside the map's still. The design has no map-teaser
-// component; the photo's placement is layout, in site.css (.site-map-teaser). The photo is decorative here (alt=""):
-// the panel says what the band is. The sighting action arrives with its page (Task 7).
+// with the map page's own title and description and its two actions, the map and the sighting form (a ghost, Ruling
+// D), beside the map's still. The design has no map-teaser component; the photo's placement is layout, in site.css
+// (.site-map-teaser). The photo is decorative here (alt=""): the panel says what the band is.
 // The photo is /images/get-involved/wb-3.jpg at 1600px (manatee-wide.jpg; Ruling J). Its photographer's signature sits
 // at the bottom right, so the band keeps the top of the frame (wb-media--top): the band is shorter than the scaled
 // photo at every width, and on phones the sides are cropped too.
@@ -20,6 +20,7 @@ const { title, description } = map.data;
       <p>{description}</p>
       <div class="site-page__actions">
         <a class="wb-btn wb-btn--action" href="/visit/map/">Open the map</a>
+        <a class="wb-btn wb-btn--ghost" href="/live/log-a-sighting/">Log a sighting</a>
       </div>
     </div>
     <img class="wb-media site-map-teaser__still" src="/images/map.png" width="616" height="504" alt="Map of Wahoo Bay" loading="lazy">

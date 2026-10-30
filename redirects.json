@@ -36,7 +36,7 @@
   {"from":"/pages/field-trip-guide","to":"/visit/field-experiences/guide/"},
   {"from":"/pages/fish-photos-videos","to":"/live/species/"},
   {"from":"/pages/home","to":"/"},
-  {"from":"/pages/intake/report","to":"/live/"},
+  {"from":"/pages/intake/report","to":"/live/log-a-sighting/"},
   {"from":"/pages/login","to":"/sign-in/"},
   {"from":"/pages/map","to":"/visit/map/"},
   {"from":"/pages/mapbox","to":"/visit/map/"},
