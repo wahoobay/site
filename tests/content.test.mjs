@@ -118,6 +118,15 @@ test('a page below a section marks the section "true" in the nav and itself "pag
   const about = readFileSync('dist/about/index.html', 'utf8');
   assert.match(linkIn(mainNav(about), '/about/'), /\baria-current="page"/);
   assert.match(linkIn(sectionNav(about), '/about/'), /\baria-current="page"/);
+
+  // /learn/ is an Astro page, not a Markdown one; its section's navigation still starts with it.
+  const learn = sectionNav(readFileSync('dist/learn/index.html', 'utf8'));
+  assert.match(linkIn(learn, '/learn/'), /\baria-current="page"/);
+  assert.equal(learn.match(/aria-current=/g)?.length, 1, 'only /learn/ is marked on /learn/');
+  const faq = sectionNav(readFileSync('dist/learn/faq/index.html', 'utf8'));
+  assert.ok(linkIn(faq, '/learn/'), 'the FAQ links back to /learn/');
+  assert.doesNotMatch(linkIn(faq, '/learn/'), /aria-current=/);
+  assert.match(linkIn(faq, '/learn/faq/'), /\baria-current="page"/);
 });
 
 test('the section navigation lists the section\'s pages in their order', () => {
@@ -279,8 +288,30 @@ const reHasUnicodeWord = /[a-z][A-Z]|[A-Z]{2}[a-z]|[0-9][a-zA-Z]|[a-zA-Z][0-9]|[
 const reAsciiWord = /[^\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f]+/g;
 const kebabCase = (title) => (title.match(reAsciiWord) ?? []).map((word) => word.toLowerCase()).join('-');
 
+// The old site's fifteen course addresses (/pages/courses/<slug>), computed with lodash itself from course-data.js.
+// Pinned here, so a changed title cannot move its address and break a redirect without this test noticing.
+const OLD_COURSE_SLUGS = [
+  'build-a-backbone',
+  'coral-reefs',
+  'crustacean-creations',
+  'field-based-activities',
+  'field-experience-guide',
+  'intertidal-zone',
+  'mangrove-trees',
+  'microplastic-beach-protocol',
+  'rapid-oyster-community-assessment-datasheet',
+  'sampling-for-microplastics',
+  'teaching-climate-change-through-art-s-fl-habitats',
+  'teaching-climate-change-through-art-wahoo-bay',
+  'the-great-plankton-race',
+  'traveling-trunk-program',
+  'university-partner-opportunities',
+];
+
 test('the old site\'s fifteen courses and six grades are data; each slug is lodash\'s kebabCase of the title', () => {
   assert.equal(lessons.length, 15, 'fifteen lessons');
+  const names = filesUnder(LESSONS).filter((f) => f.endsWith('.yaml')).map((f) => f.slice(LESSONS.length + 1, -'.yaml'.length));
+  assert.deepEqual(names.sort(), OLD_COURSE_SLUGS, 'the lesson files are exactly the old course addresses');
   assert.deepEqual(grades.map((g) => g.slug), ['educators', 'art-and-science', 'collegiate', 'prek', 'fourth-grade', 'ninth-grade']);
   const slugs = new Set();
   for (const lesson of lessons) {
@@ -310,7 +341,7 @@ test('/learn/ shows the six grades, each a card linking to its page, with the se
     assert.match(card, /<img\b[^>]*\balt=""/, `${grade.slug}: the tile is decorative inside the link`);
   }
   const hrefs = [...sectionNav(html).matchAll(/\bhref="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(hrefs, ['/learn/student-conservation/', '/learn/faq/']);
+  assert.deepEqual(hrefs, ['/learn/', '/learn/student-conservation/', '/learn/faq/']);
 });
 
 test('every grade page lists its courses; every course page has its links and links back to its grades', () => {
@@ -343,8 +374,9 @@ test('the live pages embed YouTube without cookies or autoplay, and they alone a
     assert.match(frames[0], /\btitle="[^"]+"/);
     assert.match(frames[0], /\bloading="lazy"/);
     assert.doesNotMatch(frames[0], /autoplay/);
-    assert.match(html, /href="\/live\/(highlights\/)?"/, 'the two pages link to each other');
   }
+  assert.ok(hrefIn(mainOf(live), '/live/highlights/'), '/live/ links the highlights from its body');
+  assert.ok(hrefIn(mainOf(highlights), '/live/'), '/live/highlights/ links back to /live/ from its body');
   assert.match(live, /<span class="wb-live"[^>]*>Live<\/span>/, '/live/ has the live badge');
   assert.doesNotMatch(highlights, /class="wb-live"/, 'the highlights are not live');
   const dark = new Set(['dist/live/index.html', 'dist/live/highlights/index.html']);
@@ -370,11 +402,11 @@ test('the home page has one script, the Instagram strip\'s; no other page has an
   }
 });
 
-test('/sign-in/ links the fish-ID sign-in and never prints the old hidden review address', () => {
+test('/sign-in/ links the fish-ID sign-in and prints no review address', () => {
   const html = readFileSync('dist/sign-in/index.html', 'utf8');
   assert.equal(decode(html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1] ?? ''), 'Sign in to Wahoo Bay');
   assert.ok(hrefIn(html, 'https://ai.wahoobay.net/login'), 'the fish-ID sign-in');
-  assert.ok(!html.includes('review-'), 'the hidden review path is not on the page');
+  assert.ok(!html.includes('review-'), 'no review address on the page');
   assert.doesNotMatch(html, /<form\b/, 'no form');
 });
 

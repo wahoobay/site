@@ -1,7 +1,8 @@
 ---
 // A Live reef page (src/content/live/*.md), on the dark ground: the h1 (with the live badge when the video is the
 // stream), the video, the lead, a link to the other live page, then the Markdown body.
-// The badge carries data-impeccable-ignore="pulsing-dot", as in the design's docs: spec §4.3 has it breathe, and
+// The badge is static until step 3 reads the stream's state: it says "Live" whether or not the stream is up.
+// It carries data-impeccable-ignore="pulsing-dot", as in the design's docs: spec §4.3 has it breathe, and
 // .impeccable/config.json records that ruling.
 import Base from './Base.astro';
 import YouTube from '../components/YouTube.astro';
@@ -9,7 +10,10 @@ import type { CollectionEntry } from 'astro:content';
 
 interface Props {
   entry: CollectionEntry<'live'>;
-  /** The video is the live stream: the badge says so. Recorded video has none. */
+  /**
+   * The video is the live stream, so the page shows the Live badge. The badge cannot tell whether the stream is up:
+   * it is static until step 3 reads the stream's state. Recorded video has none.
+   */
   live?: boolean;
   /** The other live page, as a button under the lead. */
   link: { href: string; label: string };
@@ -23,7 +27,12 @@ const hasBody = (entry.body ?? '').replace(/<!--[\s\S]*?-->/g, '').trim() !== ''
   <div class="wb-container site-article site-live">
     <div class="site-live__title">
       <h1>{title}</h1>
-      {live && <span class="wb-live" data-impeccable-ignore="pulsing-dot">Live</span>}
+      {live && (
+        <>
+          <!-- katie: review: this badge says "Live" whether or not the stream is up; it starts following the stream in step 3 of the rebuild. Keep it until then, or hide it. -->
+          <span class="wb-live" data-impeccable-ignore="pulsing-dot">Live</span>
+        </>
+      )}
     </div>
     <YouTube id={video} title={live ? `${title}, live stream` : `${title}, YouTube playlist`} playlist={playlist} />
     <p class="wb-lead">{description}</p>

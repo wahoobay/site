@@ -1,11 +1,10 @@
 # From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
 # src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
-# The old page opened this Google Document's preview; the Field Trip Guide page (/visit/field-experiences/guide/)
-# links the same document at /edit, and so does this one.
+# The link is the Google Document's /preview made /view, as the old page's button opened it (/view?usp=sharing).
 title: Field Experience Guide
 slug: field-experience-guide
 grades: [educators]
 links:
   - label: Field Experience Guide
     kind: doc
-    url: "https://docs.google.com/document/d/1_8pnuhRSJCz_1VGzQTA9Wzc0-UB0M-Qf/edit"
+    url: "https://docs.google.com/document/d/1_8pnuhRSJCz_1VGzQTA9Wzc0-UB0M-Qf/view"

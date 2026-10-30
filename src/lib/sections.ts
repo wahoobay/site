@@ -6,6 +6,14 @@ export type PageEntry = CollectionEntry<'pages'>;
 /** An entry's URL. The glob loader's id is the file's path without the extension or a trailing /index. */
 export const urlOf = (entry: PageEntry) => `/${entry.id}/`;
 
+/**
+ * A section whose own page is not in the pages collection: its "In this section" list starts with that page.
+ * /learn/ is an Astro page (src/pages/learn/index.astro), the grades of the educational resources.
+ */
+export const sectionLead: Partial<Record<PageEntry['data']['section'], { href: string; label: string }>> = {
+  learn: { href: '/learn/', label: 'Educational resources' },
+};
+
 /** The pages of one section, in their `order` (pages without one go last, then by title). */
 export async function sectionPages(section: PageEntry['data']['section']) {
   const pages = await getCollection('pages', (entry) => entry.data.section === section);
