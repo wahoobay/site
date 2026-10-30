@@ -1,0 +1,16 @@
+---
+// Every page of the pages collection, at the address its file path names (src/content.config.ts).
+import { getCollection, render } from 'astro:content';
+import Page from '../layouts/Page.astro';
+
+export async function getStaticPaths() {
+  const pages = await getCollection('pages');
+  return pages.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+<Page entry={entry}>
+  <Content />
+</Page>

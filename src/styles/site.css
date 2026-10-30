@@ -83,3 +83,38 @@ main { flex: 1 0 auto; }
   padding-bottom: var(--wb-space-8);
 }
 .site-page > p { margin-top: var(--wb-space-3); }
+
+/* A page of the pages collection (src/layouts/Page.astro): an optional banner photo, the section's pages,
+   the heading and lead, then the Markdown body. */
+.site-article__hero {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+@media (min-width: 48rem) {
+  .site-article__hero { aspect-ratio: 4 / 1; }
+}
+.site-article {
+  padding-top: var(--wb-space-6);
+  padding-bottom: var(--wb-space-8);
+}
+.site-article > .wb-lead { margin-top: var(--wb-space-4); }
+.site-article__body { margin-top: var(--wb-space-6); }
+/* A photo fills the text column; a tall one stops at 36rem high and keeps its shape. */
+.site-article__body img {
+  width: auto;
+  max-height: 36rem;
+}
+
+/* "In this section": the section's pages as one row of nav links that wraps on narrow screens;
+   the link text lines up with the heading below it. */
+.site-subnav { margin-bottom: var(--wb-space-5); }
+.site-subnav ul {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 0 0 calc(-1 * var(--wb-space-3));
+  padding: 0;
+  list-style: none;
+}
+.site-subnav li { display: flex; }
