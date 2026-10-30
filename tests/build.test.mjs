@@ -5,6 +5,8 @@ import { existsSync, readFileSync } from 'node:fs';
 
 const navOf = (html) => html.match(/<nav\b[\s\S]*?<\/nav>/)?.[0] ?? '';
 const DONATE = 'https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2';
+// The fish-ID app: the deploy workflow sets PUBLIC_AI_URL per environment; a build without it links staging.
+const AI_URL = process.env.PUBLIC_AI_URL ?? 'https://staging-ai.wahoobay.net/';
 
 test('home page has the navigation and no page-local colours', () => {
   const html = readFileSync('dist/index.html', 'utf8');
@@ -27,10 +29,10 @@ test('the nav inlines the logo once, following currentColor', () => {
   assert.match(inNav[0], /\bfill="currentColor"/);
 });
 
-test('the nav links the seven destinations in order; Donate opens the Zeffy form in a new tab and says so', () => {
+test('the nav links the eight destinations in order; Donate opens the Zeffy form in a new tab and says so', () => {
   const nav = navOf(readFileSync('dist/index.html', 'utf8'));
   const hrefs = [...nav.matchAll(/<a\b[^>]*\bhref="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(hrefs, ['/', '/visit/', '/learn/', '/live/', '/get-involved/', '/about/', DONATE, '/sign-in/']);
+  assert.deepEqual(hrefs, ['/', '/visit/', '/learn/', '/live/', AI_URL, '/get-involved/', '/about/', DONATE, '/sign-in/']);
   const donate = nav.match(/<a\b[^>]*\bhref="https:\/\/www\.zeffy\.com[^"]*"[^>]*>[\s\S]*?<\/a>/)?.[0] ?? '';
   assert.match(donate, /\btarget="_blank"/);
   assert.match(donate, /\brel="noopener"/);

@@ -1,14 +1,11 @@
 ---
-// The one navigation bar: the five sections, Donate (the old site's Zeffy form), then sign-in.
+// The one navigation bar: the five sections with Fish ID after Live reef (src/lib/nav.mjs), Donate (the old site's
+// Zeffy form), then sign-in.
 import Logo from './Logo.astro';
+import { aiUrl, mainNav } from '../lib/nav.mjs';
 
-const sections = [
-  { label: 'Visit', href: '/visit/' },
-  { label: 'Learn', href: '/learn/' },
-  { label: 'Live reef', href: '/live/' },
-  { label: 'Get involved', href: '/get-involved/' },
-  { label: 'About', href: '/about/' },
-];
+// The fish-ID app's address differs per environment: the deploy workflow sets PUBLIC_AI_URL at build time.
+const items = mainNav(aiUrl(import.meta.env.PUBLIC_AI_URL));
 const signIn = { label: 'Sign in', href: '/sign-in/' };
 const donate = 'https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2';
 
@@ -21,8 +18,14 @@ const current = (href: string) => (path === href ? 'page' : isOn(href) ? 'true' 
 <nav class="wb-nav" aria-label="Main">
   <a class="wb-nav__logo" href="/"><Logo /></a>
   <ul class="wb-nav__links">
-    {sections.map(({ label, href }) => (
-      <li><a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(href) }]} href={href} aria-current={current(href)}>{label}</a></li>
+    {items.map(({ label, href, external }) => (
+      <li>
+        {external ? (
+          <a class="wb-nav__link" href={href}>{label}</a>
+        ) : (
+          <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(href) }]} href={href} aria-current={current(href)}>{label}</a>
+        )}
+      </li>
     ))}
   </ul>
   <a class="wb-btn wb-btn--accent wb-nav__cta" href={donate} target="_blank" rel="noopener">Donate<span class="wb-sr-only"> (opens in a new tab)</span></a>

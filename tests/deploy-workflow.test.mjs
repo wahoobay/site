@@ -41,3 +41,14 @@ test('deploys read the repository variables and secret by their agreed names', (
 test('deploy builds from dist/, not _site/', () => {
   assert.doesNotMatch(yml, /_site/);
 });
+
+test('the build step names the fish-ID app per environment: staging-ai on staging, ai in production', () => {
+  const staging = yml.slice(yml.indexOf('\n  staging:\n'), yml.indexOf('\n  production:\n'));
+  const production = yml.slice(yml.indexOf('\n  production:\n'));
+  const build = (url) =>
+    new RegExp(`- run: npm ci && npm run build && [^\\n]*\\n\\s+env: \\{ PUBLIC_AI_URL: "${url.replace(/[./]/g, '\\$&')}" \\}\\n`);
+  assert.match(staging, build('https://staging-ai.wahoobay.net/'));
+  assert.match(production, build('https://ai.wahoobay.net/'));
+  assert.doesNotMatch(staging, /https:\/\/ai\.wahoobay\.net/);
+  assert.doesNotMatch(production, /staging-ai/);
+});
