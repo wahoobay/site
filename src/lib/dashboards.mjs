@@ -15,6 +15,8 @@ export const DASHBOARDS = [
   },
   {
     id: 'water',
+    // grafana.wahoobay.net did not resolve on public DNS on 2026-10-30 (scripts/check-embeds.mjs); flip to false when the host is back
+    offline: true,
     title: 'Water dashboard',
     src: `${WATER}&kiosk`,
     open: WATER,
@@ -22,9 +24,14 @@ export const DASHBOARDS = [
   },
   {
     id: 'air',
+    // grafana.wahoobay.net did not resolve on public DNS on 2026-10-30 (scripts/check-embeds.mjs); flip to false when the host is back
+    offline: true,
     title: 'Air dashboard',
     src: `${AIR}&kiosk`,
     open: AIR,
     note: 'Air readings from the bay, updated hourly.',
   },
 ];
+
+// The dashboards whose host answers: the page renders only these.
+export const onlineDashboards = () => DASHBOARDS.filter((d) => !d.offline);
