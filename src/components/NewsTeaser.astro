@@ -1,7 +1,8 @@
 ---
 // The home page's news: the three newest posts (src/content/news), the newest as the design's feature (its photo, title
 // and description; the title and sentence on the picture carry the low-contrast waiver, Ruling A), the next two as
-// cards. Every photo is decorative inside its link (alt=""): the title names the link.
+// cards, then a link to every post. Every photo is decorative inside its link (alt=""): the title names the link. The
+// heading is plain ink like the page's other section headings (Ruling AB b); "All news" is the way to the list.
 import { getCollection } from 'astro:content';
 import { publicImageSize } from '../lib/public-image.mjs';
 
@@ -11,7 +12,7 @@ const [feature, ...rest] = await Promise.all(
 );
 ---
 <section class="wb-container site-news-teaser" aria-labelledby="news-title">
-  <h2 id="news-title"><a href="/news/">News</a></h2>
+  <h2 id="news-title">News</h2>
   <div class="site-news-teaser__grid">
     {feature && (
       <a class="wb-feature" href={`/news/${feature.post.id}/`}>
@@ -32,4 +33,6 @@ const [feature, ...rest] = await Promise.all(
       ))}
     </ul>
   </div>
+  <!-- katie: review (new link label: navigation to the news list) -->
+  <p class="site-news-teaser__more"><a href="/news/">All news</a></p>
 </section>

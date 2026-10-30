@@ -176,7 +176,9 @@ test('the map teaser is the map page\'s title and description on a raised panel,
   assert.match(teaser, /<img class="wb-media[^"]*" src="\/images\/map\.png"[^>]*\balt="Map of Wahoo Bay"/);
 });
 
-test('the news teaser is the three newest posts: one feature, then two cards; its heading links to /news/', async () => {
+// Ruling AB b (finish review, fix 5): "News" was an underlined blue link where "From Instagram" is an ink heading. It is
+// a plain heading now, and a separate "All news" link follows the posts.
+test('the news teaser is the three newest posts: one feature, then two cards, under a plain heading, then "All news"', async () => {
   const { readdirSync } = await import('node:fs');
   const posts = readdirSync('src/content/news')
     .filter((name) => name.endsWith('.md'))
@@ -185,7 +187,12 @@ test('the news teaser is the three newest posts: one feature, then two cards; it
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 3);
   const news = home().match(/<section\b[^>]*aria-labelledby="news-title"[\s\S]*?<\/section>/)?.[0] ?? '';
-  assert.match(news, /<h2 id="news-title"><a href="\/news\/">News<\/a><\/h2>/);
+  assert.match(news, /<h2 id="news-title">News<\/h2>/);
+  assert.doesNotMatch(news.match(/<h2[\s\S]*?<\/h2>/)[0], /<a\b/, 'the heading is not a link');
+  assert.match(news.replace(/<!--[\s\S]*?-->/g, ''), /<\/ul>\s*<\/div><p class="site-news-teaser__more"><a href="\/news\/">All news<\/a><\/p><\/section>$/, 'the link to every post follows the grid');
+  const source = readFileSync('src/components/NewsTeaser.astro', 'utf8');
+  const label = source.indexOf('>All news<');
+  assert.match(source.slice(source.lastIndexOf('\n', source.lastIndexOf('\n', label) - 1), label), /katie: review/, 'the new link label is marked');
   const feature = news.match(/<a class="wb-feature"[\s\S]*?<\/a>/)?.[0] ?? '';
   assert.match(feature, new RegExp(`^<a class="wb-feature" href="/news/${posts[0].slug}/">`));
   assert.match(feature, new RegExp(`<img class="wb-feature__photo" src="${escapeRe(posts[0].image)}"[^>]*\\balt=""`));
