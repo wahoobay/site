@@ -86,15 +86,14 @@ main { flex: 1 0 auto; }
 .site-page > p { margin-top: var(--wb-space-3); }
 
 /* A page of the pages collection (src/layouts/Page.astro): an optional banner photo, the section's pages,
-   the heading and lead, then the Markdown body. */
+   the heading and lead, then the Markdown body. The banner is the design's .wb-media (its corners, and the photo
+   filling the band) inset in the article's column, in a band of a known shape: 16:9, and 21:9 from 48rem. */
 .site-article__hero {
-  display: block;
-  width: 100%;
   aspect-ratio: 16 / 9;
-  object-fit: cover;
+  margin-bottom: var(--wb-space-6);
 }
 @media (min-width: 48rem) {
-  .site-article__hero { aspect-ratio: 4 / 1; }
+  .site-article__hero { aspect-ratio: 21 / 9; }
 }
 .site-article {
   padding-top: var(--wb-space-6);
@@ -138,11 +137,9 @@ main { flex: 1 0 auto; }
 }
 .site-news__item { align-items: start; }
 .site-news__item p + p { margin-top: var(--wb-space-1); }
+/* The design's .wb-media at the photo's own shape, at most 36rem wide. */
 .site-post__image {
-  display: block;
-  width: 100%;
   max-width: 36rem;
-  height: auto;
   margin-top: var(--wb-space-4);
 }
 

@@ -3,6 +3,7 @@
 import { defineCollection } from 'astro:content';
 import { file, glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { heroPosition } from './lib/media.mjs';
 
 const pages = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/pages' }),
@@ -19,6 +20,8 @@ const pages = defineCollection({
     order: z.number().optional(),
     /** A photo under public/ shown as the page's banner and used as its social-card image. */
     hero: z.string().optional(),
+    /** Which edge of the banner stays in its band when the band crops it: top, center (the default) or bottom. */
+    heroPosition,
     /**
      * Up to three buttons under the lead: the page's main actions, where the old page led with buttons.
      * `accent` is for Donate or Give only (the design keeps that colour for giving and "live now").
@@ -47,6 +50,8 @@ const news = defineCollection({
     description: z.string(),
     /** A photo under public/, shown with the post. */
     image: z.string().optional(),
+    /** Which edge of the photo stays in frame if its box crops it: top, center (the default) or bottom. */
+    heroPosition,
   }),
 });
 

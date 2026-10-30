@@ -1,15 +1,17 @@
 ---
-// One page of the pages collection: its section's navigation, the h1, the lead, its actions, then the Markdown body.
+// One page of the pages collection: its banner (inset, rounded), its section's navigation, the h1, the lead, its
+// actions, then the Markdown body.
 import Base from './Base.astro';
 import SectionNav from '../components/SectionNav.astro';
 import { urlOf, type PageEntry } from '../lib/sections';
+import { mediaClass } from '../lib/media.mjs';
 
 interface Props {
   entry: PageEntry;
 }
 
 const { entry } = Astro.props;
-const { title, description, section, hero, actions = [] } = entry.data;
+const { title, description, section, hero, heroPosition, actions = [] } = entry.data;
 const here = urlOf(entry);
 
 // The description doubles as the lead paragraph, unless the body already says it (then it would read twice).
@@ -22,8 +24,8 @@ const showLead = !body.includes(flat(description));
 const isExternal = (href: string) => /^https?:\/\//.test(href);
 ---
 <Base title={title} description={description} image={hero}>
-  {hero && <img class="site-article__hero" src={hero} alt="" fetchpriority="high">}
   <div class="wb-container site-article">
+    {hero && <img class={`${mediaClass(heroPosition)} site-article__hero`} src={hero} alt="" fetchpriority="high">}
     <SectionNav section={section} here={here} />
     <h1>{title}</h1>
     {showLead && <p class="wb-lead">{description}</p>}

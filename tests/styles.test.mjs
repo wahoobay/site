@@ -101,7 +101,8 @@ test('the Instagram cards use the design\'s caption for their link and the card\
 
 // Dan's staging review (2026-10-30): the photos on these two pages were square beside the 12px cards and tiles.
 // The corners come from @wahoobay/design 0.1.3, `.wb-prose :where(img, video, iframe)`, so every photo in a page's
-// body must sit inside .wb-prose. The banner above the heading is not one of them: it runs edge to edge.
+// body must sit inside .wb-prose. The banner above the section's navigation is not one of them: it is .wb-media
+// (0.1.4), inset in the article's column.
 const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
 /** Each <img> tag in `html`, with the class attributes of the elements it sits in, outermost first. */
 const imagesIn = (html) => {
@@ -125,8 +126,13 @@ test('the photos on /get-involved/ambassadors/ and /get-involved/support/ sit in
   for (const [file, least] of [['dist/get-involved/ambassadors/index.html', 1], ['dist/get-involved/support/index.html', 8]]) {
     const main = read(file).match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
     const images = imagesIn(main);
-    const photos = images.filter(({ tag }) => !/\bclass="site-article__hero"/.test(tag));
-    for (const { tag, around } of images.filter((image) => !photos.includes(image))) assert.equal(around.length, 1, `${file}: the banner ${tag} is a child of <main>`);
+    const photos = images.filter(({ tag }) => !/\bclass="[^"]*\bsite-article__hero"/.test(tag));
+    const banners = images.filter((image) => !photos.includes(image));
+    assert.ok(banners.length <= 1, `${file}: at most one banner`);
+    for (const { tag, around } of banners) {
+      assert.deepEqual(around.slice(1), ['wb-container site-article'], `${file}: the banner ${tag} is inset in the article`);
+      assert.match(tag, /\bclass="wb-media\b/, `${file}: the banner is .wb-media`);
+    }
     assert.ok(photos.length >= least, `${file}: ${photos.length} photos`);
     for (const { tag, around } of photos) assert.ok(around.some((cls) => /(^|\s)wb-prose(\s|$)/.test(cls)), `${file}: ${tag} is outside .wb-prose`);
   }

@@ -7,6 +7,7 @@ description: Your support connects students and communities with hands-on learni
 section: get-involved
 order: 3
 hero: /images/get-involved/parade.jpg
+heroPosition: top
 actions:
   - label: Donate Now
     href: https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2?UTM_source=support-us-hero

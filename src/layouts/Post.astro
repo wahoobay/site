@@ -3,6 +3,7 @@
 import Base from './Base.astro';
 import { isoDay, longDay } from '../lib/dates';
 import { publicImageSize } from '../lib/public-image.mjs';
+import { mediaClass } from '../lib/media.mjs';
 import type { CollectionEntry } from 'astro:content';
 import arrowLeft from '@wahoobay/design/icons/arrow-left.svg?raw';
 
@@ -11,7 +12,7 @@ interface Props {
 }
 
 const { entry } = Astro.props;
-const { title, description, date, image } = entry.data;
+const { title, description, date, image, heroPosition } = entry.data;
 const size = image ? await publicImageSize(image) : undefined;
 ---
 <Base title={title} description={description} image={image}>
@@ -19,7 +20,7 @@ const size = image ? await publicImageSize(image) : undefined;
     <a class="wb-back" href="/news/"><Fragment set:html={arrowLeft} /> All news</a>
     <h1>{title}</h1>
     <p><time datetime={isoDay(date)}>{longDay(date)}</time></p>
-    {image && size && <img class="site-post__image" src={image} width={size.width} height={size.height} alt="" fetchpriority="high">}
+    {image && size && <img class={`${mediaClass(heroPosition)} site-post__image`} src={image} width={size.width} height={size.height} alt="" fetchpriority="high">}
     <div class="wb-prose site-article__body"><slot /></div>
   </div>
 </Base>
