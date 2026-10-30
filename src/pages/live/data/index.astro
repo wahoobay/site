@@ -1,0 +1,24 @@
+---
+// /live/data/: the Power BI report and the two Grafana dashboards, framed. Light page. Scripts are not sandboxed
+// away: Power BI needs scripts and same-origin inside its own frame.
+import Base from '../../../layouts/Base.astro';
+import { DASHBOARDS } from '../../../lib/dashboards.mjs';
+---
+<Base title="Data dashboards" description="Live data from Wahoo Bay: the Wahoo Bay dashboard and the water and air dashboards.">
+  <div class="wb-container site-article">
+    <!-- katie: review (new heading: the old pages had none) -->
+    <h1>Data dashboards</h1>
+    {DASHBOARDS.map((d) => (
+      <section class="wb-panel site-dashboard" aria-labelledby={`dash-${d.id}`}>
+        <!-- katie: review (new title and sentence for this dashboard) -->
+        <h2 id={`dash-${d.id}`}>{d.title}</h2>
+        <p>{d.note}</p>
+        <div class="wb-video">
+          <iframe src={d.src} title={d.title} loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        </div>
+        <!-- katie: review (new link label) -->
+        <a class="wb-btn wb-btn--ghost" href={d.open} target="_blank" rel="noopener">Open full size<span class="wb-sr-only"> (opens in a new tab)</span></a>
+      </section>
+    ))}
+  </div>
+</Base>

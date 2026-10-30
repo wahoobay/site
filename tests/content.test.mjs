@@ -93,8 +93,8 @@ test('every design token used under src/ exists in the design system', () => {
   }
 });
 
-test('no built page embeds an iframe except the two live pages, and none uses onclick=', () => {
-  const allowed = new Set(['dist/live/index.html', 'dist/live/highlights/index.html']);
+test('no built page embeds an iframe except the live pages and the data dashboards, and none uses onclick=', () => {
+  const allowed = new Set(['dist/live/index.html', 'dist/live/highlights/index.html', 'dist/live/data/index.html']);
   const pages = filesUnder('dist').filter((file) => file.endsWith('.html'));
   assert.ok(pages.length > 0, 'dist/ has pages (build first)');
   for (const file of pages) {
