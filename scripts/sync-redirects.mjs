@@ -34,6 +34,27 @@ function aws(args) {
   return JSON.parse(execFileSync('aws', ['cloudfront-keyvaluestore', ...args, '--output', 'json'], { encoding: 'utf8' }));
 }
 
+// CloudFront KeyValueStore accepts at most 50 puts+deletes per update-keys call, and the ETag changes
+// after each successful update, so re-read it before every batch.
+export const MAX_BATCH = 50;
+
+export function applyPlan(kvsArn, plan, run = aws) {
+  const ops = [
+    ...plan.puts.map(({ key, value }) => ({ kind: 'puts', item: { Key: key, Value: value } })),
+    ...plan.deletes.map(({ key }) => ({ kind: 'deletes', item: { Key: key } })),
+  ];
+  for (let i = 0; i < ops.length; i += MAX_BATCH) {
+    const batch = ops.slice(i, i + MAX_BATCH);
+    const etag = run(['describe-key-value-store', '--kvs-arn', kvsArn]).ETag;
+    const args = ['update-keys', '--kvs-arn', kvsArn, '--if-match', etag];
+    for (const kind of ['puts', 'deletes']) {
+      const items = batch.filter((o) => o.kind === kind).map((o) => o.item);
+      if (items.length) args.push(`--${kind}`, JSON.stringify(items));
+    }
+    run(args);
+  }
+}
+
 export function main(kvsArn, redirectsPath = 'redirects.json') {
   const desired = toKvsEntries(JSON.parse(readFileSync(redirectsPath, 'utf8')));
   const current = {};
@@ -43,11 +64,7 @@ export function main(kvsArn, redirectsPath = 'redirects.json') {
     console.log('redirects: no changes');
     return plan;
   }
-  const etag = aws(['describe-key-value-store', '--kvs-arn', kvsArn]).ETag;
-  const args = ['update-keys', '--kvs-arn', kvsArn, '--if-match', etag];
-  if (plan.puts.length) args.push('--puts', JSON.stringify(plan.puts.map(({ key, value }) => ({ Key: key, Value: value }))));
-  if (plan.deletes.length) args.push('--deletes', JSON.stringify(plan.deletes.map(({ key }) => ({ Key: key }))));
-  aws(args);
+  applyPlan(kvsArn, plan);
   console.log(`redirects: ${plan.puts.length} put, ${plan.deletes.length} deleted`);
   return plan;
 }
