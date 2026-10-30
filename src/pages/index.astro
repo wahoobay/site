@@ -1,0 +1,75 @@
+---
+import Base from '../layouts/Base.astro';
+
+// The old home page's hero copy, verbatim (wahoobay-net-frontend, src/components/MainPage/HeroSection.js).
+const headline = 'Art. Conservation. Education';
+const intro =
+  'Wahoo Bay is a public marine education park at the Hillsboro Inlet, inspiring ocean literacy through hands-on learning, immersive field experiences, and community conservation.';
+
+// One sentence each, from the old site: WaysToVisit.js, MainPage/EducationSection.js, MainPage/GetInvolvedSection.js.
+const doorways = [
+  {
+    title: 'Visit',
+    href: '/visit/',
+    text: 'Wahoo Bay sits within the Hillsboro Inlet at Roy L. Rogers Family Park.',
+    image: '/images/home/diver.jpg',
+    width: 800,
+    height: 533,
+    alt: 'A diver with a camera swims along the reef, light falling from the surface',
+  },
+  {
+    title: 'Learn',
+    href: '/learn/',
+    text: 'Explore the many educational resources available right here on our website.',
+    image: '/images/home/students.jpg',
+    width: 800,
+    height: 602,
+    alt: 'A group of students on a boat at the dock',
+  },
+  {
+    title: 'Get involved',
+    href: '/get-involved/',
+    text: 'Join our conservation mission and inspire others to protect marine ecosystems.',
+    image: '/images/home/manatee.jpg',
+    width: 800,
+    height: 533,
+    alt: 'A manatee over the sand in green water',
+  },
+];
+---
+<Base title="Wahoo Bay" description={intro}>
+  <section class="site-hero" aria-labelledby="hero-title">
+    <img
+      class="site-hero__photo"
+      src="/WB-1.jpg"
+      srcset="/WB-1-800.jpg 800w, /WB-1.jpg 1600w"
+      sizes="100vw"
+      width="1600"
+      height="900"
+      alt="The park from the air: palms along the seawall, the dock on the inlet and the bridge behind"
+      fetchpriority="high"
+    >
+    <div class="wb-container site-hero__inner">
+      <div class="wb-panel site-hero__panel">
+        <h1 id="hero-title">{headline}</h1>
+        <p>{intro}</p>
+        <div class="site-hero__actions">
+          <a class="wb-btn wb-btn--action" href="/visit/">Explore Wahoo Bay</a>
+          <a class="wb-btn wb-btn--ghost" href="/live/">Underwater Camera</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wb-container site-doorways" aria-label="Ways in">
+    {doorways.map((door) => (
+      <a class="wb-card" href={door.href}>
+        <img class="wb-card__media" src={door.image} width={door.width} height={door.height} alt={door.alt} loading="lazy">
+        <div class="wb-card__body">
+          <h2>{door.title}</h2>
+          <p>{door.text}</p>
+        </div>
+      </a>
+    ))}
+  </section>
+</Base>

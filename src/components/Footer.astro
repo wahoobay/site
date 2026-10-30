@@ -1,0 +1,19 @@
+---
+// The organisation line from the old site's footer; the park address and contact from its Contact Us page.
+const year = new Date().getFullYear();
+const links = [
+  { label: 'Instagram', href: 'https://www.instagram.com/wahoobaypompano/' },
+  { label: 'Facebook', href: 'https://www.facebook.com/wahoobaypompano/' },
+  { label: 'YouTube', href: 'https://www.youtube.com/@wahoobaypompano' },
+  { label: 'Shipwreck Park', href: 'https://shipwreckparkpompano.org' },
+];
+---
+<footer class="wb-footer">
+  <div class="site-footer__org">
+    <p>© {year} Wahoo Bay by Shipwreck Park, Inc. · 501(c)(3) non-profit organization — all donations are tax-deductible to the extent permitted by law.</p>
+    <address>2700 North Ocean Blvd, Pompano Beach, FL 33062 · <a href="mailto:info@wahoobay.org">info@wahoobay.org</a> · <a href="tel:9547864607">954-786-4607</a></address>
+  </div>
+  <ul>
+    {links.map(({ label, href }) => <li><a href={href}>{label}</a></li>)}
+  </ul>
+</footer>

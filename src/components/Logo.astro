@@ -1,0 +1,27 @@
+---
+// The design system's lockup, inlined at build time so it follows `currentColor`:
+// the nav sets its colour (brand blue on light, ink on dark) and its height.
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const file = createRequire(import.meta.url).resolve('@wahoobay/design/logo/wahoobay-logo.svg');
+const source = readFileSync(file, 'utf8');
+
+const svg = source
+  // Drop the XML declaration and the file's comment.
+  .slice(source.indexOf('<svg'))
+  // The root element: drop its inline default colour (kept in the file for <img> use) and its
+  // title reference; name it with aria-label instead.
+  .replace(/<svg\b[^>]*>/, (root) =>
+    root
+      .replace(/\s(?:style|role|aria-labelledby)\s*=\s*"[^"]*"/g, '')
+      .replace(/^<svg\b/, '<svg role="img" aria-label="Wahoo Bay"'),
+  )
+  // The title it referenced, and the group ids, which could collide with ids on the page.
+  .replace(/<title\b[^>]*>[\s\S]*?<\/title>\s*/, '')
+  .replace(/(<g\b[^>]*?)\sid\s*=\s*"[^"]*"/g, '$1')
+  // Line breaks and tabs inside the path data are separators; one space does the same.
+  .replace(/\s+/g, ' ')
+  .trim();
+---
+<Fragment set:html={svg} />

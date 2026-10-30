@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "dist/**/*.html"
+        ],
+        "createdAt": "2026-10-30T07:18:56.692Z",
+        "reason": "Controller ruling, Task 4 (2026-10-29): spec 4.3 mandates the breathing live badge; the rule fires on the design system's .wb-live::before stylesheet rule on every page that links components.css, including pages with no badge. Live pages mark each badge with data-impeccable-ignore, as the design docs do."
+      }
+    ]
+  }
+}

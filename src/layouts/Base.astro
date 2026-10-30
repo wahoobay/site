@@ -1,0 +1,38 @@
+---
+// The document shell of every page: the design system's styles, the head metadata, the nav and the footer.
+import '@wahoobay/design/fonts.css';
+import '@wahoobay/design/tokens.css';
+import '@wahoobay/design/components.css';
+import '../styles/site.css';
+import Seo from '../components/Seo.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  /** "dark" is for the live-camera pages only (spec §4.3); every other page is light. */
+  theme?: 'light' | 'dark';
+  image?: string;
+}
+
+const { title, description, theme = 'light', image } = Astro.props;
+---
+<!doctype html>
+<html lang="en" data-theme={theme === 'dark' ? 'dark' : undefined}>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <Seo title={title} description={description} image={image} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  </head>
+  <body>
+    <Nav />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
