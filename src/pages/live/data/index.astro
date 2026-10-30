@@ -13,9 +13,9 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
 ---
 <Base title="Data dashboards" description={description}>
   <div class="wb-container site-article">
+    <SectionNav section="live" here={'/live/data/'} items={liveNav(ai)} label="Live reef" />
     <!-- katie: review (new heading: the old pages had none) -->
     <h1>Data dashboards</h1>
-    <SectionNav section="live" here={'/live/data/'} items={liveNav(ai)} label="Live reef" />
     {shown.map((d) => (
       <section class="wb-panel site-dashboard" aria-labelledby={`dash-${d.id}`}>
         <!-- katie: review (new title and sentence for this dashboard) -->

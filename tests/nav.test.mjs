@@ -27,12 +27,18 @@ test('Nav.astro hands the build\'s PUBLIC_AI_URL to the model', () => {
   assert.match(readFileSync('src/components/Nav.astro', 'utf8'), /\baiUrl\(import\.meta\.env\.PUBLIC_AI_URL\)/);
 });
 
-test('the built nav links Fish ID to this build\'s address, in a new tab, and never marks it current', () => {
+// The design's external icon, inlined as the back links inline arrow-left (Ruling Z: a visible mark that Fish ID leaves
+// the site, after its label, as well as the words for a screen reader).
+const EXTERNAL = readFileSync('node_modules/@wahoobay/design/dist/icons/external.svg', 'utf8').trim();
+const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const OUT = `${escapeRe(EXTERNAL)}<span class="wb-sr-only"> \\(opens in a new tab\\)</span>`;
+
+test('the built nav links Fish ID to this build\'s address, in a new tab with the external icon, and never marks it current', () => {
   const expected = process.env.PUBLIC_AI_URL ?? STAGING;
   for (const file of ['dist/index.html', 'dist/live/index.html', 'dist/about/index.html']) {
     const nav = readFileSync(file, 'utf8').match(/<nav\b[^>]*aria-label="Main"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? '';
-    const links = [...nav.matchAll(/<a\b([^>]*)>Fish ID<span class="wb-sr-only"> \(opens in a new tab\)<\/span><\/a>/g)].map((m) => m[1]);
-    assert.equal(links.length, 1, `${file}: one Fish ID link`);
+    const links = [...nav.matchAll(new RegExp(`<a\\b([^>]*)>Fish ID${OUT}</a>`, 'g'))].map((m) => m[1]);
+    assert.equal(links.length, 1, `${file}: one Fish ID link, the icon after its label`);
     assert.equal(links[0].match(/\bhref="([^"]*)"/)?.[1], expected, file);
     assert.match(links[0], /\bclass="wb-nav__link"/, file);
     assert.match(links[0], /\btarget="_blank"/, file);
@@ -71,21 +77,50 @@ test('liveNav lists the six live items with Fish ID last and external', () => {
   assert.equal(items.filter((i) => i.external).length, 1);
 });
 
-test('every live page carries the Live reef navigation with Fish ID last, in a new tab, and its own page current', () => {
+test('every live page carries the Live reef navigation above its H1, Fish ID last, in a new tab, and its own page current', () => {
   const expected = process.env.PUBLIC_AI_URL ?? STAGING;
   const pages = { live: '/live/', 'live/highlights': '/live/highlights/', 'live/species': '/live/species/', 'live/data': '/live/data/', 'live/log-a-sighting': '/live/log-a-sighting/' };
   for (const [p, here] of Object.entries(pages)) {
     const html = readFileSync(`dist/${p}/index.html`, 'utf8');
     const nav = html.match(/<nav\b(?=[^>]*\bclass="site-subnav")(?=[^>]*\baria-label="Live reef")[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? '';
     assert.ok(nav, `${p}: the Live reef navigation`);
+    // Ruling Z: one order on every page, as Page.astro has it: the section navigation first in the article, then the H1.
+    const main = html.match(/<main\b[^>]*>([\s\S]*)<\/main>/)?.[1] ?? '';
+    assert.ok(main.indexOf(nav) >= 0 && main.indexOf(nav) < main.indexOf('<h1'), `${p}: the navigation is above the H1`);
+    assert.match(main, new RegExp(`^<div class="wb-container site-article[^"]*">${escapeRe(nav)}`), `${p}: first in the article`);
+    assert.match(nav, /^<nav class="site-subnav" aria-label="Live reef"><ul class="wb-subnav">/, `${p}: the design's section navigation`);
+    assert.match(nav, new RegExp(`>Fish ID${OUT}</a>`), `${p}: Fish ID carries the external icon`);
     const links = [...nav.matchAll(/<a\b([^>]*)>/g)].map((m) => m[1]);
     assert.equal(links.length, 6, p);
     assert.equal(links.at(-1).match(/\bhref="([^"]*)"/)?.[1], expected, p);
     assert.match(links.at(-1), /\btarget="_blank"/, p);
     assert.match(links.at(-1), /\brel="noopener"/, p);
     assert.doesNotMatch(links.at(-1), /aria-current/, p);
-    assert.match(nav, /Fish ID<span class="wb-sr-only"> \(opens in a new tab\)<\/span>/, p);
     assert.equal(links.filter((a) => /aria-current="page"/.test(a)).length, 1, p);
     assert.match(links.find((a) => /aria-current="page"/.test(a)), new RegExp(`href="${here}"`), p);
   }
+});
+
+// Ruling Z: every section navigation is the design's .wb-subnav (site-subnav keeps only the margin under it), and every
+// link in one that leaves the site carries the external icon after its label.
+test('every section navigation is the design\'s wb-subnav; every external link in one has the external icon', async () => {
+  const { readdirSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const files = readdirSync('dist', { recursive: true, withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.html')).map((e) => join(e.parentPath, e.name));
+  let navs = 0;
+  let external = 0;
+  for (const file of files) {
+    for (const [nav] of readFileSync(file, 'utf8').matchAll(/<nav class="site-subnav[^"]*"[^>]*>[\s\S]*?<\/nav>/g)) {
+      navs += 1;
+      assert.match(nav, /^<nav class="site-subnav[^"]*"[^>]*><ul class="wb-subnav">/, `${file}: ${nav.slice(0, 80)}`);
+      for (const [a] of nav.matchAll(/<a\b[^>]*target="_blank"[^>]*>[\s\S]*?<\/a>/g)) {
+        external += 1;
+        assert.match(a, new RegExp(`${OUT}</a>$`), `${file}: ${a.slice(0, 80)}`);
+      }
+    }
+  }
+  assert.ok(navs >= 20, `${navs} section navigations`);
+  assert.ok(external >= 5, `${external} external links, one on each live page`);
+  const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.doesNotMatch(css, /\.site-subnav (ul|li)\b/, 'the row is the design\'s, not site layout');
 });

@@ -15,6 +15,3 @@ order: 6
 - Pompano Pier Camera
 - Wahoo Bay Weather Station
 - Wahoo Bay Water Quality
-
-<!-- katie: review: true while the page shows the picture; delete this sentence when the interactive map is switched on. -->
-The interactive map returns in a later update of this site.

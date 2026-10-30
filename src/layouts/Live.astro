@@ -1,6 +1,7 @@
 ---
-// A Live reef page (src/content/live/*.md), on the dark ground: the h1 (with the live badge when the video is the
-// stream), the video, the lead, a link to the other live page, then the Markdown body.
+// A Live reef page (src/content/live/*.md), on the dark ground: the Live reef navigation, the h1 (with the live badge
+// when the video is the stream), the video, the lead, a link to the other live page, then the Markdown body. The
+// navigation is above the h1, where Page.astro has its section's (Ruling Z).
 // The badge is static until step 3 reads the stream's state: it says "Live" whether or not the stream is up.
 // It carries data-impeccable-ignore="pulsing-dot", as in the design's docs: spec §4.3 has it breathe, and
 // .impeccable/config.json records that ruling.
@@ -28,6 +29,7 @@ const hasBody = (entry.body ?? '').replace(/<!--[\s\S]*?-->/g, '').trim() !== ''
 ---
 <Base title={title} description={description} theme="dark">
   <div class="wb-container site-article site-live">
+    <SectionNav section="live" here={Astro.url.pathname} items={liveNav(ai)} label="Live reef" />
     <div class="site-live__title">
       <h1>{title}</h1>
       {live && (
@@ -37,7 +39,6 @@ const hasBody = (entry.body ?? '').replace(/<!--[\s\S]*?-->/g, '').trim() !== ''
         </>
       )}
     </div>
-    <SectionNav section="live" here={Astro.url.pathname} items={liveNav(ai)} label="Live reef" />
     <YouTube id={video} title={live ? `${title}, live stream` : `${title}, YouTube playlist`} playlist={playlist} />
     <p class="wb-lead">{description}</p>
     <div class="site-actions">

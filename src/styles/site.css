@@ -152,17 +152,9 @@ main { flex: 1 0 auto; }
   max-height: 36rem;
 }
 
-/* "In this section": the section's pages as one row of nav links that wraps on narrow screens;
-   the link text lines up with the heading below it. */
+/* "In this section": the design's section navigation (.wb-subnav, its row of nav links that wraps, every row starting
+   at the column), above the page's heading; this only keeps the room under it. */
 .site-subnav { margin-bottom: var(--wb-space-5); }
-.site-subnav ul {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 0 0 0 calc(-1 * var(--wb-space-3));
-  padding: 0;
-  list-style: none;
-}
-.site-subnav li { display: flex; }
 
 /* News: the list of posts, and a post's photo. */
 .site-news {
@@ -351,6 +343,7 @@ main { flex: 1 0 auto; }
 .site-map,
 .site-map__still { margin-top: var(--wb-space-6); }
 .site-map__still { width: auto; }
+.site-map__caption { margin-top: var(--wb-space-2); }
 .site-map { position: relative; }
 /* Mapbox GL makes its container position: relative, so the canvas fills the frame by its size, not by inset. */
 .site-map__canvas {

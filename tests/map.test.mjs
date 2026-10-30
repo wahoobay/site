@@ -10,6 +10,7 @@ import { MAP_CENTER, MAP_STYLE, MAP_ZOOM, markersFrom } from '../src/lib/map.mjs
 import { assertNoLeak, selectDatasources, toDatasource } from '../scripts/sync-datasources.mjs';
 
 const read = (file) => readFileSync(file, 'utf8');
+const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const datasources = JSON.parse(read('src/data/datasources.json'));
 const liveVideo = read('src/content/live/camera.md').match(/^video:\s*(\S+)\s*$/m)?.[1];
 // The picture's description: the one the page's text gave it (tests/content.test.mjs asks for a real description).
@@ -104,11 +105,15 @@ test('the sync refuses to write a snapshot that holds any other field\'s value',
 test('the page without a token: the still where the page\'s picture was, the page\'s copy after it, no Mapbox', { skip: Boolean(process.env.PUBLIC_MAPBOX_TOKEN) }, () => {
   const html = read('dist/visit/map/index.html');
   const main = html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
-  assert.ok(main.includes(`</p><img class="wb-media site-map__still" src="/images/map.png" width="616" height="504" alt="${ALT}" loading="lazy" decoding="async"><div class="wb-prose site-article__body">`), 'the still, after the lead and before the text');
+  // Final review, Important 1: the sentence that says the interactive map is to come is the picture's caption, so it
+  // is on the page only while the page shows the picture.
+  const still = `<img class="wb-media site-map__still" src="/images/map.png" width="616" height="504" alt="${ALT}" loading="lazy" decoding="async">`;
+  const caption = '<p class="wb-caption site-map__caption">The interactive map returns in a later update of this site.</p>';
+  assert.match(main, new RegExp(`</p>${escapeRe(still)}(<!--[^>]*-->)?${escapeRe(caption)}<div class="wb-prose site-article__body">`), 'the still and its caption, after the lead and before the text');
   assert.match(main, /<p class="wb-lead">[^<]*<\/p><img class="wb-media site-map__still"/);
   assert.equal((main.match(/\/images\/map\.png/g) || []).length, 1, 'the picture once');
   for (const site of ['Wahoo Bay Camera', 'Pompano Pier Camera', 'Wahoo Bay Weather Station', 'Wahoo Bay Water Quality']) assert.ok(main.includes(`<li>${site}</li>`), site);
-  assert.match(main, /<p>The interactive map returns in a later update of this site\.<\/p>/);
+  assert.equal((main.match(/returns in a later update/g) || []).length, 1, 'the sentence once, as the caption');
   assert.doesNotMatch(html, /mapbox/i, 'no Mapbox script, stylesheet or token on the page');
   assert.doesNotMatch(html, /<noscript/);
 });
@@ -123,6 +128,9 @@ test('the page with a token: the island on view, its still for readers without s
   // One prop per marker of the snapshot (Astro serialises the props into the island's attribute).
   const props = island.match(/\bprops="([^"]*)"/)?.[1].replaceAll('&quot;', '"') ?? '';
   for (const r of datasources) assert.ok(props.includes(`"name":[0,"${r.name}"]`), r.name);
+  // Final review, Important 1: with the map on the page, nothing says it is still to come.
+  const main = html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
+  assert.doesNotMatch(main, /returns in a later update/);
 });
 
 test('the new words are the island\'s and are marked for Katie; only the island loads Mapbox GL and its stylesheet', () => {
@@ -166,6 +174,11 @@ test('the section shows the island only with a public token, and the map page ta
   assert.match(slug, /'visit\/map': ParkMapSection/);
   const md = read('src/content/pages/visit/map.md');
   assert.doesNotMatch(md, /\(\/images\/map\.png\)/, 'the picture is the section\'s now, not the body\'s');
+  assert.doesNotMatch(md, /returns in a later update/, 'the sentence is the still\'s caption, in the section');
+  // The caption is new words, marked for Katie where it is written.
+  const at = section.indexOf('The interactive map returns in a later update of this site.');
+  assert.ok(at > 0 && section.slice(0, at).includes('{token ? ('), 'in the section, after the token test');
+  assert.match(section.slice(section.lastIndexOf('\n', section.lastIndexOf('\n', at) - 1), at), /katie: review/, 'marked for Katie');
 });
 
 test('the old map addresses redirect here; the sync runs by hand, never in CI or at build', () => {

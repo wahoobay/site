@@ -4,6 +4,9 @@
 // `over` lays it over the top of the home page's stage photograph (the design's wb-nav--over: transparent, the logo
 // and links white). Its links then carry the low-contrast waiver, as in the design's docs (Ruling A): the detector sees
 // neither the photograph nor the scrim's top band under them and measures white on the page ground.
+// Fish ID leaves the site: the design's external icon after its label says so (Ruling Z), as well as the words for a
+// screen reader.
+import external from '@wahoobay/design/icons/external.svg?raw';
 import Logo from './Logo.astro';
 import { aiUrl, mainNav } from '../lib/nav.mjs';
 
@@ -29,10 +32,10 @@ const current = (href: string) => (path === href ? 'page' : isOn(href) ? 'true' 
 <nav class:list={['wb-nav', { 'wb-nav--over': over }]} aria-label="Main">
   <a class="wb-nav__logo" href="/"><Logo /></a>
   <ul class="wb-nav__links">
-    {items.map(({ label, href, external }) => (
+    {items.map(({ label, href, external: leaves }) => (
       <li>
-        {external ? (
-          <a class="wb-nav__link" {...waiver} href={href} target="_blank" rel="noopener">{label}<span class="wb-sr-only"> (opens in a new tab)</span></a>
+        {leaves ? (
+          <a class="wb-nav__link" {...waiver} href={href} target="_blank" rel="noopener">{label}<Fragment set:html={external.trim()} /><span class="wb-sr-only"> (opens in a new tab)</span></a>
         ) : (
           <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(href) }]} {...waiver} href={href} aria-current={current(href)}>{label}</a>
         )}

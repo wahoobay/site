@@ -23,9 +23,9 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
 ---
 <Base title="Log a sighting" description={LEAD}>
   <div class="wb-container site-article">
+    <SectionNav section="live" here={'/live/log-a-sighting/'} items={liveNav(ai)} label="Live reef" />
     <!-- katie: review (the heading is the old site's link to the form, "Log a Sighting"; the old form's own was the camera page's, "Live Underwater Camera") -->
     <h1>Log a sighting</h1>
-    <SectionNav section="live" here={'/live/log-a-sighting/'} items={liveNav(ai)} label="Live reef" />
     <p class="wb-lead">{LEAD}</p>
     <SightingForm client:load cameras={cameras} species={list} env={env} />
     <!-- katie: review (new sentence; the old address redirects here once wahoobay.net moves to this site) -->

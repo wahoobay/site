@@ -1,7 +1,10 @@
 ---
 // "In this section": the pages of one section (src/lib/sections.ts), led by the section's own page when that page
 // is outside the pages collection (sectionLead), the current one marked. Shown when it lists a page other than
-// this one: a page alone in its section has nowhere to send the reader.
+// this one: a page alone in its section has nowhere to send the reader. It is the design's section navigation
+// (.wb-subnav), above the page's H1 on every page (Ruling Z); a link that leaves the site carries the design's external
+// icon after its label (Ruling Z), and the words for a screen reader.
+import external from '@wahoobay/design/icons/external.svg?raw';
 import { sectionLead, sectionPages, urlOf, type PageEntry } from '../lib/sections';
 
 interface Props {
@@ -23,11 +26,11 @@ const links: { href: string; label: string; external?: boolean }[] = items ?? [
 ---
 {links.some((link) => link.href !== here) && (
   <nav class="site-subnav" aria-label={label}>
-    <ul>
-      {links.map(({ href, label: text, external }) => (
+    <ul class="wb-subnav">
+      {links.map(({ href, label: text, external: leaves }) => (
         <li>
-          {external ? (
-            <a class="wb-nav__link" href={href} target="_blank" rel="noopener">{text}<span class="wb-sr-only"> (opens in a new tab)</span></a>
+          {leaves ? (
+            <a class="wb-nav__link" href={href} target="_blank" rel="noopener">{text}<Fragment set:html={external.trim()} /><span class="wb-sr-only"> (opens in a new tab)</span></a>
           ) : (
             <a
               class:list={['wb-nav__link', { 'wb-nav__link--on': href === here }]}

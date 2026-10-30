@@ -42,13 +42,13 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
 ---
 <Base title="Species" description={description}>
   <div class="wb-container site-article">
+    <SectionNav section="live" here={'/live/species/'} items={liveNav(ai)} label="Live reef" />
     <!-- katie: review (new heading: the old page was "Species Photos & Videos") -->
     <h1 id="species-title">Species</h1>
     <!-- katie: review (the old gallery's lead, its first sentence; its second described the filters and votes this page does not have) -->
-    <SectionNav section="live" here={'/live/species/'} items={liveNav(ai)} label="Live reef" />
     <p class="wb-lead">Photos and video clips from the Wahoo Bay underwater cameras and volunteers — pulled straight from the archive.</p>
     <nav class="site-subnav site-species__jump" aria-labelledby="species-title">
-      <ul>
+      <ul class="wb-subnav">
         {groups.map((g) => (
           <li><a class="wb-nav__link" href={`#${g.id}`}>{g.title}</a></li>
         ))}
