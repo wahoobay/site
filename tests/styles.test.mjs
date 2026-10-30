@@ -98,3 +98,36 @@ test('the Instagram cards use the design\'s caption for their link and the card\
   assert.match(script, /link\.className = 'site-instagram__link wb-caption';/);
   assert.match(script, /img\.className = 'wb-card__media';/);
 });
+
+// Dan's staging review (2026-10-30): the photos on these two pages were square beside the 12px cards and tiles.
+// The corners come from @wahoobay/design 0.1.3, `.wb-prose :where(img, video, iframe)`, so every photo in a page's
+// body must sit inside .wb-prose. The banner above the heading is not one of them: it runs edge to edge.
+const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
+/** Each <img> tag in `html`, with the class attributes of the elements it sits in, outermost first. */
+const imagesIn = (html) => {
+  const open = [];
+  const images = [];
+  for (const [tag, close, name, attrs] of html.matchAll(/<(\/?)([a-z][a-z0-9-]*)\b([^>]*)>/gi)) {
+    const el = name.toLowerCase();
+    if (el === 'img') images.push({ tag, around: open.map((o) => o.cls) });
+    if (VOID.has(el) || attrs.endsWith('/')) continue;
+    if (close) {
+      const at = open.map((o) => o.el).lastIndexOf(el);
+      if (at >= 0) open.length = at;
+    } else open.push({ el, cls: attrs.match(/\bclass="([^"]*)"/)?.[1] ?? '' });
+  }
+  return images;
+};
+
+test('the photos on /get-involved/ambassadors/ and /get-involved/support/ sit in .wb-prose, which has the 12px corners', () => {
+  const design = read('node_modules/@wahoobay/design/dist/components.css');
+  assert.match(design, /\.wb-prose :where\(img, video, iframe\)\s*\{\s*border-radius:\s*var\(--wb-radius\);/, '@wahoobay/design 0.1.3 or later');
+  for (const [file, least] of [['dist/get-involved/ambassadors/index.html', 1], ['dist/get-involved/support/index.html', 8]]) {
+    const main = read(file).match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
+    const images = imagesIn(main);
+    const photos = images.filter(({ tag }) => !/\bclass="site-article__hero"/.test(tag));
+    for (const { tag, around } of images.filter((image) => !photos.includes(image))) assert.equal(around.length, 1, `${file}: the banner ${tag} is a child of <main>`);
+    assert.ok(photos.length >= least, `${file}: ${photos.length} photos`);
+    for (const { tag, around } of photos) assert.ok(around.some((cls) => /(^|\s)wb-prose(\s|$)/.test(cls)), `${file}: ${tag} is outside .wb-prose`);
+  }
+});
