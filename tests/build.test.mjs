@@ -63,3 +63,10 @@ test('photos inside the doorway links are decorative, so each link is named by i
   assert.equal(cards.length, 3);
   for (const card of cards) assert.match(card, /<img class="wb-card__media"[^>]*\balt=""/, card.slice(0, 60));
 });
+
+test('dist/robots.txt is the allow version, naming the sitemap', () => {
+  const text = readFileSync('dist/robots.txt', 'utf8');
+  assert.doesNotMatch(text, /^Disallow:\s*\/\s*$/m);
+  assert.match(text, /^Allow: \/$/m);
+  assert.match(text, /^Sitemap: https:\/\/wahoobay\.net\/sitemap-index\.xml$/m);
+});
