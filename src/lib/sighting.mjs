@@ -16,6 +16,12 @@ export const MAX_PHOTOS = 10;
 /** The longest notes the form sends (MESSAGES.notes says the number). */
 export const MAX_NOTES = 1000;
 
+/** The photo files POST /upload takes, by extension (UploadService.ALLOWED_EXT); the photo box offers only these. */
+export const PHOTO_TYPES = ['.jpg', '.jpeg', '.png', '.heic', '.webp', '.gif'];
+
+/** The largest photo POST /upload takes (UploadService.MAX_BYTES, spring.servlet.multipart.max-file-size=16MB). */
+export const MAX_PHOTO_BYTES = 16 * 1024 * 1024;
+
 /** What validate() says, one sentence a field. */
 export const MESSAGES = {
   species: 'Choose a species',
@@ -35,6 +41,8 @@ const TEST_LABEL = '[staging test]';
  * @param {{ status?: { enabled?: boolean } | null, failed?: number, env?: string }} [state]
  * @returns {'open' | 'closed'}
  */
+// IntakeStatusController never answers 5xx itself (it fails open), so a 5xx is from whatever is in front of the API;
+// if that answer has no CORS header the fetch fails instead (`failed` 0) and the form stays open.
 export const formState = ({ status, failed } = {}) => {
   if (status?.enabled === false) return 'closed';
   if (typeof failed === 'number' && failed >= 500) return 'closed';
@@ -42,21 +50,51 @@ export const formState = ({ status, failed } = {}) => {
 };
 
 /**
+ * Why POST /upload would refuse a photo, in the API's own words (UploadService.store, in its order), or null: an empty
+ * file, one over MAX_PHOTO_BYTES, or a name whose extension is not one of PHOTO_TYPES (the API looks at the name only,
+ * not the file's type). The form checks every photo before it uploads the first, so a refusal it can foresee never
+ * leaves half the photos uploaded.
+ * @param {{ name: string, size: number }} file
+ * @returns {string | null}
+ */
+export const photoProblem = ({ name, size }) => {
+  if (!name || !size) return 'No file provided.';
+  if (size > MAX_PHOTO_BYTES) return 'File too large.';
+  const dot = name.lastIndexOf('.');
+  if (dot < 0 || !PHOTO_TYPES.includes(name.slice(dot).toLowerCase())) return 'Unsupported image type.';
+  return null;
+};
+
+const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
+
+/**
+ * A time as the "When did you see it?" box holds it: a datetime-local value, local time, to the minute.
+ * @param {number} ms epoch milliseconds
+ */
+export const localInput = (ms) => {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/**
  * The JSON body of POST /sightings.
  * - The species goes by its id; a name typed that is not in the list goes as `common_name`, and the API files it as
  *   a provisional species for the reviewers, as the old form's "not listed? just type it" did.
+ * - The sighting's time (`sighting_datetime`) is the "When did you see it?" box's, mark or not (the reviewers cannot
+ *   change it later): the box starts at now and a mark sets it, as in the old form. With the box empty it is the
+ *   mark's time, and with neither the API's now.
  * - A marked moment sends the camera's stream, the moment in the video (`youtube_moment`, whole seconds), how far it is
  *   behind the live edge now (`youtube_behind_live`: the API records its clip from there) and when it happened
- *   (`youtube_moment_wall`, and the sighting's time). With no mark and no photo the stream is linked alone; photos
- *   without a mark carry the sighting by themselves. `auto_frames` asks for the old form's still frames around it.
+ *   (`youtube_moment_wall`). With no mark and no photo the stream is linked alone; photos without a mark carry the
+ *   sighting by themselves. `auto_frames` asks for the old form's still frames around it.
  * - Every build but production's labels its notes "[staging test]", so its submissions are told from real ones.
  * @param {{
  *   speciesId?: number | null, speciesName?: string, cameraId?: number | string | null, videoId?: string | null,
- *   momentSeconds?: number | null, behindLive?: number | null, momentWall?: number | null, lifeStage?: string,
- *   notes?: string, photos?: { storage_key: string, url: string }[], env?: string
+ *   momentSeconds?: number | null, behindLive?: number | null, momentWall?: number | null, sightingTime?: string,
+ *   lifeStage?: string, notes?: string, photos?: { storage_key: string, url: string }[], env?: string
  * }} fields
  */
-export const buildPayload = ({ speciesId, speciesName, cameraId, videoId, momentSeconds, behindLive, momentWall, lifeStage, notes, photos, env }) => {
+export const buildPayload = ({ speciesId, speciesName, cameraId, videoId, momentSeconds, behindLive, momentWall, sightingTime, lifeStage, notes, photos, env }) => {
   const text = (notes ?? '').trim();
   /** @type {Record<string, unknown>} */
   const payload = {
@@ -69,15 +107,15 @@ export const buildPayload = ({ speciesId, speciesName, cameraId, videoId, moment
   if (!speciesId && speciesName?.trim()) payload.common_name = speciesName.trim();
   if (photos?.length) payload.photos = photos;
   const marked = typeof momentSeconds === 'number' && Number.isFinite(momentSeconds);
+  const seen = sightingTime ? new Date(sightingTime) : null;
+  if (seen && Number.isFinite(seen.getTime())) payload.sighting_datetime = seen.toISOString();
+  else if (marked && typeof momentWall === 'number') payload.sighting_datetime = new Date(momentWall).toISOString();
   if (videoId && (marked || !photos?.length)) {
     payload.youtube_video_id = videoId;
     if (marked) {
       payload.youtube_moment = Math.floor(momentSeconds);
       if (typeof behindLive === 'number') payload.youtube_behind_live = Math.max(0, Math.round(behindLive));
-      if (typeof momentWall === 'number') {
-        payload.youtube_moment_wall = momentWall;
-        payload.sighting_datetime = new Date(momentWall).toISOString();
-      }
+      if (typeof momentWall === 'number') payload.youtube_moment_wall = momentWall;
     }
     payload.auto_frames = true;
   }

@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { API, LIFE_STAGES, MAX_NOTES, MAX_PHOTOS, MESSAGES, buildPayload, findSpecies, formState, speciesLabel, validate } from '../src/lib/sighting.mjs';
+import { API, LIFE_STAGES, MAX_NOTES, MAX_PHOTOS, MAX_PHOTO_BYTES, MESSAGES, PHOTO_TYPES, buildPayload, findSpecies, formState, localInput, photoProblem, speciesLabel, validate } from '../src/lib/sighting.mjs';
 
 const read = (file) => readFileSync(file, 'utf8');
 const species = JSON.parse(read('src/data/species.json'));
@@ -40,7 +40,8 @@ test('buildPayload labels staging submissions and carries the moment', () => {
     { storage_key: '20261030140001_4e5f6a7b.png', url: '/uploads/20261030140001_4e5f6a7b.png' },
   ];
   const wall = Date.UTC(2026, 9, 30, 14, 0, 0);
-  const p = buildPayload({ speciesId: 12, cameraId: 8, videoId: 'oBTGY6Ax870', momentSeconds: 93.4, behindLive: 40, momentWall: wall, lifeStage: 'Juvenile', notes: 'two of them', photos, env: 'staging' });
+  // The mark set the "When did you see it?" box to its minute (local time), as the island does.
+  const p = buildPayload({ speciesId: 12, cameraId: 8, videoId: 'oBTGY6Ax870', momentSeconds: 93.4, behindLive: 40, momentWall: wall, sightingTime: localInput(wall), lifeStage: 'Juvenile', notes: 'two of them', photos, env: 'staging' });
   assert.equal(p.notes, '[staging test] two of them');
   assert.equal(buildPayload({ speciesId: 12, cameraId: 8, notes: 'x', env: 'production' }).notes, 'x');
   // The exact Java field names (SightingWriteService.createSighting, ClipService.captureForSubmission).
@@ -58,6 +59,63 @@ test('buildPayload labels staging submissions and carries the moment', () => {
     youtube_moment_wall: wall,
     auto_frames: true,
   });
+});
+
+test('buildPayload: the sighting time is the "When did you see it?" box\'s, mark or not', () => {
+  // Fix round 1, Ruling T: a photo-only report keeps the time the reader gives (reviewers cannot change it later).
+  const photos = [{ storage_key: 'a.jpg', url: '/uploads/a.jpg' }];
+  const time = '2026-10-29T09:05';
+  assert.deepEqual(buildPayload({ speciesId: 12, cameraId: 5, videoId: 'oBTGY6Ax870', sightingTime: time, photos, env: 'production' }), {
+    camera_id: 5,
+    species_id: 12,
+    life_stage: null,
+    notes: null,
+    contributor_type: 'volunteer',
+    sighting_datetime: new Date(time).toISOString(),
+    photos,
+  });
+  // A mark, and the box changed after it: the box wins; the moment's own time still goes with the moment.
+  const wall = Date.UTC(2026, 9, 30, 14, 0, 0);
+  assert.deepEqual(buildPayload({ speciesId: 12, cameraId: 5, videoId: 'oBTGY6Ax870', momentSeconds: 12, behindLive: 3, momentWall: wall, sightingTime: time, env: 'production' }), {
+    camera_id: 5,
+    species_id: 12,
+    life_stage: null,
+    notes: null,
+    contributor_type: 'volunteer',
+    sighting_datetime: new Date(time).toISOString(),
+    youtube_video_id: 'oBTGY6Ax870',
+    youtube_moment: 12,
+    youtube_behind_live: 3,
+    youtube_moment_wall: wall,
+    auto_frames: true,
+  });
+  // The box emptied: the mark's time, else none (the API's now); a value that is not a time is not sent.
+  assert.equal(buildPayload({ speciesId: 12, cameraId: 5, videoId: 'v', momentSeconds: 12, momentWall: wall, sightingTime: '', env: 'production' }).sighting_datetime, new Date(wall).toISOString());
+  assert.equal(buildPayload({ speciesId: 12, cameraId: 5, sightingTime: '', env: 'production' }).sighting_datetime, undefined);
+  assert.equal(buildPayload({ speciesId: 12, cameraId: 5, sightingTime: 'not a time', env: 'production' }).sighting_datetime, undefined);
+  // The box's value: local time to the minute; it reads back as the same minute.
+  const nine = new Date(2026, 9, 29, 9, 5, 42).getTime();
+  assert.equal(localInput(nine), '2026-10-29T09:05');
+  assert.equal(new Date(localInput(nine)).getTime(), new Date(2026, 9, 29, 9, 5).getTime());
+});
+
+test('photoProblem: the API\'s own refusals, before any photo is uploaded', () => {
+  const MB = 1024 * 1024;
+  assert.deepEqual(PHOTO_TYPES, ['.jpg', '.jpeg', '.png', '.heic', '.webp', '.gif'], 'UploadService.ALLOWED_EXT');
+  assert.equal(MAX_PHOTO_BYTES, 16 * MB, 'UploadService.MAX_BYTES');
+  // Name: the extension decides, in any case; the file's type does not (the API never reads it).
+  for (const name of ['reef.jpg', 'REEF.JPG', 'reef.jpeg', 'reef.png', 'IMG_0001.HEIC', 'reef.webp', 'reef.gif', 'two.dots.png']) {
+    assert.equal(photoProblem({ name, size: MB, type: '' }), null, name);
+  }
+  for (const name of ['reef.avif', 'reef.tiff', 'reef.bmp', 'reef.heif', 'reef.jpg.zip', 'reef', 'reef.']) {
+    assert.equal(photoProblem({ name, size: MB, type: 'image/jpeg' }), 'Unsupported image type.', name);
+  }
+  assert.equal(photoProblem({ name: 'reef.bmp', size: MB, type: 'image/bmp' }), 'Unsupported image type.', 'an image type the API refuses');
+  // Size: up to and including 16 MB; an empty file is none.
+  assert.equal(photoProblem({ name: 'reef.jpg', size: 16 * MB }), null);
+  assert.equal(photoProblem({ name: 'reef.jpg', size: 16 * MB + 1 }), 'File too large.');
+  assert.equal(photoProblem({ name: 'reef.tiff', size: 20 * MB }), 'File too large.', 'the API checks the size first');
+  assert.equal(photoProblem({ name: 'reef.jpg', size: 0 }), 'No file provided.');
 });
 
 test('buildPayload: no mark and no photo links the camera\'s stream; photos without a mark do not', () => {
@@ -130,6 +188,16 @@ test('the island fetches the three endpoints, plays the stream from youtube-noco
   assert.match(island, /\.append\('file', /, 'the upload\'s multipart field is `file`');
   assert.match(island, /host: 'https:\/\/www\.youtube-nocookie\.com'/, 'the privacy-enhanced player');
   assert.match(island, /getCurrentTime\(\)/);
+  // Fix round 1: an upload is kept per file, so a retry sends only the photos not yet uploaded; every photo is checked
+  // against the API's limits before the first goes; any 2xx is a sent sighting, readable answer or not.
+  assert.match(island, /useRef\(new Map<File, Photo>\(\)\)/);
+  assert.match(island, /files\.map\(\(file\) => \[file, photoProblem\(file\)\] as const\)/);
+  assert.ok(island.indexOf('photoProblem(file)') < island.indexOf('await upload(file)'), 'checked before uploading');
+  assert.match(island, /uploaded\.current\.get\(file\) \?\? \(await upload\(file\)\)/);
+  assert.equal((island.match(/uploaded\.current\.clear\(\)/g) || []).length, 2, 'cleared when the photos change and for another sighting');
+  assert.match(island, /await res\.json\(\)\.catch\(\(\) => \(\{\}\)\)/);
+  // The iframe's title is the old form's.
+  assert.match(island, /'Wahoo Bay underwater camera'/);
   assert.doesNotMatch(island, /\bstyle=\{|\.style\.|setAttribute\(['"]style/, 'no inline styles of the island\'s own');
   assert.doesNotMatch(island, /autoplay/, 'the stream never starts by itself');
   // The IFrame API loads with the island and nowhere else.
@@ -169,7 +237,7 @@ test('the page has the island, the no-script fallback, and is light', () => {
 test('the form: every control has its label, the cameras are the snapshot\'s with a stream, the species list is the snapshot', () => {
   const html = read('dist/live/log-a-sighting/index.html');
   const island = html.match(/<astro-island\b[^>]*>[\s\S]*?<\/astro-island>/)?.[0] ?? '';
-  for (const [id, label] of [['sighting-camera', 'Camera'], ['sighting-species', 'Species'], ['sighting-life-stage', 'Life stage'], ['sighting-notes', 'Notes (optional)'], ['sighting-photos', 'Photos (optional)']]) {
+  for (const [id, label] of [['sighting-camera', 'Camera'], ['sighting-time', 'When did you see it?'], ['sighting-species', 'Species'], ['sighting-life-stage', 'Life stage'], ['sighting-notes', 'Notes (optional)'], ['sighting-photos', 'Photos (optional)']]) {
     assert.match(island, new RegExp(`<label class="wb-label" for="${id}">${escapeRe(label)}</label>`), label);
     assert.match(island, new RegExp(`<(input|select|textarea) class="wb-(input|select|textarea)"[^>]*\\bid="${id}"`), id);
   }
@@ -180,7 +248,10 @@ test('the form: every control has its label, the cameras are the snapshot\'s wit
   assert.deepEqual(options, [['', 'Select a camera…'], ...cameras.map((c) => [String(c.id), c.name])]);
   const list = island.match(/<datalist id="sighting-species-list">([\s\S]*?)<\/datalist>/)?.[1] ?? '';
   assert.equal((list.match(/<option /g) || []).length, species.length);
-  assert.match(island, /<input class="wb-input" id="sighting-photos" type="file" accept="image\/\*" multiple=""/);
+  assert.match(island, /<input class="wb-input" id="sighting-photos" type="file" accept="\.jpg,\.jpeg,\.png,\.heic,\.webp,\.gif" multiple=""/);
+  // The old form's "When did you see it? — auto-set when you mark a moment": empty in the page, now once it runs.
+  assert.match(island, /<input class="wb-input" id="sighting-time" type="datetime-local" aria-describedby="sighting-time-help" value=""\/>/);
+  assert.match(island, /<p class="wb-help" id="sighting-time-help">Auto-set when you mark a moment<\/p>/);
   assert.match(island, /<textarea class="wb-textarea" id="sighting-notes"[^>]*maxLength="1000"/i);
   const stages = island.match(/<select[^>]*id="sighting-life-stage"[\s\S]*?<\/select>/)?.[0] ?? '';
   assert.deepEqual([...stages.matchAll(/<option value="([^"]*)"/g)].map((m) => m[1]), ['', ...LIFE_STAGES]);

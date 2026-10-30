@@ -1,7 +1,8 @@
 // Log a sighting (/live/log-a-sighting/): the old site's intake form (wahoobay-net-frontend,
 // src/pages/intake/IntakeForm.js) on the Java API's own endpoints, which it already used. Hydrated at once
 // (client:load): on mount it asks GET /intake/status whether submissions are open; photos go one by one to
-// POST /upload (multipart, field `file`), whose {storage_key, url} the sighting then carries; the sighting is
+// POST /upload (multipart, field `file`), whose {storage_key, url} the sighting then carries, each checked first
+// against the API's limits (photoProblem) and uploaded once however often the reader retries; the sighting is
 // POST /sightings, its body built by buildPayload in src/lib/sighting.mjs. The API is public and limits writes per
 // address itself (30 a minute); nothing here signs in or holds a key.
 // The camera's stream plays in YouTube's IFrame API player from youtube-nocookie.com, the site's privacy-enhanced
@@ -13,7 +14,7 @@
 // .wb-textarea, .wb-help, .wb-error) and notices (.wb-notice); the island sets no style of its own.
 // The words are the old form's, except the notices' new sentences, each marked for Katie.
 import { useEffect, useMemo, useRef, useState, type SubmitEvent } from 'react';
-import { API, LIFE_STAGES, MAX_NOTES, MAX_PHOTOS, MESSAGES, buildPayload, findSpecies, formState, speciesLabel, validate } from '../lib/sighting.mjs';
+import { API, LIFE_STAGES, MAX_NOTES, MAX_PHOTOS, MESSAGES, PHOTO_TYPES, buildPayload, findSpecies, formState, localInput, photoProblem, speciesLabel, validate } from '../lib/sighting.mjs';
 
 export interface Camera {
   id: number;
@@ -44,10 +45,15 @@ const CAMERA = 'Camera';
 const CAMERA_NONE = 'Select a camera…';
 const PLAYER_LOADING = 'Loading live controls…';
 const MARK = 'Mark this moment';
+// The player's title, the old form's for its own player.
+const PLAYER_TITLE = 'Wahoo Bay underwater camera';
 // katie: review: the old form's promise; it holds when the API's clip capture runs (it is best-effort)
 const MARK_HELP = 'A single mark saves the 15 seconds before and after. Reviewers jump straight to it.';
 const UNMARKED = 'Nothing marked yet — the live camera is linked by default.';
 const marked = (time: string) => `Marked moment ${time} — reviewers open right here.`;
+// "When did you see it? — auto-set when you mark a moment": the label, and its hint as the help under the box.
+const WHEN = 'When did you see it?';
+const WHEN_HELP = 'Auto-set when you mark a moment';
 const SPECIES = 'Species';
 const SPECIES_HELP = 'Search by common or scientific name — not listed? just type it';
 const SPECIES_EXAMPLE = 'e.g. angelfish, snook, Tursiops…';
@@ -134,13 +140,19 @@ const reasonOf = async (res: Response) => {
 /** A failed request, with the words the form shows for it. */
 class Failure extends Error {}
 
+/** An uploaded photo, as the sighting refers to it. */
+interface Photo {
+  storage_key: string;
+  url: string;
+}
+
 /** One photo to POST /upload; the sighting carries its {storage_key, url}. */
-const upload = async (file: File) => {
+const upload = async (file: File): Promise<Photo> => {
   const body = new FormData();
   body.append('file', file);
   const res = await fetch(`${API}/upload`, { method: 'POST', body });
   if (!res.ok) throw new Failure(`${file.name}: ${(await reasonOf(res)) ?? UPLOAD_FAILED}`);
-  const { storage_key, url } = (await res.json()) as { storage_key: string; url: string };
+  const { storage_key, url } = (await res.json()) as Photo;
   return { storage_key, url };
 };
 
@@ -155,6 +167,7 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString('en-US', { hour: '
 
 const ID = {
   camera: 'sighting-camera',
+  time: 'sighting-time',
   species: 'sighting-species',
   list: 'sighting-species-list',
   lifeStage: 'sighting-life-stage',
@@ -165,10 +178,14 @@ const ID = {
 export default function SightingForm({ cameras, species, env }: Props) {
   const [state, setState] = useState<'open' | 'closed'>('open');
   const [closedReason, setClosedReason] = useState('');
+  // Closed by the API's answer to a submit (403), not on load: then the notice takes the focus.
+  const [closedAtSubmit, setClosedAtSubmit] = useState(false);
   const [cameraId, setCameraId] = useState(cameras[0] ? String(cameras[0].id) : '');
   const [speciesText, setSpeciesText] = useState('');
   const [lifeStage, setLifeStage] = useState('');
   const [notes, setNotes] = useState('');
+  // The "When did you see it?" box: empty in the page, now once the island runs, the mark's time after a mark.
+  const [sightingTime, setSightingTime] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [fileInput, setFileInput] = useState(0);
   const [moment, setMoment] = useState<Moment | null>(null);
@@ -181,6 +198,9 @@ export default function SightingForm({ cameras, species, env }: Props) {
   const playerRef = useRef<YouTubePlayer | null>(null);
   const failureRef = useRef<HTMLDivElement>(null);
   const sentRef = useRef<HTMLDivElement>(null);
+  const closedRef = useRef<HTMLDivElement>(null);
+  // The photos already uploaded, by file: a retry uploads only the rest, and never one twice.
+  const uploaded = useRef(new Map<File, Photo>());
 
   const camera = cameras.find((c) => String(c.id) === cameraId);
   const video = camera?.video ?? null;
@@ -188,6 +208,8 @@ export default function SightingForm({ cameras, species, env }: Props) {
   const fields = { speciesId: picked?.id ?? null, speciesName: speciesText, cameraId, notes };
   const errors = tried ? validate(fields) : [];
   const closed = state === 'closed';
+
+  useEffect(() => setSightingTime(localInput(Date.now())), []);
 
   // Is the form taking sightings? Until the answer comes, it is.
   useEffect(() => {
@@ -229,7 +251,7 @@ export default function SightingForm({ cameras, species, env }: Props) {
           events: {
             onReady: (event: YouTubeEvent) => {
               if (cancelled) return;
-              event.target.getIframe().title = `${camera?.name ?? CAMERA}, live stream`;
+              event.target.getIframe().title = PLAYER_TITLE;
               playerRef.current = event.target;
               setPlayer('ready');
             },
@@ -239,6 +261,9 @@ export default function SightingForm({ cameras, species, env }: Props) {
             },
           },
         });
+        // The player's frame, named from the start (the API names it too once it is ready).
+        const frame = host.querySelector('iframe');
+        if (frame) frame.title = PLAYER_TITLE;
       })
       .catch(() => {
         if (!cancelled) setPlayer('failed');
@@ -257,6 +282,9 @@ export default function SightingForm({ cameras, species, env }: Props) {
   useEffect(() => {
     if (sent) sentRef.current?.focus();
   }, [sent]);
+  useEffect(() => {
+    if (closedAtSubmit) closedRef.current?.focus();
+  }, [closedAtSubmit]);
 
   const mark = () => {
     const p = playerRef.current;
@@ -265,7 +293,10 @@ export default function SightingForm({ cameras, species, env }: Props) {
     const duration = p.getDuration();
     if (!Number.isFinite(current)) return;
     const behind = current > 0 && duration > 0 ? Math.max(0, Math.round(duration - current)) : 0;
-    setMoment({ seconds: Math.floor(current), behind, at: Date.now() });
+    const at = Date.now();
+    setMoment({ seconds: Math.floor(current), behind, at });
+    // The moment is when it was seen: the old form tied the box to the mark. The reader can still change it.
+    setSightingTime(localInput(at - behind * 1000));
   };
 
   const submit = async (event: SubmitEvent<HTMLFormElement>) => {
@@ -284,10 +315,20 @@ export default function SightingForm({ cameras, species, env }: Props) {
       if (first) document.getElementById(first[1])?.focus();
       return;
     }
+    // A photo the API would refuse is named before any is uploaded, in the API's own words.
+    const refused = files.map((file) => [file, photoProblem(file)] as const).find(([, problem]) => problem);
+    if (refused) {
+      setFailure(`${refused[0].name}: ${refused[1]}`);
+      return;
+    }
     setSending(true);
     try {
-      const photos = [];
-      for (const file of files) photos.push(await upload(file));
+      const photos: Photo[] = [];
+      for (const file of files) {
+        const photo = uploaded.current.get(file) ?? (await upload(file));
+        uploaded.current.set(file, photo);
+        photos.push(photo);
+      }
       const payload = buildPayload({
         speciesId: picked?.id ?? null,
         speciesName: speciesText,
@@ -297,6 +338,7 @@ export default function SightingForm({ cameras, species, env }: Props) {
         // How far the moment is behind the live edge now, when the API starts recording from there.
         behindLive: moment ? moment.behind + Math.round((Date.now() - moment.at) / 1000) : undefined,
         momentWall: moment ? moment.at - moment.behind * 1000 : undefined,
+        sightingTime,
         lifeStage,
         notes,
         photos,
@@ -308,12 +350,14 @@ export default function SightingForm({ cameras, species, env }: Props) {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        const out = (await res.json()) as { sighting_id?: number; is_new_at_location?: boolean };
+        // Any 2xx is a saved sighting, even if its answer cannot be read: a retry would save it twice.
+        const out = (await res.json().catch(() => ({}))) as { sighting_id?: number; is_new_at_location?: boolean };
         setSent({ id: out.sighting_id ?? '—', isNew: Boolean(out.is_new_at_location) });
       } else if (res.status === 403) {
         // Paused between the page's load and the submit: the API says so, and enforces it.
         setClosedReason((await reasonOf(res)) ?? '');
         setState('closed');
+        setClosedAtSubmit(true);
       } else {
         throw new Failure((await reasonOf(res)) ?? SEND_FAILED);
       }
@@ -330,7 +374,9 @@ export default function SightingForm({ cameras, species, env }: Props) {
     setLifeStage('');
     setNotes('');
     setFiles([]);
+    uploaded.current.clear();
     setFileInput((n) => n + 1);
+    setSightingTime(localInput(Date.now()));
     setMoment(null);
     setTried(false);
     setFailure(null);
@@ -360,7 +406,7 @@ export default function SightingForm({ cameras, species, env }: Props) {
   return (
     <form className="site-sighting" noValidate aria-busy={sending} onSubmit={submit}>
       {closed && (
-        <div className="wb-notice site-sighting__wide" role="status">
+        <div className="wb-notice site-sighting__wide" role="status" tabIndex={-1} ref={closedRef}>
           <p>{closedReason || CLOSED}</p>
         </div>
       )}
@@ -402,6 +448,18 @@ export default function SightingForm({ cameras, species, env }: Props) {
         )}
       </div>
       <div className="site-sighting__column">
+        <div className="wb-field">
+          <label className="wb-label" htmlFor={ID.time}>{WHEN}</label>
+          <input
+            className="wb-input"
+            id={ID.time}
+            type="datetime-local"
+            aria-describedby={`${ID.time}-help`}
+            value={sightingTime}
+            onChange={(e) => setSightingTime(e.target.value)}
+          />
+          <p className="wb-help" id={`${ID.time}-help`}>{WHEN_HELP}</p>
+        </div>
         <div className="wb-field">
           <label className="wb-label" htmlFor={ID.species}>{SPECIES}</label>
           <input
@@ -453,11 +511,14 @@ export default function SightingForm({ cameras, species, env }: Props) {
             className="wb-input"
             id={ID.photos}
             type="file"
-            accept="image/*"
+            accept={PHOTO_TYPES.join(',')}
             multiple
             key={fileInput}
             aria-describedby={`${ID.photos}-help`}
-            onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, MAX_PHOTOS))}
+            onChange={(e) => {
+              uploaded.current.clear();
+              setFiles(Array.from(e.target.files ?? []).slice(0, MAX_PHOTOS));
+            }}
           />
           <p className="wb-help" id={`${ID.photos}-help`}>{PHOTOS_HELP}</p>
         </div>
