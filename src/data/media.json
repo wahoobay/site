@@ -189,15 +189,6 @@
     "date": "2025-01-14T00:00"
   },
   {
-    "id": 1,
-    "species_id": 181,
-    "kind": "video",
-    "url": "https://drive.google.com/file/d/1xJnVz2ccU8gNLz6g6_yN9VDT2qekAl9n/view?usp=drive_link",
-    "thumb": "https://api.wahoobay.net/api/v1/thumb?u=https%3A%2F%2Fdrive.google.com%2Fthumbnail%3Fid%3D1xJnVz2ccU8gNLz6g6_yN9VDT2qekAl9n%26sz%3Dw640",
-    "title": null,
-    "date": "2025-01-11T00:00"
-  },
-  {
     "id": 160,
     "species_id": 59,
     "kind": "image",

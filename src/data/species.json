@@ -648,14 +648,6 @@
     "conservation_status": null
   },
   {
-    "id": 1,
-    "common_name": null,
-    "scientific_name": "Homo Sapiens",
-    "family": null,
-    "category": "Mammal",
-    "conservation_status": null
-  },
-  {
     "id": 10,
     "common_name": "Horse-Eye Jack",
     "scientific_name": "Caranx latus",
@@ -1373,30 +1365,6 @@
     "scientific_name": "Scarus iseri",
     "family": "Labridae",
     "category": "Fish",
-    "conservation_status": null
-  },
-  {
-    "id": 183,
-    "common_name": null,
-    "scientific_name": "TBC 12",
-    "family": null,
-    "category": null,
-    "conservation_status": null
-  },
-  {
-    "id": 182,
-    "common_name": null,
-    "scientific_name": "TBC 13",
-    "family": null,
-    "category": null,
-    "conservation_status": null
-  },
-  {
-    "id": 181,
-    "common_name": null,
-    "scientific_name": "TBC 14",
-    "family": null,
-    "category": "Bird",
     "conservation_status": null
   },
   {
