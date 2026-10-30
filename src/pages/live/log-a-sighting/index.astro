@@ -6,6 +6,8 @@
 // when unset) tells the island whether its submissions are real. Light page: the camera plays inside the form.
 // Without script the form cannot send, so site.css leaves it out and the no-script paragraph says where to go.
 import Base from '../../../layouts/Base.astro';
+import SectionNav from '../../../components/SectionNav.astro';
+import { aiUrl, liveNav } from '../../../lib/nav.mjs';
 import SightingForm from '../../../islands/SightingForm';
 import datasources from '../../../data/datasources.json';
 import species from '../../../data/species.json';
@@ -17,11 +19,13 @@ const env = import.meta.env.PUBLIC_SITE_ENV ?? 'staging';
 // The old form's lead, word for word; it is the page's description too.
 const LEAD = 'Watch the reef in real time. Spotted a species? Rewind, mark the moment, and log it below — every entry is reviewed before it’s verified.';
 const OLD = 'https://wahoobay.net/pages/intake/report';
+const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
 ---
 <Base title="Log a sighting" description={LEAD}>
   <div class="wb-container site-article">
     <!-- katie: review (the heading is the old site's link to the form, "Log a Sighting"; the old form's own was the camera page's, "Live Underwater Camera") -->
     <h1>Log a sighting</h1>
+    <SectionNav section="live" here={'/live/log-a-sighting/'} items={liveNav(ai)} label="Live reef" />
     <p class="wb-lead">{LEAD}</p>
     <SightingForm client:load cameras={cameras} species={list} env={env} />
     <!-- katie: review (new sentence; the old address redirects here once wahoobay.net moves to this site) -->

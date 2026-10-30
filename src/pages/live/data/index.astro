@@ -2,16 +2,20 @@
 // /live/data/: the dashboards whose host answers (onlineDashboards(); today the Power BI report), framed. Light page.
 // Scripts are not sandboxed away: Power BI needs scripts and same-origin inside its own frame.
 import Base from '../../../layouts/Base.astro';
+import SectionNav from '../../../components/SectionNav.astro';
+import { aiUrl, liveNav } from '../../../lib/nav.mjs';
 import { onlineDashboards } from '../../../lib/dashboards.mjs';
 
 const shown = onlineDashboards();
 // katie: review (the description is built from the titles of the dashboards shown, so it never names an offline one)
 const description = `Data dashboards: ${shown.map((d) => d.title).join(', ')}.`;
+const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
 ---
 <Base title="Data dashboards" description={description}>
   <div class="wb-container site-article">
     <!-- katie: review (new heading: the old pages had none) -->
     <h1>Data dashboards</h1>
+    <SectionNav section="live" here={'/live/data/'} items={liveNav(ai)} label="Live reef" />
     {shown.map((d) => (
       <section class="wb-panel site-dashboard" aria-labelledby={`dash-${d.id}`}>
         <!-- katie: review (new title and sentence for this dashboard) -->

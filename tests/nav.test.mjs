@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AI_URL_DEFAULT, aiUrl, mainNav } from '../src/lib/nav.mjs';
+import { AI_URL_DEFAULT, aiUrl, liveNav, mainNav } from '../src/lib/nav.mjs';
 
 const STAGING = 'https://staging-ai.wahoobay.net/';
 const PRODUCTION = 'https://ai.wahoobay.net/';
@@ -27,15 +27,17 @@ test('Nav.astro hands the build\'s PUBLIC_AI_URL to the model', () => {
   assert.match(readFileSync('src/components/Nav.astro', 'utf8'), /\baiUrl\(import\.meta\.env\.PUBLIC_AI_URL\)/);
 });
 
-test('the built nav links Fish ID to this build\'s address, in the same tab, and never marks it current', () => {
+test('the built nav links Fish ID to this build\'s address, in a new tab, and never marks it current', () => {
   const expected = process.env.PUBLIC_AI_URL ?? STAGING;
   for (const file of ['dist/index.html', 'dist/live/index.html', 'dist/about/index.html']) {
     const nav = readFileSync(file, 'utf8').match(/<nav\b[^>]*aria-label="Main"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? '';
-    const links = [...nav.matchAll(/<a\b([^>]*)>Fish ID<\/a>/g)].map((m) => m[1]);
+    const links = [...nav.matchAll(/<a\b([^>]*)>Fish ID<span class="wb-sr-only"> \(opens in a new tab\)<\/span><\/a>/g)].map((m) => m[1]);
     assert.equal(links.length, 1, `${file}: one Fish ID link`);
     assert.equal(links[0].match(/\bhref="([^"]*)"/)?.[1], expected, file);
     assert.match(links[0], /\bclass="wb-nav__link"/, file);
-    assert.doesNotMatch(links[0], /\btarget=|\baria-current=|wb-nav__link--on/, file);
+    assert.match(links[0], /\btarget="_blank"/, file);
+    assert.match(links[0], /\brel="noopener"/, file);
+    assert.doesNotMatch(links[0], /\baria-current=|wb-nav__link--on/, file);
   }
 });
 
@@ -57,5 +59,32 @@ test('the nav lies over the photograph on the home page only', () => {
   assert.match(navTag('dist/index.html'), /^<nav class="wb-nav wb-nav--over" aria-label="Main">$/);
   for (const file of ['dist/about/index.html', 'dist/live/index.html', 'dist/news/index.html', 'dist/404.html']) {
     assert.match(navTag(file), /^<nav class="wb-nav" aria-label="Main">$/, file);
+  }
+});
+
+test('liveNav lists the six live items with Fish ID last and external', () => {
+  const items = liveNav(PRODUCTION);
+  assert.deepEqual(items.map((i) => i.label), ['Camera', 'Reef highlights', 'Species', 'Data dashboards', 'Log a sighting', 'Fish ID']);
+  assert.deepEqual(items.map((i) => i.href), ['/live/', '/live/highlights/', '/live/species/', '/live/data/', '/live/log-a-sighting/', PRODUCTION]);
+  assert.equal(items.at(-1).external, true);
+  assert.equal(items.filter((i) => i.external).length, 1);
+});
+
+test('every live page carries the Live reef navigation with Fish ID last, in a new tab, and its own page current', () => {
+  const expected = process.env.PUBLIC_AI_URL ?? STAGING;
+  const pages = { live: '/live/', 'live/highlights': '/live/highlights/', 'live/species': '/live/species/', 'live/data': '/live/data/', 'live/log-a-sighting': '/live/log-a-sighting/' };
+  for (const [p, here] of Object.entries(pages)) {
+    const html = readFileSync(`dist/${p}/index.html`, 'utf8');
+    const nav = html.match(/<nav\b(?=[^>]*\bclass="site-subnav")(?=[^>]*\baria-label="Live reef")[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? '';
+    assert.ok(nav, `${p}: the Live reef navigation`);
+    const links = [...nav.matchAll(/<a\b([^>]*)>/g)].map((m) => m[1]);
+    assert.equal(links.length, 6, p);
+    assert.equal(links.at(-1).match(/\bhref="([^"]*)"/)?.[1], expected, p);
+    assert.match(links.at(-1), /\btarget="_blank"/, p);
+    assert.match(links.at(-1), /\brel="noopener"/, p);
+    assert.doesNotMatch(links.at(-1), /aria-current/, p);
+    assert.match(nav, /Fish ID<span class="wb-sr-only"> \(opens in a new tab\)<\/span>/, p);
+    assert.equal(links.filter((a) => /aria-current="page"/.test(a)).length, 1, p);
+    assert.match(links.find((a) => /aria-current="page"/.test(a)), new RegExp(`href="${here}"`), p);
   }
 });

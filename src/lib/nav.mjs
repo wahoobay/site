@@ -13,7 +13,7 @@ export const aiUrl = (value) => value ?? AI_URL_DEFAULT;
 
 /**
  * The five sections, with Fish ID, the fish-ID app, after Live reef. It is another site of the same organisation:
- * `external`, so it opens in the same tab and is never the current page.
+ * `external`, so it opens in a new tab and is never the current page.
  * @param {string} ai the fish-ID app's address
  * @returns {{ label: string, href: string, external?: true }[]}
  */
@@ -24,4 +24,19 @@ export const mainNav = (ai) => [
   { label: 'Fish ID', href: ai, external: true },
   { label: 'Get involved', href: '/get-involved/' },
   { label: 'About', href: '/about/' },
+];
+
+/**
+ * The Live reef pages' own navigation (src/components/SectionNav.astro draws it on each of them), Fish ID last: the
+ * fish-ID app is another site, so it is `external` and opens in a new tab.
+ * @param {string} ai the fish-ID app's address
+ * @returns {{ label: string, href: string, external?: true }[]}
+ */
+export const liveNav = (ai) => [
+  { label: 'Camera', href: '/live/' },
+  { label: 'Reef highlights', href: '/live/highlights/' },
+  { label: 'Species', href: '/live/species/' },
+  { label: 'Data dashboards', href: '/live/data/' },
+  { label: 'Log a sighting', href: '/live/log-a-sighting/' },
+  { label: 'Fish ID', href: ai, external: true },
 ];

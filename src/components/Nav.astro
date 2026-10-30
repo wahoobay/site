@@ -32,7 +32,7 @@ const current = (href: string) => (path === href ? 'page' : isOn(href) ? 'true' 
     {items.map(({ label, href, external }) => (
       <li>
         {external ? (
-          <a class="wb-nav__link" {...waiver} href={href}>{label}</a>
+          <a class="wb-nav__link" {...waiver} href={href} target="_blank" rel="noopener">{label}<span class="wb-sr-only"> (opens in a new tab)</span></a>
         ) : (
           <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(href) }]} {...waiver} href={href} aria-current={current(href)}>{label}</a>
         )}

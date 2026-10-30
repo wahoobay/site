@@ -5,6 +5,8 @@
 // It carries data-impeccable-ignore="pulsing-dot", as in the design's docs: spec §4.3 has it breathe, and
 // .impeccable/config.json records that ruling.
 import Base from './Base.astro';
+import SectionNav from '../components/SectionNav.astro';
+import { aiUrl, liveNav } from '../lib/nav.mjs';
 import YouTube from '../components/YouTube.astro';
 import type { CollectionEntry } from 'astro:content';
 
@@ -21,6 +23,7 @@ interface Props {
 
 const { entry, live = false, link } = Astro.props;
 const { title, description, video, playlist } = entry.data;
+const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
 const hasBody = (entry.body ?? '').replace(/<!--[\s\S]*?-->/g, '').trim() !== '';
 ---
 <Base title={title} description={description} theme="dark">
@@ -34,6 +37,7 @@ const hasBody = (entry.body ?? '').replace(/<!--[\s\S]*?-->/g, '').trim() !== ''
         </>
       )}
     </div>
+    <SectionNav section="live" here={Astro.url.pathname} items={liveNav(ai)} label="Live reef" />
     <YouTube id={video} title={live ? `${title}, live stream` : `${title}, YouTube playlist`} playlist={playlist} />
     <p class="wb-lead">{description}</p>
     <div class="site-actions">
