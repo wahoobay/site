@@ -1,5 +1,6 @@
-// The three live dashboards the page embeds: the Power BI report and the Grafana water and air dashboards.
-// All three are public addresses (Power BI "Publish to web", Grafana kiosk); none carries a secret.
+// The live dashboards: the Power BI report and the Grafana water and air dashboards. The page embeds only those
+// not flagged `offline` (see onlineDashboards below). All are public addresses (Power BI "Publish to web", Grafana
+// kiosk); none carries a secret.
 // `note` is one plain sentence of context, new words for Katie to review (see the page).
 const POWERBI = 'https://app.powerbi.com/view?r=eyJrIjoiODc0MmQ3OWYtZjFjZC00YmI3LTgzMTgtOTA0ZTRhOTFhNGQxIiwidCI6IjI3MWMwMGZlLTUxODItNGM5OS1hOWU2LTJkYzNlMWFmMGExZSJ9&pageName=f006761480e7e73d969e';
 const WATER = 'https://grafana.wahoobay.net/d/fdruz46pp5jpce/water-dashboard?orgId=1&refresh=1h&theme=light';

@@ -1,14 +1,18 @@
 ---
-// /live/data/: the Power BI report and the two Grafana dashboards, framed. Light page. Scripts are not sandboxed
-// away: Power BI needs scripts and same-origin inside its own frame.
+// /live/data/: the dashboards whose host answers (onlineDashboards(); today the Power BI report), framed. Light page.
+// Scripts are not sandboxed away: Power BI needs scripts and same-origin inside its own frame.
 import Base from '../../../layouts/Base.astro';
 import { onlineDashboards } from '../../../lib/dashboards.mjs';
+
+const shown = onlineDashboards();
+// katie: review (the description is built from the titles of the dashboards shown, so it never names an offline one)
+const description = `Data dashboards: ${shown.map((d) => d.title).join(', ')}.`;
 ---
-<Base title="Data dashboards" description="Live data from Wahoo Bay: the Wahoo Bay dashboard and the water and air dashboards.">
+<Base title="Data dashboards" description={description}>
   <div class="wb-container site-article">
     <!-- katie: review (new heading: the old pages had none) -->
     <h1>Data dashboards</h1>
-    {onlineDashboards().map((d) => (
+    {shown.map((d) => (
       <section class="wb-panel site-dashboard" aria-labelledby={`dash-${d.id}`}>
         <!-- katie: review (new title and sentence for this dashboard) -->
         <h2 id={`dash-${d.id}`}>{d.title}</h2>

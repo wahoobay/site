@@ -28,3 +28,10 @@ test('no offline dashboard is rendered: no grafana.wahoobay.net URL in the page 
   for (const d of DASHBOARDS.filter((x) => x.offline)) assert.ok(!html.includes(new URL(d.src).host), `${d.id} is offline`);
   assert.ok(onlineDashboards().length >= 1);
 });
+
+test('the meta description names each online dashboard and no offline one', () => {
+  const html = readFileSync('dist/live/data/index.html', 'utf8');
+  const desc = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? '';
+  for (const d of onlineDashboards()) assert.ok(desc.includes(d.title), `${d.id} in description`);
+  for (const d of DASHBOARDS.filter((x) => x.offline)) assert.ok(!desc.includes(d.title), `${d.id} not in description`);
+});
