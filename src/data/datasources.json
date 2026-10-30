@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1,
+    "name": "Wahoo Bay Weather Station",
+    "type": 1,
+    "lat": 26.2603435703903,
+    "lon": -80.0833931608374
+  },
+  {
+    "id": 3,
+    "name": "Wahoo Bay Water Quality",
+    "type": 2,
+    "lat": 26.2603448093873,
+    "lon": -80.0833985575972
+  },
+  {
+    "id": 5,
+    "name": "Wahoo Bay Camera",
+    "type": 8,
+    "lat": 26.26041,
+    "lon": -80.08369,
+    "video": "oBTGY6Ax870"
+  }
+]
