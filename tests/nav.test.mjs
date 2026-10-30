@@ -40,10 +40,12 @@ test('the built nav links Fish ID to this build\'s address, in the same tab, and
 });
 
 // Dan's staging review (2026-10-30): at 390px the nav's links row scrolled sideways and About started off-screen.
-// @wahoobay/design 0.1.4 wraps the row onto as many rows as it needs up to 30rem (480px).
-test('on phones the nav\'s links wrap onto rows instead of scrolling (@wahoobay/design 0.1.4)', () => {
+// @wahoobay/design 0.1.4 wraps the row onto as many rows as it needs up to 30rem (480px). The pin is 0.2.1 since the
+// Deep Field home page (Task 2), which needs its stage, band, figures, doorways and feature.
+test('on phones the nav\'s links wrap onto rows instead of scrolling (@wahoobay/design 0.1.4 or later; pinned 0.2.1)', () => {
   const design = readFileSync('node_modules/@wahoobay/design/dist/components.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const phone = design.match(/@media \(max-width: 30rem\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
   assert.match(phone, /\.wb-nav__links\s*\{[^}]*flex-wrap:\s*wrap[^}]*overflow:\s*visible/, '@wahoobay/design 0.1.4 or later');
-  assert.match(readFileSync('package.json', 'utf8'), /"@wahoobay\/design": "github:wahoobay\/design#v0\.1\.4"/);
+  assert.match(readFileSync('package.json', 'utf8'), /"@wahoobay\/design": "github:wahoobay\/design#v0\.2\.1"/);
+  assert.equal(JSON.parse(readFileSync('node_modules/@wahoobay/design/package.json', 'utf8')).version, '0.2.1', 'npm install after the bump');
 });
