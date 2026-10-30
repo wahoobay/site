@@ -1,5 +1,5 @@
-/* Site layout only: page structure, grids and spacing, from the design system's tokens.
-   Colours, type and components come from @wahoobay/design; nothing here sets a colour. */
+/* Site layout only: page structure, grids and spacing, from the design system's tokens. Colour, type, borders,
+   corners, shadows and every component come from @wahoobay/design; tests/styles.test.mjs holds this file to that. */
 
 /* The footer stays at the bottom of short pages. */
 body {
@@ -10,7 +10,8 @@ body {
 }
 main { flex: 1 0 auto; }
 
-/* Home: the photo fills the band; the copy sits on a solid panel over its lower left, the open water. */
+/* Home: the photo fills the band; the copy sits on a solid panel over its lower left, which at 1440px covers the
+   palms and the land of the park. */
 .site-hero {
   position: relative;
   display: flex;
@@ -100,18 +101,13 @@ main { flex: 1 0 auto; }
   padding-bottom: var(--wb-space-8);
 }
 .site-article > .wb-lead { margin-top: var(--wb-space-4); }
-/* The page's actions: a row of buttons under the lead. A long migrated label wraps instead of
-   running off a narrow screen, with room between its lines (the design's buttons assume one line). */
+/* The page's actions: a row of buttons under the lead. Each is a wb-btn--wrap, so a long migrated label wraps
+   instead of running off a narrow screen. */
 .site-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--wb-space-3);
   margin-top: var(--wb-space-5);
-}
-.site-actions .wb-btn {
-  max-width: 100%;
-  white-space: normal;
-  line-height: 1.35;
 }
 .site-article__body { margin-top: var(--wb-space-6); }
 /* A photo fills the text column; a tall one stops at 36rem high and keeps its shape. */
@@ -119,9 +115,6 @@ main { flex: 1 0 auto; }
   width: auto;
   max-height: 36rem;
 }
-
-/* A phone number never breaks at its hyphens. */
-a[href^="tel:"] { white-space: nowrap; }
 
 /* "In this section": the section's pages as one row of nav links that wraps on narrow screens;
    the link text lines up with the heading below it. */
@@ -153,7 +146,8 @@ a[href^="tel:"] { white-space: nowrap; }
   margin-top: var(--wb-space-4);
 }
 
-/* The board: one card per person, a column on narrow screens, two from 48rem. A portrait keeps its shape. */
+/* The board: one card per person, a column on narrow screens, two from 48rem; a card is as tall as its own copy,
+   not its row's tallest. The portrait (the card's media) or the initials square is 8rem and keeps its shape. */
 .site-people {
   display: grid;
   gap: var(--wb-space-4);
@@ -164,24 +158,18 @@ a[href^="tel:"] { white-space: nowrap; }
 @media (min-width: 48rem) {
   .site-people { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-.site-person { align-items: start; }
+.site-person {
+  align-self: start;
+  align-items: start;
+}
 .site-person__photo {
   flex: 0 0 auto;
   width: 8rem;
   height: 8rem;
   object-fit: cover;
-  border-radius: var(--wb-radius-sm);
-}
-.site-person__initials {
-  display: grid;
-  place-items: center;
-  background: var(--wb-color-bg);
-  color: var(--wb-color-ink-3);
-  font-size: var(--wb-text-2xl);
-  font-weight: 800;
 }
 
-/* Partners: each group's logos in a grid; a logo scales down to its cell and keeps its shape. */
+/* Partners: each group's logos in a grid of the design's logo tiles. */
 .site-logos { margin-top: var(--wb-space-7); }
 .site-logos__grid {
   display: grid;
@@ -191,27 +179,6 @@ a[href^="tel:"] { white-space: nowrap; }
   padding: 0;
   list-style: none;
 }
-.site-logo__link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  min-height: 7rem;
-  padding: var(--wb-space-3);
-  border: 1px solid var(--wb-color-line);
-  border-radius: var(--wb-radius);
-  background: var(--wb-color-bg);
-}
-a.site-logo__link:hover { border-color: var(--wb-color-action); }
-.site-logo__link img {
-  width: auto;
-  max-width: 100%;
-  height: auto;
-  max-height: 5rem;
-  object-fit: contain;
-}
-/* This logo is white on a transparent ground; the old site showed it in black on white, and so does this. */
-.site-logo__link img[src*="bergeron-everglades-foundation-logo"] { filter: brightness(0); }
 
 /* Learn: the six grades, a column on narrow screens, two from 36rem, three from 60rem. The old tiles are 9:5 with
    their name drawn in, so they are shown whole. */
@@ -239,8 +206,8 @@ a.site-logo__link:hover { border-color: var(--wb-color-action); }
   .site-grades { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* A course: the grades it is for, then its documents as a column of buttons, each with what it is after its
-   label. A long label wraps instead of running off a narrow screen. */
+/* A course: the grades it is for, then its documents as a column of buttons (the first is the action), each a
+   wb-btn--wrap with what it is in its wb-btn__meta. */
 .site-course__for { margin-top: var(--wb-space-3); }
 .site-course__links {
   display: grid;
@@ -250,18 +217,8 @@ a.site-logo__link:hover { border-color: var(--wb-color-action); }
   padding: 0;
   list-style: none;
 }
-.site-course__links .wb-btn {
-  max-width: 100%;
-  white-space: normal;
-  line-height: 1.35;
-  text-align: left;
-}
-.site-course__links small {
-  font-size: var(--wb-text-sm);
-  font-weight: 500;
-}
 
-/* Live reef: the heading with its live badge, then the video in a 16:9 box the width of the text column. */
+/* Live reef: the heading with its live badge, then the video (the design's 16:9 frame) at most 60rem wide. */
 .site-live__title {
   display: flex;
   flex-wrap: wrap;
@@ -271,20 +228,12 @@ a.site-logo__link:hover { border-color: var(--wb-color-action); }
 .site-video {
   max-width: 60rem;
   margin-top: var(--wb-space-5);
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  border-radius: var(--wb-radius);
-}
-.site-video iframe {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
 }
 .site-live > .wb-lead { margin-top: var(--wb-space-5); }
 
 /* Home: the Instagram strip under the doorways, two posts a row on narrow screens, four from 48rem. An empty card
-   holds a square until the script fills it (or takes the strip away). */
+   holds a square until the script fills it (or takes it, or the strip, away). A post is a wb-caption link: its
+   square picture, then its caption. */
 .site-instagram { padding-bottom: var(--wb-space-8); }
 .site-instagram__grid {
   display: grid;
@@ -305,12 +254,9 @@ a.site-logo__link:hover { border-color: var(--wb-color-action); }
   display: grid;
   gap: var(--wb-space-2);
   width: 100%;
-  font-size: var(--wb-text-sm);
-  overflow-wrap: anywhere;
 }
 .site-instagram__link img {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: var(--wb-radius-sm);
 }

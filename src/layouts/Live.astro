@@ -37,7 +37,7 @@ const hasBody = (entry.body ?? '').replace(/<!--[\s\S]*?-->/g, '').trim() !== ''
     <YouTube id={video} title={live ? `${title}, live stream` : `${title}, YouTube playlist`} playlist={playlist} />
     <p class="wb-lead">{description}</p>
     <div class="site-actions">
-      <a class="wb-btn wb-btn--ghost" href={link.href}>{link.label}</a>
+      <a class="wb-btn wb-btn--ghost wb-btn--wrap" href={link.href}>{link.label}</a>
     </div>
     {hasBody && <div class="wb-prose site-article__body"><slot /></div>}
   </div>

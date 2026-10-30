@@ -1,6 +1,7 @@
 ---
 // The partner logos, grouped under their headings in the order the old site's folders suggest, each group by `order`.
-// A logo's alt text is the partner's name; a partner with a website links to it in a new tab.
+// A logo's alt text is the partner's name; a partner with a website links to it in a new tab. A logo drawn in white
+// (`tone: light`) goes on the design's dark tile.
 import { getCollection } from 'astro:content';
 import { publicImageSize } from '../lib/public-image.mjs';
 
@@ -9,6 +10,8 @@ const GROUPS = [
   { id: 'community-government', title: 'Community & Government' },
   { id: 'environmental', title: 'Environmental' },
 ] as const;
+
+const tile = (tone?: 'dark' | 'light') => (tone === 'light' ? 'wb-logo-tile wb-logo-tile--dark' : 'wb-logo-tile');
 
 const all = await getCollection('partners');
 const groups = await Promise.all(
@@ -30,12 +33,12 @@ const groups = await Promise.all(
       {group.partners.map((partner) => (
         <li class="site-logo">
           {partner.url ? (
-            <a class="site-logo__link" href={partner.url} target="_blank" rel="noopener">
+            <a class={tile(partner.tone)} href={partner.url} target="_blank" rel="noopener">
               <img src={partner.logo} width={partner.size.width} height={partner.size.height} alt={partner.name} loading="lazy" decoding="async">
               <span class="wb-sr-only"> (opens in a new tab)</span>
             </a>
           ) : (
-            <span class="site-logo__link">
+            <span class={tile(partner.tone)}>
               <img src={partner.logo} width={partner.size.width} height={partner.size.height} alt={partner.name} loading="lazy" decoding="async">
             </span>
           )}

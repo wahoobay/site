@@ -49,11 +49,12 @@ const cards = [1, 2, 3, 4];
               continue;
             }
             var link = document.createElement('a');
-            link.className = 'site-instagram__link';
+            link.className = 'site-instagram__link wb-caption';
             link.href = post.permalink;
             link.target = '_blank';
             link.rel = 'noopener';
             var img = document.createElement('img');
+            img.className = 'wb-card__media';
             img.src = picture(post);
             img.alt = '';
             img.width = 320;

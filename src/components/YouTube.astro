@@ -1,6 +1,6 @@
 ---
 // A YouTube video, or with `playlist` a playlist, from youtube-nocookie.com: no cookies until it plays, and it never
-// starts by itself. In a 16:9 box (site.css). Only the Live reef pages embed video.
+// starts by itself. In the design's 16:9 video frame. Only the Live reef pages embed video.
 interface Props {
   /** The video's id, or the playlist's with `playlist`. */
   id: string;
@@ -14,7 +14,7 @@ const src = playlist
   ? `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(id)}&rel=0`
   : `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}`;
 ---
-<div class="site-video">
+<div class="wb-video site-video">
   <iframe
     src={src}
     title={title}

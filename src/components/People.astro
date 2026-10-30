@@ -14,9 +14,9 @@ const initials = (name: string) =>
   {sized.map((person) => (
     <li class="wb-card site-person">
       {person.photo && person.size ? (
-        <img class="site-person__photo" src={person.photo} width={person.size.width} height={person.size.height} alt={person.name} loading="lazy" decoding="async">
+        <img class="wb-card__media site-person__photo" src={person.photo} width={person.size.width} height={person.size.height} alt={person.name} loading="lazy" decoding="async">
       ) : (
-        <span class="site-person__photo site-person__initials" aria-hidden="true">{initials(person.name)}</span>
+        <span class="wb-initials site-person__photo" aria-hidden="true">{initials(person.name)}</span>
       )}
       <div class="wb-card__body">
         <h2>{person.name}</h2>

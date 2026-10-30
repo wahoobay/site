@@ -31,9 +31,9 @@ const isExternal = (href: string) => /^https?:\/\//.test(href);
       <div class="site-actions">
         {actions.map(({ label, href, variant }) =>
           isExternal(href) ? (
-            <a class={`wb-btn wb-btn--${variant}`} href={href} target="_blank" rel="noopener">{label}<span class="wb-sr-only"> (opens in a new tab)</span></a>
+            <a class={`wb-btn wb-btn--${variant} wb-btn--wrap`} href={href} target="_blank" rel="noopener">{label}<span class="wb-sr-only"> (opens in a new tab)</span></a>
           ) : (
-            <a class={`wb-btn wb-btn--${variant}`} href={href}>{label}</a>
+            <a class={`wb-btn wb-btn--${variant} wb-btn--wrap`} href={href}>{label}</a>
           ),
         )}
       </div>

@@ -65,6 +65,7 @@ const board = defineCollection({
 
 // The logos at /get-involved/partners/, one JSON file each, grouped and shown in `order`. The groups are the
 // old site's three logo folders. `url` is the partner's website; a partner without one shows its logo unlinked.
+// `tone: light` marks a logo drawn in white, which is shown on a dark tile (never recoloured).
 const partners = defineCollection({
   loader: glob({ pattern: '*.json', base: './src/content/partners' }),
   schema: z.object({
@@ -73,6 +74,7 @@ const partners = defineCollection({
     logo: z.string(),
     group: z.enum(['university-education', 'community-government', 'environmental']),
     order: z.number(),
+    tone: z.enum(['dark', 'light']).optional(),
   }),
 });
 
