@@ -38,3 +38,12 @@ test('the built nav links Fish ID to this build\'s address, in the same tab, and
     assert.doesNotMatch(links[0], /\btarget=|\baria-current=|wb-nav__link--on/, file);
   }
 });
+
+// Dan's staging review (2026-10-30): at 390px the nav's links row scrolled sideways and About started off-screen.
+// @wahoobay/design 0.1.4 wraps the row onto as many rows as it needs up to 30rem (480px).
+test('on phones the nav\'s links wrap onto rows instead of scrolling (@wahoobay/design 0.1.4)', () => {
+  const design = readFileSync('node_modules/@wahoobay/design/dist/components.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const phone = design.match(/@media \(max-width: 30rem\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+  assert.match(phone, /\.wb-nav__links\s*\{[^}]*flex-wrap:\s*wrap[^}]*overflow:\s*visible/, '@wahoobay/design 0.1.4 or later');
+  assert.match(readFileSync('package.json', 'utf8'), /"@wahoobay\/design": "github:wahoobay\/design#v0\.1\.4"/);
+});
