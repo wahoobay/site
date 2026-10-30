@@ -1,0 +1,16 @@
+---
+// Every post of the news collection, at /news/<slug>/.
+import { getCollection, render } from 'astro:content';
+import Post from '../../layouts/Post.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('news');
+  return posts.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+<Post entry={entry}>
+  <Content />
+</Post>

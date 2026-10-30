@@ -53,5 +53,6 @@ const isExternal = (href: string) => /^https?:\/\//.test(href);
       </div>
     )}
     {hasBody && <div class="wb-prose site-article__body"><slot /></div>}
+    <slot name="after" />
   </div>
 </Base>

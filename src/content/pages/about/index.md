@@ -158,6 +158,8 @@ Through public outreach, digital media, and volunteer networks, Wahoo Bay's team
 
 Discover how Wahoo Bay is making waves in marine conservation through media coverage, research, and community engagement
 
+[Wahoo Bay news](/news/)
+
 ### [TEDxBoston Talk](https://www.youtube.com/watch?v=duIjuQ6eA58)
 
 TEDxBoston · 2023 · Video

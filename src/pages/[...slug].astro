@@ -2,6 +2,8 @@
 // Every page of the pages collection, at the address its file path names (src/content.config.ts).
 import { getCollection, render } from 'astro:content';
 import Page from '../layouts/Page.astro';
+import People from '../components/People.astro';
+import LogoGrid from '../components/LogoGrid.astro';
 
 export async function getStaticPaths() {
   const pages = await getCollection('pages');
@@ -10,7 +12,12 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const { Content } = await render(entry);
+
+// The two pages whose body is followed by a data collection (src/content/board, src/content/partners).
+const below: Record<string, any> = { 'about/board': People, 'get-involved/partners': LogoGrid };
+const Below = below[entry.id];
 ---
 <Page entry={entry}>
   <Content />
+  {Below && <Below slot="after" />}
 </Page>

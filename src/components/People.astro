@@ -1,0 +1,28 @@
+---
+// The people of the board collection, in their `order`: a photo (or initials), the name, the role and the bio.
+import { getCollection } from 'astro:content';
+import { publicImageSize } from '../lib/public-image.mjs';
+
+const people = (await getCollection('board')).sort((a, b) => a.data.order - b.data.order);
+const sized = await Promise.all(
+  people.map(async ({ data }) => ({ ...data, size: data.photo ? await publicImageSize(data.photo) : undefined })),
+);
+const initials = (name: string) =>
+  name.replace(/^Dr\.\s+/, '').split(/\s+/).map((part) => part[0]).join('');
+---
+<ul class="site-people" role="list">
+  {sized.map((person) => (
+    <li class="wb-card site-person">
+      {person.photo && person.size ? (
+        <img class="site-person__photo" src={person.photo} width={person.size.width} height={person.size.height} alt={person.name} loading="lazy" decoding="async">
+      ) : (
+        <span class="site-person__photo site-person__initials" aria-hidden="true">{initials(person.name)}</span>
+      )}
+      <div class="wb-card__body">
+        <h2>{person.name}</h2>
+        <p><strong>{person.role}</strong></p>
+        {person.bio && <p>{person.bio}</p>}
+      </div>
+    </li>
+  ))}
+</ul>

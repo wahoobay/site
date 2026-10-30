@@ -196,3 +196,51 @@ test('the pages whose old version led with a button lead with it again', () => {
   assert.equal(first('/visit/field-experiences/').variant, 'action');
   assert.equal(first('/visit/field-experiences/request/').label, 'Open Request Form (opens in a new tab)');
 });
+
+// Task 10: news, board and partners are data (src/content/news, board, partners).
+const jsonIn = (dir) => filesUnder(dir).filter((file) => file.endsWith('.json')).map((file) => JSON.parse(readFileSync(file, 'utf8')));
+const NEWS = 'src/content/news';
+const newsPosts = filesUnder(NEWS)
+  .filter((file) => file.endsWith('.md'))
+  .map((file) => ({ file, title: field(readFileSync(file, 'utf8'), 'title'), date: field(readFileSync(file, 'utf8'), 'date') }));
+
+test('/news/ lists every post, newest first, each date in a <time datetime>', () => {
+  assert.ok(newsPosts.length > 0, 'there are news posts');
+  const html = readFileSync('dist/news/index.html', 'utf8');
+  const listed = [...html.matchAll(/<time\b[^>]*datetime="([^"]+)"[^>]*>[\s\S]*?<\/time>/g)].map((m) => m[1].slice(0, 10));
+  const expected = newsPosts.map((post) => post.date.slice(0, 10)).sort().reverse();
+  assert.deepEqual(listed, expected, 'dates newest first');
+  const text = decode(html);
+  let last = -1;
+  for (const post of [...newsPosts].sort((a, b) => b.date.localeCompare(a.date))) {
+    const at = text.indexOf(post.title, last + 1);
+    assert.ok(at > last, `${post.title} is listed after the newer posts`);
+    last = at;
+  }
+  for (const post of newsPosts) {
+    const slug = post.file.slice(NEWS.length + 1).replace(/\.md$/, '');
+    const page = readFileSync(distOf(`/news/${slug}/`), 'utf8');
+    assert.match(page, /href="\/news\/"/, `${slug}: a link back to /news/`);
+  }
+});
+
+test('every board photo and partner logo exists under public/', () => {
+  for (const member of jsonIn('src/content/board')) {
+    if (member.photo) assert.ok(existsSync(join('public', member.photo)), `${member.name}: ${member.photo}`);
+  }
+  for (const partner of jsonIn('src/content/partners')) {
+    assert.ok(existsSync(join('public', partner.logo)), `${partner.name}: ${partner.logo}`);
+  }
+});
+
+test('the board page names every member and the partners page every partner; partner links are http(s)', () => {
+  const board = decode(readFileSync('dist/about/board/index.html', 'utf8'));
+  for (const member of jsonIn('src/content/board')) assert.ok(board.includes(member.name), `board page lacks ${member.name}`);
+  const raw = readFileSync('dist/get-involved/partners/index.html', 'utf8');
+  const partners = decode(raw);
+  const alts = [...raw.matchAll(/<img\b[^>]*\balt="([^"]*)"/g)].map((m) => decode(m[1]).replaceAll('&#34;', '"').replaceAll('&#38;', '&'));
+  for (const partner of jsonIn('src/content/partners')) {
+    assert.ok(alts.includes(partner.name) || partners.includes(partner.name), `partners page lacks ${partner.name}`);
+    if (partner.url) assert.match(partner.url, /^https?:\/\//, partner.name);
+  }
+});

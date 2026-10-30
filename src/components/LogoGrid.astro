@@ -1,0 +1,46 @@
+---
+// The partner logos, grouped under their headings in the order the old site's folders suggest, each group by `order`.
+// A logo's alt text is the partner's name; a partner with a website links to it in a new tab.
+import { getCollection } from 'astro:content';
+import { publicImageSize } from '../lib/public-image.mjs';
+
+const GROUPS = [
+  { id: 'university-education', title: 'University & Education' },
+  { id: 'community-government', title: 'Community & Government' },
+  { id: 'environmental', title: 'Environmental' },
+] as const;
+
+const all = await getCollection('partners');
+const groups = await Promise.all(
+  GROUPS.map(async (group) => ({
+    ...group,
+    partners: await Promise.all(
+      all
+        .filter((entry) => entry.data.group === group.id)
+        .sort((a, b) => a.data.order - b.data.order)
+        .map(async ({ data }) => ({ ...data, size: await publicImageSize(data.logo) })),
+    ),
+  })),
+);
+---
+{groups.map((group) => (
+  <section class="site-logos" aria-labelledby={`logos-${group.id}`}>
+    <h2 id={`logos-${group.id}`}>{group.title}</h2>
+    <ul class="site-logos__grid" role="list">
+      {group.partners.map((partner) => (
+        <li class="site-logo">
+          {partner.url ? (
+            <a class="site-logo__link" href={partner.url} target="_blank" rel="noopener">
+              <img src={partner.logo} width={partner.size.width} height={partner.size.height} alt={partner.name} loading="lazy" decoding="async">
+              <span class="wb-sr-only"> (opens in a new tab)</span>
+            </a>
+          ) : (
+            <span class="site-logo__link">
+              <img src={partner.logo} width={partner.size.width} height={partner.size.height} alt={partner.name} loading="lazy" decoding="async">
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
+  </section>
+))}

@@ -36,4 +36,44 @@ const pages = defineCollection({
   }),
 });
 
-export const collections = { pages };
+// News posts: src/content/news/<slug>.md is /news/<slug>/. They belong to no section, so no navigation lists them;
+// /news/ lists them newest first.
+const news = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/news' }),
+  schema: z.object({
+    title: z.string(),
+    date: z.coerce.date(),
+    /** The line under the title in the list at /news/. */
+    description: z.string(),
+    /** A photo under public/, shown with the post. */
+    image: z.string().optional(),
+  }),
+});
+
+// The people at /about/board/, one JSON file each, shown in `order`. `photo` is a path under public/;
+// a member without one shows initials.
+const board = defineCollection({
+  loader: glob({ pattern: '*.json', base: './src/content/board' }),
+  schema: z.object({
+    name: z.string(),
+    role: z.string(),
+    photo: z.string().optional(),
+    order: z.number(),
+    bio: z.string().optional(),
+  }),
+});
+
+// The logos at /get-involved/partners/, one JSON file each, grouped and shown in `order`. The groups are the
+// old site's three logo folders. `url` is the partner's website; a partner without one shows its logo unlinked.
+const partners = defineCollection({
+  loader: glob({ pattern: '*.json', base: './src/content/partners' }),
+  schema: z.object({
+    name: z.string(),
+    url: z.string().url().optional(),
+    logo: z.string(),
+    group: z.enum(['university-education', 'community-government', 'environmental']),
+    order: z.number(),
+  }),
+});
+
+export const collections = { pages, news, board, partners };

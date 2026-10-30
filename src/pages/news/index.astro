@@ -1,0 +1,30 @@
+---
+// The news posts, newest first. The intro is the old News page's own.
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { isoDay, longDay } from '../../lib/dates';
+
+const posts = (await getCollection('news')).sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+const intro =
+  'Wahoo Bay aims to raise awareness of the importance of keeping our oceans and reefs healthy while providing a unique, immersive educational experience both in the water and online.';
+---
+<Base title="News" description={intro}>
+  <div class="wb-container site-article">
+    <h1>News</h1>
+    <p class="wb-lead">{intro}</p>
+    <p>Learn more and help us protect this incredible space by becoming a <a href="/get-involved/ambassadors/">Wahoo Bay Ambassador</a> today!</p>
+    <ul class="site-news" role="list">
+      {posts.map((post) => (
+        <li>
+          <a class="wb-card site-news__item" href={`/news/${post.id}/`}>
+            <div class="wb-card__body">
+              <h2>{post.data.title}</h2>
+              <p><time datetime={isoDay(post.data.date)}>{longDay(post.data.date)}</time></p>
+              <p>{post.data.description}</p>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Base>
