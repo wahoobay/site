@@ -1,0 +1,12 @@
+---
+// /live/highlights/: the old Best-of Video page's YouTube playlist (src/content/live/highlights.md).
+import { getEntry, render } from 'astro:content';
+import Live from '../../../layouts/Live.astro';
+
+const entry = await getEntry('live', 'highlights');
+if (!entry) throw new Error('src/content/live/highlights.md is missing');
+const { Content } = await render(entry);
+---
+<Live entry={entry} link={{ href: '/live/', label: 'SeaHIVE reef camera' }}>
+  <Content />
+</Live>

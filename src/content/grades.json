@@ -1,0 +1,8 @@
+[
+  { "slug": "educators", "title": "Educator Resources", "old": "Educator Resources", "image": "/images/grades/educators.png" },
+  { "slug": "art-and-science", "title": "Art & Science", "old": "Art & Science", "image": "/images/grades/art-and-science.png" },
+  { "slug": "collegiate", "title": "Collegiate", "old": "Collegiate", "image": "/images/grades/collegiate.png" },
+  { "slug": "prek", "title": "PreK - 3rd Grade", "old": "Prek", "image": "/images/grades/prek.png" },
+  { "slug": "fourth-grade", "title": "4th - 8th Grade", "old": "Fourth", "image": "/images/grades/fourth-grade.png" },
+  { "slug": "ninth-grade", "title": "9th - 12th Grade", "old": "Ninth", "image": "/images/grades/ninth-grade.png" }
+]

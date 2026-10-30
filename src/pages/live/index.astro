@@ -1,0 +1,12 @@
+---
+// /live/: the SeaHIVE reef camera's live stream and the old Underwater Camera page's copy (src/content/live/camera.md).
+import { getEntry, render } from 'astro:content';
+import Live from '../../layouts/Live.astro';
+
+const entry = await getEntry('live', 'camera');
+if (!entry) throw new Error('src/content/live/camera.md is missing');
+const { Content } = await render(entry);
+---
+<Live entry={entry} live link={{ href: '/live/highlights/', label: 'Reef highlights' }}>
+  <Content />
+</Live>

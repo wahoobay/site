@@ -1,0 +1,11 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+# <!-- katie: review: the title is the old course page's (its address dropped the dots); the Art & Science list wrote
+# "S. Fl. Habitats". It links the same document as Teaching Climate Change Through Art Wahoo Bay; check which is which. -->
+title: Teaching Climate Change Through Art S Fl Habitats
+slug: teaching-climate-change-through-art-s-fl-habitats
+grades: [art-and-science]
+links:
+  - label: Teaching Climate Change Through Art S Fl Habitats
+    kind: pdf
+    url: "https://drive.google.com/file/d/1mVyNKP0l3VI9Gi0j6VVykvE5YZ2GDXOJ/view"

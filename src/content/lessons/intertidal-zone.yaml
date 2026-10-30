@@ -1,0 +1,9 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+title: Intertidal Zone
+slug: intertidal-zone
+grades: [fourth-grade, ninth-grade]
+links:
+  - label: Intertidal Zone
+    kind: pdf
+    url: "https://drive.google.com/file/d/1HyF7C3Dmnn7hb1dPzrzLhDVSTatehOvh/view"

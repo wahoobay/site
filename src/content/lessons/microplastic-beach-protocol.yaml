@@ -1,0 +1,11 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+# <!-- katie: review: the old site had this course but no grade listed it, so no page linked to it; its document is
+# also the second one under Field Based Activities. It is filed under Educator Resources here. Keep it, or drop it. -->
+title: Microplastic Beach Protocol
+slug: microplastic-beach-protocol
+grades: [educators]
+links:
+  - label: Microplastic Beach Protocol
+    kind: pdf
+    url: "https://drive.google.com/file/d/1ZPf3gJjdQ_f8NDEbrralxb7ofCO2HKnN/view"

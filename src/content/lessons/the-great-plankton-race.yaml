@@ -1,0 +1,13 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+# The old page offered the slides first ("For an immersive presentation click here"), then the document.
+title: The Great Plankton Race
+slug: the-great-plankton-race
+grades: [prek, fourth-grade, ninth-grade]
+links:
+  - label: The Great Plankton Race
+    kind: slides
+    url: "https://docs.google.com/presentation/d/e/2PACX-1vTHk98WT7XtzH1ZHYpA1icfC4i_uPdxg5k1EvKDYx2rDsZDx7nMf4p4wZaDOHfb-g/pub?start=true&loop=false&delayms=3000&slide=id.p1"
+  - label: The Great Plankton Race
+    kind: pdf
+    url: "https://drive.google.com/file/d/10LSv-rQRHdYTQLQyKLlHOH6hffOk1pqH/view"

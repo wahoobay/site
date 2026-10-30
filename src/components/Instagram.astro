@@ -1,0 +1,83 @@
+---
+// The home page's Instagram strip: the four latest posts from the Wahoo Bay API (the old home page's
+// InstagramFeedSection.js). The build ships four empty cards; the inline script fills them in the browser, and takes
+// the whole section away when there is nothing to show: no fetch, a failed or non-OK response, a refused envelope,
+// no posts, or no answer within ten seconds. It is the site's only client script (is:inline keeps it in the page).
+// Captions are set as text, never parsed as HTML; links and pictures must be https.
+const cards = [1, 2, 3, 4];
+---
+<section class="wb-container site-instagram" id="instagram" aria-labelledby="instagram-title">
+  <h2 id="instagram-title">From Instagram</h2>
+  <ul class="site-instagram__grid" role="list" aria-busy="true">
+    {cards.map(() => <li class="wb-card site-instagram__post"></li>)}
+  </ul>
+  <script is:inline>
+    (function () {
+      var section = document.getElementById('instagram');
+      if (!section) return;
+      var list = section.querySelector('ul');
+      var cards = section.querySelectorAll('.site-instagram__post');
+      var settled = false;
+      function hide() {
+        settled = true;
+        section.remove();
+      }
+      if (typeof window.fetch !== 'function') return hide();
+      var timer = setTimeout(function () { if (!settled) hide(); }, 10000);
+      var https = function (url) { return typeof url === 'string' && url.indexOf('https://') === 0; };
+      var picture = function (post) { return post.media_type === 'VIDEO' ? post.thumbnail_url : post.media_url; };
+      var words = function (caption) {
+        var text = String(caption || '').replace(/\s+/g, ' ').trim();
+        var chars = Array.from ? Array.from(text) : text.split('');
+        return chars.length > 90 ? chars.slice(0, 90).join('').trim() + '…' : text;
+      };
+      window
+        .fetch('https://api.wahoobay.net/api/v1/instagram/posts/latest', { headers: { Accept: 'application/json' } })
+        .then(function (response) {
+          if (!response.ok) throw new Error('Instagram posts: HTTP ' + response.status);
+          return response.json();
+        })
+        .then(function (body) {
+          if (settled) return;
+          var posts = body && body.status === 'Success' && Array.isArray(body.data) ? body.data : [];
+          posts = posts.filter(function (post) { return post && https(post.permalink) && https(picture(post)); }).slice(0, cards.length);
+          if (posts.length === 0) throw new Error('Instagram posts: none');
+          for (var i = 0; i < cards.length; i++) {
+            var post = posts[i];
+            if (!post) {
+              cards[i].remove();
+              continue;
+            }
+            var link = document.createElement('a');
+            link.className = 'site-instagram__link';
+            link.href = post.permalink;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            var img = document.createElement('img');
+            img.src = picture(post);
+            img.alt = '';
+            img.width = 320;
+            img.height = 320;
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            var caption = document.createElement('span');
+            caption.textContent = words(post.caption) || 'Instagram post';
+            var note = document.createElement('span');
+            note.className = 'wb-sr-only';
+            note.textContent = ' (opens in a new tab)';
+            link.appendChild(img);
+            link.appendChild(caption);
+            link.appendChild(note);
+            cards[i].appendChild(link);
+          }
+          settled = true;
+          clearTimeout(timer);
+          list.removeAttribute('aria-busy');
+        })
+        .catch(function () {
+          clearTimeout(timer);
+          hide();
+        });
+    })();
+  </script>
+</section>

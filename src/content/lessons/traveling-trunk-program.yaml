@@ -1,0 +1,15 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+# <!-- katie: review: the old page linked inwater.org as "Traveling Trunks Form", but that page describes the trunks
+# and gives reservation contacts; it is not a form. The Microsoft Form (the old page's "Course Document") is the form.
+# Keep both, or say which one teachers should use. -->
+title: Traveling Trunk Program
+slug: traveling-trunk-program
+grades: [educators]
+links:
+  - label: Traveling Trunks Form
+    kind: site
+    url: "https://www.inwater.org/education/traveling-trunks/"
+  - label: Traveling Trunk Program
+    kind: form
+    url: "https://forms.microsoft.com/pages/responsepage.aspx?id=wcnDYyToP0G0NS8Mq7KCj2n1doAYDbNFgHFGHlI9h7RUQ1lHSlJMRk1NRThFTlpIMlRBUk4yTjVLRiQlQCN0PWcu"

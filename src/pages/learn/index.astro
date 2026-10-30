@@ -1,0 +1,38 @@
+---
+// The old "Educational resources" page (src/pages/other/Education.js): its one sentence, then the six grades.
+// Each tile is decorative (alt=""): the card is one link, named by the grade's title.
+import Base from '../../layouts/Base.astro';
+import SectionNav from '../../components/SectionNav.astro';
+import { allGrades, allLessons, gradeUrl } from '../../lib/lessons';
+import { publicImageSize } from '../../lib/public-image.mjs';
+
+const intro = 'Dive into our courses and content to explore, learn, and protect our oceans today!';
+const lessons = await allLessons();
+const grades = await Promise.all(
+  (await allGrades()).map(async (grade) => ({
+    ...grade,
+    count: lessons.filter((lesson) => lesson.grades.includes(grade.slug)).length,
+    size: await publicImageSize(grade.image),
+  })),
+);
+---
+<Base title="Educational resources" description={intro}>
+  <div class="wb-container site-article">
+    <SectionNav section="learn" here="/learn/" />
+    <h1>Educational resources</h1>
+    <p class="wb-lead">{intro}</p>
+    <ul class="site-grades" role="list">
+      {grades.map((grade) => (
+        <li>
+          <a class="wb-card" href={gradeUrl(grade.slug)}>
+            <img class="wb-card__media" src={grade.image} width={grade.size.width} height={grade.size.height} alt="" loading="lazy" decoding="async">
+            <div class="wb-card__body">
+              <h2>{grade.title}</h2>
+              <p>{grade.count} {grade.count === 1 ? 'course' : 'courses'}</p>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Base>

@@ -1,0 +1,24 @@
+---
+// /sign-in/: who signs in where. The old page (src/pages/other/Login.js, h1 "Sign in to Wahoo Bay") kept a volunteer's
+// name on the device and signed staff in to the old review panel; this site has no accounts, so it only points the way.
+// The sighting review's address is not printed here: until step 3 of the rebuild it is protected only by not being
+// published, so reviewers keep the link they were given.
+import Base from '../../layouts/Base.astro';
+
+const description = 'Where to sign in: the fish-identification review tool, and the sighting review.';
+const fishId = 'https://ai.wahoobay.net/login';
+---
+<Base title="Sign in to Wahoo Bay" description={description}>
+  <div class="wb-container site-article">
+    <h1>Sign in to Wahoo Bay</h1>
+    <!-- katie: review: the wording on this page is new (the old page was only a sign-in form); check it. -->
+    <p class="wb-lead">You don't need an account to use this site. Sign-in is for the people who review what the camera and visitors record.</p>
+    <div class="wb-prose site-article__body">
+      <h2>Fish identification</h2>
+      <p>Reviewers of the AI fish identifications sign in to the fish-ID tool.</p>
+      <p><a class="wb-btn wb-btn--action" href={fishId} target="_blank" rel="noopener">Sign in to fish ID<span class="wb-sr-only"> (opens in a new tab)</span></a></p>
+      <h2>Sighting review</h2>
+      <p>Staff who review the sightings visitors log: use the link you were given.</p>
+    </div>
+  </div>
+</Base>

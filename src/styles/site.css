@@ -212,3 +212,105 @@ a.site-logo__link:hover { border-color: var(--wb-color-action); }
 }
 /* This logo is white on a transparent ground; the old site showed it in black on white, and so does this. */
 .site-logo__link img[src*="bergeron-everglades-foundation-logo"] { filter: brightness(0); }
+
+/* Learn: the six grades, a column on narrow screens, two from 36rem, three from 60rem. The old tiles are 9:5 with
+   their name drawn in, so they are shown whole. */
+.site-grades,
+.site-courses {
+  display: grid;
+  gap: var(--wb-space-4);
+  margin: var(--wb-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.site-grades li,
+.site-courses li { display: flex; }
+.site-grades .wb-card,
+.site-courses .wb-card {
+  flex: 1;
+  align-content: start;
+}
+.site-grades .wb-card__media { aspect-ratio: 9 / 5; }
+@media (min-width: 36rem) {
+  .site-grades,
+  .site-courses { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 60rem) {
+  .site-grades { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* A course: the grades it is for, then its documents as a column of buttons, each with what it is after its
+   label. A long label wraps instead of running off a narrow screen. */
+.site-course__for { margin-top: var(--wb-space-3); }
+.site-course__links {
+  display: grid;
+  justify-items: start;
+  gap: var(--wb-space-3);
+  margin: var(--wb-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.site-course__links .wb-btn {
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.35;
+  text-align: left;
+}
+.site-course__links small {
+  font-size: var(--wb-text-sm);
+  font-weight: 500;
+}
+
+/* Live reef: the heading with its live badge, then the video in a 16:9 box the width of the text column. */
+.site-live__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wb-space-2) var(--wb-space-4);
+}
+.site-video {
+  max-width: 60rem;
+  margin-top: var(--wb-space-5);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--wb-radius);
+}
+.site-video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.site-live > .wb-lead { margin-top: var(--wb-space-5); }
+
+/* Home: the Instagram strip under the doorways, two posts a row on narrow screens, four from 48rem. An empty card
+   holds a square until the script fills it (or takes the strip away). */
+.site-instagram { padding-bottom: var(--wb-space-8); }
+.site-instagram__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--wb-space-4);
+  margin: var(--wb-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 48rem) {
+  .site-instagram__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.site-instagram__post {
+  align-items: start;
+  min-height: 12rem;
+}
+.site-instagram__link {
+  display: grid;
+  gap: var(--wb-space-2);
+  width: 100%;
+  font-size: var(--wb-text-sm);
+  overflow-wrap: anywhere;
+}
+.site-instagram__link img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--wb-radius-sm);
+}

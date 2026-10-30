@@ -1,0 +1,9 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+title: Rapid Oyster Community Assessment Datasheet
+slug: rapid-oyster-community-assessment-datasheet
+grades: [collegiate]
+links:
+  - label: Rapid Oyster Community Assessment Datasheet
+    kind: pdf
+    url: "/docs/oyster-survey-datasheet.pdf"

@@ -1,0 +1,29 @@
+---
+// "In this section": the pages of one section (src/lib/sections.ts), the current one marked. Shown when it lists
+// a page other than this one: a page alone in its section has nowhere to send the reader.
+import { sectionPages, urlOf, type PageEntry } from '../lib/sections';
+
+interface Props {
+  section: PageEntry['data']['section'];
+  /** This page's address; a page outside the pages collection (such as /learn/) matches none of the links. */
+  here: string;
+}
+
+const { section, here } = Astro.props;
+const siblings = await sectionPages(section);
+---
+{siblings.some((page) => urlOf(page) !== here) && (
+  <nav class="site-subnav" aria-label="In this section">
+    <ul>
+      {siblings.map((page) => (
+        <li>
+          <a
+            class:list={['wb-nav__link', { 'wb-nav__link--on': urlOf(page) === here }]}
+            href={urlOf(page)}
+            aria-current={urlOf(page) === here ? 'page' : undefined}
+          >{page.data.nav ?? page.data.title}</a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}

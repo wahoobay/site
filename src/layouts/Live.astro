@@ -1,0 +1,35 @@
+---
+// A Live reef page (src/content/live/*.md), on the dark ground: the h1 (with the live badge when the video is the
+// stream), the video, the lead, a link to the other live page, then the Markdown body.
+// The badge carries data-impeccable-ignore="pulsing-dot", as in the design's docs: spec §4.3 has it breathe, and
+// .impeccable/config.json records that ruling.
+import Base from './Base.astro';
+import YouTube from '../components/YouTube.astro';
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  entry: CollectionEntry<'live'>;
+  /** The video is the live stream: the badge says so. Recorded video has none. */
+  live?: boolean;
+  /** The other live page, as a button under the lead. */
+  link: { href: string; label: string };
+}
+
+const { entry, live = false, link } = Astro.props;
+const { title, description, video, playlist } = entry.data;
+const hasBody = (entry.body ?? '').replace(/<!--[\s\S]*?-->/g, '').trim() !== '';
+---
+<Base title={title} description={description} theme="dark">
+  <div class="wb-container site-article site-live">
+    <div class="site-live__title">
+      <h1>{title}</h1>
+      {live && <span class="wb-live" data-impeccable-ignore="pulsing-dot">Live</span>}
+    </div>
+    <YouTube id={video} title={live ? `${title}, live stream` : `${title}, YouTube playlist`} playlist={playlist} />
+    <p class="wb-lead">{description}</p>
+    <div class="site-actions">
+      <a class="wb-btn wb-btn--ghost" href={link.href}>{link.label}</a>
+    </div>
+    {hasBody && <div class="wb-prose site-article__body"><slot /></div>}
+  </div>
+</Base>

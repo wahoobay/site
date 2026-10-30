@@ -1,0 +1,38 @@
+---
+// One course (the old /pages/courses/<slug>): the grades that list it, then its documents, each with what it is.
+// A document on another site opens in a new tab and says so; the site's own PDFs (/docs/…) open in place.
+import Base from '../../../layouts/Base.astro';
+import { allGrades, allLessons, gradesOf, gradeUrl, isExternal, KIND, type Lesson } from '../../../lib/lessons';
+
+export async function getStaticPaths() {
+  return (await allLessons()).map((lesson) => ({ params: { slug: lesson.slug }, props: { lesson } }));
+}
+
+interface Props {
+  lesson: Lesson;
+}
+
+const { lesson } = Astro.props;
+const grades = gradesOf(lesson, await allGrades());
+const description = `${lesson.title}: a course for ${grades.map((g) => g.title).join(', ')}, from Wahoo Bay's educational resources.`;
+---
+<Base title={lesson.title} description={description}>
+  <div class="wb-container site-article">
+    <p><a href="/learn/">&larr; Educational resources</a></p>
+    <h1>{lesson.title}</h1>
+    <p class="site-course__for">For: {grades.map((grade, i) => (
+      <>{i > 0 && ', '}<a href={gradeUrl(grade.slug)}>{grade.title}</a></>
+    ))}</p>
+    <ul class="site-course__links" role="list">
+      {lesson.links.map((link) => (
+        <li>
+          {isExternal(link.url) ? (
+            <a class="wb-btn wb-btn--ghost" href={link.url} target="_blank" rel="noopener">{link.label} <small>{KIND[link.kind]}</small><span class="wb-sr-only"> (opens in a new tab)</span></a>
+          ) : (
+            <a class="wb-btn wb-btn--ghost" href={link.url}>{link.label} <small>{KIND[link.kind]}</small></a>
+          )}
+        </li>
+      ))}
+    </ul>
+  </div>
+</Base>

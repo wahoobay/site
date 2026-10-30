@@ -1,0 +1,9 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+title: Build A Backbone
+slug: build-a-backbone
+grades: [prek]
+links:
+  - label: Build A Backbone
+    kind: pdf
+    url: "https://drive.google.com/file/d/1qkQvD5qJYPkivNU6Hi49DKh6TS34_giO/view"

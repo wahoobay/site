@@ -244,3 +244,146 @@ test('the board page names every member and the partners page every partner; par
     if (partner.url) assert.match(partner.url, /^https?:\/\//, partner.name);
   }
 });
+
+// Task 11: the lessons (src/content/lessons/*.yaml, src/content/grades.json), the live pages, the map placeholder,
+// sign-in and the Instagram strip. The lesson files keep one key per line and `grades` as a [flow, list], so a
+// few regular expressions read them, as `field` reads front matter.
+const LESSONS = 'src/content/lessons';
+const yamlValue = (raw) => {
+  const value = raw.trim();
+  if (value.startsWith('"')) return JSON.parse(value);
+  if (value.startsWith("'")) return value.slice(1, -1).replaceAll("''", "'");
+  return value;
+};
+const lessons = filesUnder(LESSONS)
+  .filter((file) => file.endsWith('.yaml'))
+  .map((file) => {
+    const text = readFileSync(file, 'utf8');
+    const top = (name) => yamlValue(text.match(new RegExp(`^${name}:(.*)$`, 'm'))?.[1] ?? '');
+    return {
+      file,
+      title: top('title'),
+      slug: top('slug'),
+      grades: (text.match(/^grades:\s*\[(.*)\]\s*$/m)?.[1] ?? '').split(',').map((g) => g.trim()).filter(Boolean),
+      urls: [...text.matchAll(/^\s+(?:- )?url:(.*)$/gm)].map((m) => yamlValue(m[1])),
+    };
+  });
+const grades = existsSync('src/content/grades.json') ? JSON.parse(readFileSync('src/content/grades.json', 'utf8')) : [];
+const attr = (value) => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;');
+const hrefIn = (html, href) => html.includes(`href="${attr(href)}"`);
+
+// lodash 4.17.21's kebabCase, the function the old site made its course addresses with (Category.js). A title of
+// ASCII letters, digits and spaces with no case change inside a word does not match lodash's reHasUnicodeWord,
+// so lodash splits it with its asciiWords pattern; every lesson title must be of that kind.
+const reHasUnicodeWord = /[a-z][A-Z]|[A-Z]{2}[a-z]|[0-9][a-zA-Z]|[a-zA-Z][0-9]|[^a-zA-Z0-9 ]/;
+const reAsciiWord = /[^\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f]+/g;
+const kebabCase = (title) => (title.match(reAsciiWord) ?? []).map((word) => word.toLowerCase()).join('-');
+
+test('the old site\'s fifteen courses and six grades are data; each slug is lodash\'s kebabCase of the title', () => {
+  assert.equal(lessons.length, 15, 'fifteen lessons');
+  assert.deepEqual(grades.map((g) => g.slug), ['educators', 'art-and-science', 'collegiate', 'prek', 'fourth-grade', 'ninth-grade']);
+  const slugs = new Set();
+  for (const lesson of lessons) {
+    assert.doesNotMatch(lesson.title, reHasUnicodeWord, `${lesson.file}: the title takes lodash's other word pattern`);
+    assert.equal(lesson.slug, kebabCase(lesson.title), `${lesson.file}: slug`);
+    assert.match(lesson.slug, /^[a-z0-9-]+$/);
+    assert.equal(lesson.file, `${LESSONS}/${lesson.slug}.yaml`, 'the file is named by its slug');
+    assert.ok(!slugs.has(lesson.slug), `${lesson.slug} twice`);
+    slugs.add(lesson.slug);
+    assert.ok(lesson.grades.length > 0, `${lesson.slug}: in a grade`);
+    for (const grade of lesson.grades) assert.ok(grades.some((g) => g.slug === grade), `${lesson.slug}: no grade ${grade}`);
+    assert.ok(lesson.urls.length > 0, `${lesson.slug}: has links`);
+    for (const url of lesson.urls) assert.match(url, /^(https:\/\/|\/docs\/)/, `${lesson.slug}: ${url}`);
+  }
+  for (const grade of grades) assert.ok(existsSync(join('public', grade.image)), `${grade.slug}: ${grade.image}`);
+});
+
+test('/learn/ shows the six grades, each a card linking to its page, with the section navigation', () => {
+  const html = readFileSync('dist/learn/index.html', 'utf8');
+  const text = decode(html);
+  let last = -1;
+  for (const grade of grades) {
+    assert.ok(text.indexOf(grade.title) > last, `/learn/ names ${grade.title}, in the order of grades.json`);
+    last = text.indexOf(grade.title);
+    const card = html.match(new RegExp(`<a class="wb-card"[^>]*href="/learn/${grade.slug}/"[^>]*>[\\s\\S]*?</a>`))?.[0] ?? '';
+    assert.ok(card, `/learn/ has a card for ${grade.slug}`);
+    assert.match(card, /<img\b[^>]*\balt=""/, `${grade.slug}: the tile is decorative inside the link`);
+  }
+  const hrefs = [...sectionNav(html).matchAll(/\bhref="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(hrefs, ['/learn/student-conservation/', '/learn/faq/']);
+});
+
+test('every grade page lists its courses; every course page has its links and links back to its grades', () => {
+  assert.ok(grades.length > 0 && lessons.length > 0, 'there are grades and lessons');
+  for (const grade of grades) {
+    const html = readFileSync(distOf(`/learn/${grade.slug}/`), 'utf8');
+    const listed = [...mainOf(html).matchAll(/href="\/learn\/courses\/([^"/]+)\/"/g)].map((m) => m[1]).sort();
+    const expected = lessons.filter((l) => l.grades.includes(grade.slug)).map((l) => l.slug).sort();
+    assert.deepEqual(listed, expected, `${grade.slug} lists its courses`);
+  }
+  for (const lesson of lessons) {
+    const out = distOf(`/learn/courses/${lesson.slug}/`);
+    assert.ok(existsSync(out), `${out} was not built`);
+    const html = readFileSync(out, 'utf8');
+    assert.equal(decode(html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1] ?? ''), lesson.title, out);
+    for (const url of lesson.urls) assert.ok(hrefIn(html, url), `${lesson.slug}: no link to ${url}`);
+    for (const grade of lesson.grades) assert.ok(hrefIn(html, `/learn/${grade}/`), `${lesson.slug}: no link back to ${grade}`);
+    assert.doesNotMatch(html, /\bwb-chip\b/, `${lesson.slug}: chips carry the accent, which is for "alive right now"`);
+  }
+});
+
+test('the live pages embed YouTube without cookies or autoplay, and they alone are dark', () => {
+  const live = readFileSync('dist/live/index.html', 'utf8');
+  const highlights = readFileSync('dist/live/highlights/index.html', 'utf8');
+  assert.ok(live.includes('https://www.youtube-nocookie.com/embed/oBTGY6Ax870"'), '/live/ embeds the SeaHIVE stream');
+  assert.ok(highlights.includes('https://www.youtube-nocookie.com/embed/videoseries?list=PLDuZ7tdc3LUCZh0F45bTNuC-LkgCVjyTG&amp;rel=0"'));
+  for (const html of [live, highlights]) {
+    const frames = html.match(/<iframe\b[^>]*>/g) ?? [];
+    assert.equal(frames.length, 1, 'one embed');
+    assert.match(frames[0], /\btitle="[^"]+"/);
+    assert.match(frames[0], /\bloading="lazy"/);
+    assert.doesNotMatch(frames[0], /autoplay/);
+    assert.match(html, /href="\/live\/(highlights\/)?"/, 'the two pages link to each other');
+  }
+  assert.match(live, /<span class="wb-live"[^>]*>Live<\/span>/, '/live/ has the live badge');
+  assert.doesNotMatch(highlights, /class="wb-live"/, 'the highlights are not live');
+  const dark = new Set(['dist/live/index.html', 'dist/live/highlights/index.html']);
+  for (const file of filesUnder('dist').filter((f) => f.endsWith('.html'))) {
+    const isDark = /<html\b[^>]*\bdata-theme="dark"/.test(readFileSync(file, 'utf8'));
+    assert.equal(isDark, dark.has(file), `${file}: dark is for the live pages only`);
+  }
+});
+
+test('the home page has one script, the Instagram strip\'s; no other page has any', () => {
+  const html = readFileSync('dist/index.html', 'utf8');
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)];
+  assert.equal((html.match(/<script\b/g) ?? []).length, 1, 'exactly one <script');
+  const code = scripts[0]?.[1] ?? '';
+  assert.ok(code.includes('https://api.wahoobay.net/api/v1/instagram/posts/latest'), 'it fetches the Instagram posts');
+  assert.ok(code.includes('textContent'), 'it writes the caption as text');
+  assert.doesNotMatch(code, /innerHTML|insertAdjacentHTML|document\.write/, 'it never parses API data as HTML');
+  assert.match(code, /\.remove\(\)/, 'it removes the section when there is nothing to show');
+  const strip = html.match(/<section\b[^>]*id="instagram"[\s\S]*?<\/section>/)?.[0] ?? '';
+  assert.equal(strip.match(/class="wb-card site-instagram__post"/g)?.length, 4, 'four empty cards');
+  for (const file of filesUnder('dist').filter((f) => f.endsWith('.html') && f !== 'dist/index.html')) {
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /<script\b/, `${file}: no client script in this step`);
+  }
+});
+
+test('/sign-in/ links the fish-ID sign-in and never prints the old hidden review address', () => {
+  const html = readFileSync('dist/sign-in/index.html', 'utf8');
+  assert.equal(decode(html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1] ?? ''), 'Sign in to Wahoo Bay');
+  assert.ok(hrefIn(html, 'https://ai.wahoobay.net/login'), 'the fish-ID sign-in');
+  assert.ok(!html.includes('review-'), 'the hidden review path is not on the page');
+  assert.doesNotMatch(html, /<form\b/, 'no form');
+});
+
+test('/visit/map/ is a page of the Visit section, with the map image and the sites as text', () => {
+  const html = readFileSync('dist/visit/map/index.html', 'utf8');
+  assert.match(mainOf(html), /<img\b[^>]*\bsrc="\/images\/map\.png"[^>]*\balt="[^"]{20,}"/);
+  const text = decode(mainOf(html));
+  for (const site of ['Wahoo Bay Camera', 'Pompano Pier Camera', 'Wahoo Bay Weather Station', 'Wahoo Bay Water Quality']) {
+    assert.ok(text.includes(site), `the map page names ${site}`);
+  }
+  assert.match(linkIn(sectionNav(html), '/visit/map/'), /\baria-current="page"/);
+});

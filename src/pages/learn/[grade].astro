@@ -1,0 +1,37 @@
+---
+// One grade of the old site's Educational resources (/pages/education/<old name>): its courses, by title.
+import Base from '../../layouts/Base.astro';
+import { allGrades, allLessons, lessonUrl, KIND, type Grade, type LessonLink } from '../../lib/lessons';
+
+export async function getStaticPaths() {
+  return (await allGrades()).map((grade) => ({ params: { grade: grade.slug }, props: { grade } }));
+}
+
+interface Props {
+  grade: Grade;
+}
+
+const { grade } = Astro.props;
+const courses = (await allLessons()).filter((lesson) => lesson.grades.includes(grade.slug));
+const description = `${grade.title}, from Wahoo Bay's educational resources: ${courses.map((c) => c.title).join(', ')}.`;
+// The formats a course comes in, once each, in its links' order: "PDF", "Slides, PDF".
+const formats = (links: LessonLink[]) => [...new Set(links.map((link) => KIND[link.kind]))].join(', ');
+---
+<Base title={grade.title} description={description}>
+  <div class="wb-container site-article">
+    <p><a href="/learn/">&larr; Educational resources</a></p>
+    <h1>{grade.title}</h1>
+    <ul class="site-courses" role="list">
+      {courses.map((course) => (
+        <li>
+          <a class="wb-card" href={lessonUrl(course.slug)}>
+            <div class="wb-card__body">
+              <h2>{course.title}</h2>
+              <p>{formats(course.links)}</p>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Base>

@@ -1,0 +1,9 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+title: University Partner Opportunities
+slug: university-partner-opportunities
+grades: [collegiate]
+links:
+  - label: University Partner Opportunities
+    kind: pdf
+    url: "/docs/university-partner-opportunities.pdf"

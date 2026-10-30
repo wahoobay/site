@@ -1,0 +1,11 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+# <!-- katie: review: the old site had this course but no grade listed it, so no page linked to it; its document is
+# also the first one under Field Based Activities. It is filed under Educator Resources here. Keep it, or drop it. -->
+title: Sampling For Microplastics
+slug: sampling-for-microplastics
+grades: [educators]
+links:
+  - label: Sampling For Microplastics
+    kind: pdf
+    url: "https://drive.google.com/file/d/1s_U64_D1gMp5eRmSzB2sbnZUGqPgznPu/view"

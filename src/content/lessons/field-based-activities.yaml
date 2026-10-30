@@ -1,0 +1,13 @@
+# From the old site: src/utils/course-data.js (name and documents) and the allCourses list in
+# src/pages/other/Category.js (grades). Google Drive links open the file's /view page, as the old page's button did.
+# The two documents are named by the courses they also belong to (Sampling For Microplastics, Microplastic Beach Protocol).
+title: Field Based Activities
+slug: field-based-activities
+grades: [educators]
+links:
+  - label: Sampling For Microplastics
+    kind: pdf
+    url: "https://drive.google.com/file/d/1s_U64_D1gMp5eRmSzB2sbnZUGqPgznPu/view"
+  - label: Microplastic Beach Protocol
+    kind: pdf
+    url: "https://drive.google.com/file/d/1ZPf3gJjdQ_f8NDEbrralxb7ofCO2HKnN/view"
