@@ -1,7 +1,7 @@
 // Run after `npm run build`: the banner photos. Dan's staging review (2026-10-30): the park aerial, /WB-1.jpg, was the
 // home page's photo and the banner of /visit/ and /get-involved/support/ ("used far too much"). It stays on the home
-// page only, where it says "this is the park": since the Deep Field home page (Task 2) it is the map teaser's
-// photograph, and the stage opens on the divers (/images/about/2025-gd-wb-816-lwb-06.jpg), the home page's hero.
+// page only, where it says "this is the park": the Deep Field stage opens on it (Ruling J, Task 2 fix round 1). The map
+// band sits on the manatee (/images/home/manatee-wide.jpg, the 1600px copy of /images/get-involved/wb-3.jpg).
 // Each section page opens on a photograph of its own.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,9 +19,9 @@ const heroOf = (file) => readFileSync(file, 'utf8').match(/^---\r?\n[\s\S]*?\r?\
 const builtOf = (file) => join('dist', file.slice(PAGES.length + 1).replace(/\.md$/, '').replace(/(^|\/)index$/, ''), 'index.html');
 
 const home = readFileSync('dist/index.html', 'utf8');
-// The stage's photograph is the home page's hero; the aerial is the map teaser's photograph.
+// The stage's photograph is the home page's hero; the map band has a photograph of its own.
 const HOME_HERO = home.match(/<img\b[^>]*\bclass="wb-stage__photo[^"]*"[^>]*\bsrc="([^"]+)"/)?.[1];
-const AERIAL = home.match(/<img\b[^>]*\bclass="site-map-teaser__photo"[^>]*\bsrc="([^"]+)"/)?.[1];
+const MAP_PHOTO = home.match(/<img\b[^>]*\bclass="site-map-teaser__photo[^"]*"[^>]*\bsrc="([^"]+)"/)?.[1];
 // The home page's three doorways: their photos are not banners anywhere.
 const DOORWAYS = [...home.matchAll(/<img class="wb-door__photo" src="([^"]+)"/g)].map((m) => m[1]);
 const heroes = markdownFiles.filter(heroOf).map((file) => ({ file, src: heroOf(file) }));
@@ -29,9 +29,10 @@ const heroes = markdownFiles.filter(heroOf).map((file) => ({ file, src: heroOf(f
 // The section pages that open on a photo. /learn/ is an Astro page whose layout has no banner, so it has none.
 const SECTION_PAGES = ['visit/index.md', 'get-involved/index.md', 'get-involved/support.md', 'about/index.md'].map((f) => `${PAGES}/${f}`);
 
-test('the stage opens on the divers; the park aerial is on the home page only, behind the map teaser', () => {
-  assert.equal(HOME_HERO, '/images/about/2025-gd-wb-816-lwb-06.jpg');
-  assert.equal(AERIAL, '/WB-1.jpg');
+test('the stage opens on the park aerial, the home page\'s photo and no other page\'s banner; the map band is the manatee', () => {
+  assert.equal(HOME_HERO, '/WB-1.jpg');
+  assert.equal(MAP_PHOTO, '/images/home/manatee-wide.jpg');
+  assert.equal((home.match(/\/WB-1\.jpg/g) ?? []).length, 3, 'the aerial once: the stage\'s src and srcset, and the social card');
   for (const { file, src } of heroes) assert.doesNotMatch(src, /\/WB-1\b/, `${file}: hero ${src}`);
   for (const { file, src } of heroes) assert.notEqual(src, HOME_HERO, `${file}: the home stage's photo is its banner`);
   for (const { file } of heroes) {
@@ -64,7 +65,7 @@ const imageSize = (buf) => {
 };
 
 test('every banner is a file under public/, at most 1600 px wide and 400 KB', () => {
-  for (const src of [HOME_HERO, AERIAL, ...heroes.map(({ src }) => src)]) {
+  for (const src of [HOME_HERO, MAP_PHOTO, ...heroes.map(({ src }) => src)]) {
     const path = join('public', decodeURI(src));
     assert.ok(existsSync(path), `${src} is under public/`);
     const { width } = imageSize(readFileSync(path));
@@ -74,8 +75,8 @@ test('every banner is a file under public/, at most 1600 px wide and 400 KB', ()
 });
 
 // Dan's staging review (2026-10-30): every large photo is rounded like the tiles. A page's banner and a post's photo
-// are the design's .wb-media (12px corners), inset in the article's column; the home stage's photo and the aerial
-// behind the map teaser stay edge to edge. `heroPosition` keeps a subject in frame where the band crops the photo.
+// are the design's .wb-media (12px corners), inset in the article's column; the home stage's photo and the photo
+// behind the map teaser stay edge to edge (the map band's may keep its top with wb-media--top). `heroPosition` keeps a subject in frame where the band crops the photo.
 const positionOf = (file) => readFileSync(file, 'utf8').match(/^---\r?\n[\s\S]*?\r?\n---/)?.[0].match(/^heroPosition:\s*(\S+)\s*$/m)?.[1];
 
 test('heroPosition is top, center or bottom, or absent, on pages and news posts; anything else fails the build', () => {
@@ -127,16 +128,33 @@ test('the banner band is 16:9, and 21:9 from 48rem; the home photos stay edge to
   for (const cls of ['wb-stage__photo', 'site-map-teaser__photo']) {
     const photo = home.match(new RegExp(`<img\\b[^>]*\\bclass="${cls}[^"]*"`))?.[0] ?? '';
     assert.ok(photo, `the home photo .${cls}`);
-    assert.doesNotMatch(photo, /wb-media/, photo);
+    assert.doesNotMatch(photo, /\bwb-media(?!-)/, photo);
   }
 });
 
 // Photos with a logo or words drawn in; a banner is cropped differently at every width, so none of them is one.
 const MARKED = [
-  '/images/about/2025-gd-wb-816-lwb-06.jpg', // the Wahoo Bay and Grateful Divers watermarks, in two corners
+  // The Wahoo Bay and Grateful Divers watermarks, in two corners. On the home page it is only the Get involved
+  // doorway, whose 4:5 frame crops both corners away at every width (Ruling J).
+  '/images/about/2025-gd-wb-816-lwb-06.jpg',
   '/images/about/2016-lady-luck-1a.jpg', // a logo
   '/images/get-involved/carousel-3.jpg', // a quotation
 ];
 test('no banner has a watermark or words drawn into it', () => {
   for (const { file, src } of heroes) assert.ok(!MARKED.includes(src), `${file}: ${src}`);
+  assert.ok(!MARKED.includes(HOME_HERO), `the home stage: ${HOME_HERO}`);
+});
+
+// Ruling J: the map band's manatee is a re-encoded copy of /images/get-involved/wb-3.jpg (2560px) at 1600px, JPEG
+// quality 74 with no metadata, made with sharp as the banners were in 8f8d2e8 (sips keeps an EXIF block); the original
+// stays where the Support page uses it.
+test('the map band\'s manatee is the 1600px copy of the Support page\'s manatee, the same shape, with no EXIF', () => {
+  const copy = readFileSync('public/images/home/manatee-wide.jpg');
+  const original = readFileSync('public/images/get-involved/wb-3.jpg');
+  const a = imageSize(copy);
+  const b = imageSize(original);
+  assert.equal(a.width, 1600);
+  assert.ok(Math.abs(a.width / a.height - b.width / b.height) < 0.002, `${a.width}x${a.height} vs ${b.width}x${b.height}`);
+  assert.ok(!copy.includes(Buffer.from('Exif\0\0')), 'no EXIF block');
+  assert.match(readFileSync('src/content/pages/get-involved/support.md', 'utf8'), /\(\/images\/get-involved\/wb-3\.jpg\)/);
 });

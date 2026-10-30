@@ -17,8 +17,10 @@ const headline = 'Art. Conservation. Education';
 const intro =
   'Wahoo Bay is a public marine education park at the Hillsboro Inlet, inspiring ocean literacy through hands-on learning, immersive field experiences, and community conservation.';
 
-// The headline and lead are white on the photograph over the design's scrim, so they carry the low-contrast waiver
-// (Ruling A), as in the design's docs: the detector sees neither the photograph nor the scrim.
+// The stage opens on the park aerial (Ruling J): the clean photograph, with no watermark beside the nav's logo, and
+// the home page's only use of it. The headline and lead are white on the photograph over the design's scrim, so they
+// carry the low-contrast waiver (Ruling A), as in the design's docs: the detector sees neither the photograph nor the
+// scrim.
 
 // The live band's words are the camera page's own (src/content/live/camera.md).
 const camera = await getEntry('live', 'camera');
@@ -28,10 +30,12 @@ if (!camera) throw new Error('src/content/live/camera.md is missing');
   <section class="wb-stage site-stage" aria-labelledby="stage-title">
     <img
       class="wb-stage__photo"
-      src="/images/about/2025-gd-wb-816-lwb-06.jpg"
+      src="/WB-1.jpg"
+      srcset="/WB-1-800.jpg 800w, /WB-1.jpg 1600w"
+      sizes="100vw"
       width="1600"
-      height="1066"
-      alt="Volunteer divers surveying the reef at Wahoo Bay"
+      height="900"
+      alt="The park from the air: palms along the seawall, the dock on the inlet and the bridge behind"
       fetchpriority="high"
     >
     <div class="wb-stage__scrim"></div>

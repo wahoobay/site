@@ -59,8 +59,8 @@ main { flex: 1 0 auto; }
   .site-doors { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* The map teaser: the park aerial fills the band, edge to edge; the raised panel and the map's still sit on it, one
-   above the other on narrow screens, side by side from 48rem. */
+/* The map teaser: its photograph fills the band, edge to edge (its top kept in frame by the design's wb-media--top);
+   the raised panel and the map's still sit on it, one above the other on narrow screens, side by side from 48rem. */
 .site-map-teaser { position: relative; }
 .site-map-teaser__photo {
   position: absolute;

@@ -1,6 +1,8 @@
 // Run after `npm run build`: the home page, in the Deep Field presentation (@wahoobay/design 0.2.1, spec §4.3): the
 // stage (the headline on a full-height photograph, the nav over its top), the dark live band, the four impact figures,
-// the photo doorways, the map teaser on the park aerial, the news teaser, the Instagram strip and the dark footer.
+// the photo doorways, the map teaser on the manatee photograph, the news teaser, the Instagram strip and the dark footer.
+// Ruling J (fix round 1): the clean aerial opens the page; the divers and the manatee, whose corners carry a watermark,
+// a credit or a signature, sit where the frame crops those corners away (the Get involved doorway, the map band).
 // The Instagram script runs against a small stand-in for the DOM (fix 5 and note 3): a picture that fails takes its card away, the strip goes when fewer than two cards
 // are left, and a caption is cut at a word boundary, never inside a word.
 import { test } from 'node:test';
@@ -97,7 +99,8 @@ test('home opens on a full-height stage with the headline on the photograph', ()
   // The nav is the site's <nav aria-label="Main"> (tests/build.test.mjs, tests/nav.test.mjs), laid over the stage.
   assert.match(html, /<nav class="wb-nav wb-nav--over"/);
   const stage = html.match(/<section class="wb-stage[^"]*"[\s\S]*?<\/section>/)?.[0] ?? '';
-  assert.match(stage, /<img class="wb-stage__photo[^"]*" src="\/images\/about\/2025-gd-wb-816-lwb-06\.jpg"/);
+  assert.match(stage, /<img class="wb-stage__photo[^"]*" src="\/WB-1\.jpg" srcset="\/WB-1-800\.jpg 800w, \/WB-1\.jpg 1600w"/);
+  assert.match(stage, /<img class="wb-stage__photo[^"]*"[^>]*\balt="The park from the air: palms along the seawall, the dock on the inlet and the bridge behind"/);
   assert.match(stage, /<div class="wb-stage__scrim"><\/div>/);
   assert.match(stage, /<p class="wb-stage__lead"[^>]*>Wahoo Bay is a public marine education park at the Hillsboro Inlet, inspiring ocean literacy through hands-on learning, immersive field experiences, and community conservation\.<\/p>/);
   const actions = stage.match(/<div class="wb-stage__actions">([\s\S]*?)<\/div>/)?.[1] ?? '';
@@ -140,12 +143,12 @@ test('the four figures come from figures.json and match the Support page', () =>
   assert.deepEqual(pairs.map((m) => [m[1], m[2]]), figures.map((f) => [f.value.toLocaleString('en-US'), f.label]));
 });
 
-test('three photo doorways, three news items, the map teaser on the aerial, a dark footer', () => {
+test('three photo doorways, three news items, the map teaser on the manatee photograph, a dark footer', () => {
   const html = home();
   assert.equal((html.match(/<a class="wb-door"/g) || []).length, 3);
   assert.equal((html.match(/<a class="wb-feature"/g) || []).length, 1);
   // The design has no map-teaser component: the band is site layout on the design's raised panel and media.
-  assert.match(html, /class="site-map-teaser[\s\S]*?\/WB-1\.jpg/);
+  assert.match(html, /class="site-map-teaser[\s\S]*?\/images\/home\/manatee-wide\.jpg/);
   assert.match(html, /<footer class="wb-footer[^"]*" data-theme="dark"/);
 });
 
@@ -154,14 +157,14 @@ test('the doorways keep their three sections, sentences and photos', () => {
   assert.deepEqual(doors.map((m) => m.slice(1)), [
     ['/visit/', '/images/home/diver.jpg', 'Visit', 'Wahoo Bay sits within the Hillsboro Inlet at Roy L. Rogers Family Park.'],
     ['/learn/', '/images/home/students.jpg', 'Learn', 'Explore the many educational resources available right here on our website.'],
-    ['/get-involved/', '/images/home/manatee.jpg', 'Get involved', 'Join our conservation mission and inspire others to protect marine ecosystems.'],
+    ['/get-involved/', '/images/about/2025-gd-wb-816-lwb-06.jpg', 'Get involved', 'Join our conservation mission and inspire others to protect marine ecosystems.'],
   ]);
 });
 
 test('the map teaser is the map page\'s title and description on a raised panel, with one action and the map still', () => {
   const teaser = home().match(/<section class="site-map-teaser"[\s\S]*?<\/section>/)?.[0] ?? '';
-  assert.match(teaser, /^<section class="site-map-teaser"[^>]*>\s*<img\b[^>]*\bclass="site-map-teaser__photo"/);
-  assert.match(teaser, /<img\b[^>]*\bsrc="\/WB-1\.jpg"[^>]*\balt=""/);
+  // The manatee's signature sits at its bottom right: the band keeps the top of the frame (wb-media--top).
+  assert.match(teaser, /^<section class="site-map-teaser"[^>]*>\s*<img class="site-map-teaser__photo wb-media--top" src="\/images\/home\/manatee-wide\.jpg"[^>]*\balt=""/);
   const panel = teaser.match(/<div class="wb-panel wb-panel--raised[^"]*">([\s\S]*?)<\/div>/)?.[1] ?? '';
   const map = 'src/content/pages/visit/map.md';
   assert.match(panel, new RegExp(`<h2[^>]*>${escapeRe(escapeHtml(frontMatterField(map, 'title')))}</h2>`));
