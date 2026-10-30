@@ -1,13 +1,15 @@
 ---
 // /live/species/: every species in the committed snapshot of the Java API's lists (src/data/, written by hand with
 // `npm run sync:species`), grouped by category, each with its clips. Static: no script, and the browser never asks the
-// API for the lists; the thumbnails load from the API's image proxy or YouTube. Light page.
+// API for the lists; the thumbnails load from the API's image proxy or YouTube. Light page. A species with a
+// photograph has it over its names; one without is a compact card of its words only, with no picture slot and no
+// initials (Ruling AE).
 import Base from '../../../layouts/Base.astro';
 import SectionNav from '../../../components/SectionNav.astro';
 import { aiUrl, liveNav } from '../../../lib/nav.mjs';
 import species from '../../../data/species.json';
 import media from '../../../data/media.json';
-import { categoryId, groupByCategory, initials, mediaFor } from '../../../lib/species.mjs';
+import { categoryId, groupByCategory, mediaFor } from '../../../lib/species.mjs';
 
 type Kind = 'image' | 'video';
 // katie: review (new link labels: a clip's link says what it is, numbered when a species has two of a kind; the hidden
@@ -27,7 +29,6 @@ const card = (s: (typeof species)[number]) => {
   return {
     ...s,
     name,
-    initials: initials(name),
     thumb: clips.find((c) => c.thumb)?.thumb ?? null,
     clips: clips.map((c) => ({ url: c.url, label: label(c) })),
   };
@@ -60,12 +61,8 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
         <h2 id={g.id}>{g.title}</h2>
         <ul class="site-species" role="list">
           {g.cards.map((s) => (
-            <li class="wb-card site-species__card">
-              {s.thumb ? (
-                <img class="wb-card__media site-species__media" src={s.thumb} alt="" loading="lazy" decoding="async">
-              ) : (
-                <span class="wb-initials site-species__media" aria-hidden="true">{s.initials}</span>
-              )}
+            <li class:list={['wb-card site-species__card', { 'site-species__card--text': !s.thumb }]}>
+              {s.thumb && <img class="wb-card__media site-species__media" src={s.thumb} alt="" loading="lazy" decoding="async">}
               <div class="wb-card__body">
                 {s.common_name ? <h3>{s.common_name}</h3> : <h3><i>{s.scientific_name}</i></h3>}
                 {s.common_name && <p><i>{s.scientific_name}</i></p>}

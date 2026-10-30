@@ -2,6 +2,13 @@
 // By hand, never in CI or at build (it uses the network): `npm run sync:species` reads the Java API's public species
 // and media lists and writes the snapshot the species gallery (/live/species/) is built from, src/data/species.json and
 // src/data/media.json. It keeps only the whitelisted fields below; a field the API leaves out is written as null.
+// Two values are rewritten, never passed through:
+// - A scientific name is written as nomenclature writes it, "Genus species": the genus with its first letter upper
+//   case and the rest lower, every other word lower case ("Diodon Hystrix" is "Diodon hystrix", a subspecies' third
+//   word too); "sp." and "spp." are left as they are (binomial below).
+// - A clip's link is published only on the allow-listed hosts (LINK_HOSTS: the API's uploads, Drive and YouTube), a
+//   Drive file in its plain /file/d/<id>/view form, with no query parameter but YouTube's v and t and no fragment
+//   (cleanLink); a clip on any other host is left out, and the sync refuses to write a link that is not in that form.
 // It then asks for every thumbnail once (checkMedia), so the page carries none that fails; that takes a minute or two.
 // Commit the two files after a sync. It prints counts and sizes only, never a response body.
 import { writeFileSync } from 'node:fs';
@@ -33,11 +40,24 @@ const number = (value) => (typeof value === 'number' && Number.isFinite(value) ?
 // provisional or whose scientific name is a volunteer's "[unverified]" guess: its interim approval gate.
 const isProvisional = (row) => row.name_status === 'provisional' || /^\s*\[unverified\]/i.test(row.scientific_name ?? '');
 
+/**
+ * A scientific name as nomenclature writes it (the header): "Genus species", the genus capitalised, every other word
+ * lower case, "sp." and "spp." left alone; null stays null.
+ * @param {string | null} name
+ */
+export const binomial = (name) =>
+  name === null
+    ? null
+    : name
+        .split(/\s+/)
+        .map((word, i) => (/^spp?\.$/i.test(word) ? word : i === 0 ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word.toLowerCase()))
+        .join(' ');
+
 /** A species row of the API as the snapshot keeps it. */
 export const toSpecies = (row) => ({
   id: number(row.species_id),
   common_name: text(row.common_name),
-  scientific_name: text(row.scientific_name),
+  scientific_name: binomial(text(row.scientific_name)),
   family: text(row.family),
   category: text(row.category),
   conservation_status: text(row.conservation_status),
@@ -88,6 +108,39 @@ const linkOf = (row) => {
   return null;
 };
 
+// The hosts a clip's link may point at (the header; final review, minor 3): the API's own uploads, Drive and YouTube.
+// A link on any other host could be a signed or token-bearing address, so its clip is left out.
+const LINK_HOSTS = new Set(['api.wahoobay.net', 'drive.google.com', 'www.youtube.com', 'youtube.com', 'youtu.be']);
+// The only query parameters a link keeps: YouTube's video and start time.
+const LINK_PARAMS = new Set(['v', 't']);
+
+/**
+ * A clip's link as the page may publish it (the header), or null: https on LINK_HOSTS with no credentials or port, a
+ * Drive file in its plain form, no query parameter but v and t, no fragment.
+ * @param {string | null} url
+ */
+export const cleanLink = (url) => {
+  let u;
+  try {
+    u = new URL(url ?? '');
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:' || !LINK_HOSTS.has(u.host) || u.username || u.password || u.port) return null;
+  const drive = u.host === 'drive.google.com' ? driveId(url) : null;
+  if (drive) return `https://drive.google.com/file/d/${drive}/view`;
+  for (const key of [...u.searchParams.keys()]) if (!LINK_PARAMS.has(key)) u.searchParams.delete(key);
+  u.hash = '';
+  return u.toString();
+};
+
+/** Refuses a snapshot with a link not in cleanLink's form; the message names the clip, never its link. */
+export const assertLinks = (media) => {
+  for (const m of media) {
+    if (cleanLink(m.url) !== m.url) throw new Error(`media ${m.id}: its link is not on the allow-list or carries a parameter; nothing written`);
+  }
+};
+
 // A thumbnail on another host is dropped (the link stays): only the API, YouTube and Drive.
 const THUMB_HOSTS = new Set(['api.wahoobay.net', 'img.youtube.com', 'i.ytimg.com', 'drive.google.com']);
 const onThumbHost = (url) => {
@@ -115,10 +168,10 @@ const thumbOf = (row, kind) => {
   return thumb ? onThumbHost(thumb) : null;
 };
 
-/** A media row of the API as the snapshot keeps it, or null when it has no https link to open. */
+/** A media row of the API as the snapshot keeps it, or null when it has no https link on the allow-list to open. */
 export const toMedia = (row) => {
-  const url = linkOf(row);
-  if (!url?.startsWith('https://')) return null;
+  const url = cleanLink(linkOf(row));
+  if (url === null) return null;
   const kind = kindOf(row);
   return {
     id: number(row.media_id),
@@ -226,6 +279,7 @@ export async function main(out = new URL('../src/data/', import.meta.url)) {
       if (typeof value === 'string' && EMAIL.test(value)) throw new Error('a field holds an e-mail address; nothing written');
     }
   }
+  assertLinks(media);
   writeFileSync(new URL('species.json', out), json(species));
   writeFileSync(new URL('media.json', out), body);
   console.log(`species: ${speciesRows.length} from the API, ${species.length} kept, ${Buffer.byteLength(json(species))} bytes; null: ${nulls(species)}`);

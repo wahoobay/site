@@ -296,8 +296,9 @@ main { flex: 1 0 auto; }
 
 /* Species: the category list under the lead, then each category's heading over its cards, two a row on phones, three
    from 36rem, four from 48rem, five from 64rem. A card is a grid, not the design's side-by-side flex, so its picture
-   is over its words at every width and the cards of a row line up. The picture, a thumbnail or the design's initials
-   square, is a square as wide as the card; a thumbnail is cropped to it, never stretched. */
+   is over its words at every width and the cards of a row line up. The picture, a thumbnail, is a square as wide as the
+   card, cropped to it, never stretched. A species without a photograph is a card of words only (--text), as tall as its
+   words, not its row's tallest. */
 .site-species__jump { margin-top: var(--wb-space-5); }
 .site-species__group { margin-top: var(--wb-space-6); }
 .site-species {
@@ -321,6 +322,7 @@ main { flex: 1 0 auto; }
   display: grid;
   align-content: start;
 }
+.site-species__card--text { align-self: start; }
 .site-species__media {
   width: 100%;
   aspect-ratio: 1;
