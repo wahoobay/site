@@ -14,23 +14,26 @@ interface Props {
   /** "dark" is for the live-camera pages only (spec §4.3); every other page is light. */
   theme?: 'light' | 'dark';
   image?: string;
+  /** Keep the page out of search results and name no canonical URL (the 404 page). */
+  noindex?: boolean;
 }
 
-const { title, description, theme = 'light', image } = Astro.props;
+const { title, description, theme = 'light', image, noindex = false } = Astro.props;
 ---
 <!doctype html>
 <html lang="en" data-theme={theme === 'dark' ? 'dark' : undefined}>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <Seo title={title} description={description} image={image} />
+    <Seo title={title} description={description} image={image} noindex={noindex} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   </head>
   <body>
+    <a class="wb-skip" href="#main">Skip to content</a>
     <Nav />
-    <main>
+    <main id="main">
       <slot />
     </main>
     <Footer />

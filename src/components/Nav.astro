@@ -13,15 +13,18 @@ const signIn = { label: 'Sign in', href: '/sign-in/' };
 const donate = 'https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2';
 
 // A section is current on its own page and every page below it; the home page marks none.
-const isOn = (href: string) => Astro.url.pathname.startsWith(href);
+// aria-current is "page" on the section's own page and "true" on a page below it.
+const path = Astro.url.pathname;
+const isOn = (href: string) => path.startsWith(href);
+const current = (href: string) => (path === href ? 'page' : isOn(href) ? 'true' : undefined);
 ---
 <nav class="wb-nav" aria-label="Main">
   <a class="wb-nav__logo" href="/"><Logo /></a>
   <ul class="wb-nav__links">
     {sections.map(({ label, href }) => (
-      <li><a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(href) }]} href={href} aria-current={isOn(href) ? 'page' : undefined}>{label}</a></li>
+      <li><a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(href) }]} href={href} aria-current={current(href)}>{label}</a></li>
     ))}
   </ul>
-  <a class="wb-btn wb-btn--accent wb-nav__cta" href={donate} target="_blank" rel="noopener">Donate</a>
-  <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(signIn.href) }]} href={signIn.href} aria-current={isOn(signIn.href) ? 'page' : undefined}>{signIn.label}</a>
+  <a class="wb-btn wb-btn--accent wb-nav__cta" href={donate} target="_blank" rel="noopener">Donate<span class="wb-sr-only"> (opens in a new tab)</span></a>
+  <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(signIn.href) }]} href={signIn.href} aria-current={current(signIn.href)}>{signIn.label}</a>
 </nav>

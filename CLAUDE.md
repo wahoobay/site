@@ -2,7 +2,7 @@
 
 wahoobay.net: an Astro static site on the `@wahoobay/design` system (pinned by Git tag in `package.json`). `PRODUCT.md` says who it is for and what it must keep; `README.md` says how to run it.
 
-- Content lives in `src/content/**` as Markdown, JSON or YAML. Pages and components render it; copy is not written into components. Copy is migrated from the old site, not written: no new claims; mark anything uncertain `<!-- katie: review -->`.
+- Page copy lives in `src/content/**` as Markdown, JSON or YAML (the content collections arrive with the migrated pages); pages and components render it. The exceptions are the home page (`src/pages/index.astro`) and the footer (`src/components/Footer.astro`), whose copy is edited in the component. Copy is migrated from the old site, not written: no new claims; mark anything uncertain `<!-- katie: review -->`.
 - Styling only through `@wahoobay/design` tokens and classes (`var(--wb-…)`, `.wb-…`). No hex or other colour literals, no page-local colours, no `style=` attributes, no `font:` shorthand (it resets the design's ligature setting). `src/styles/site.css` is layout only. A missing token or component is a pull request to `wahoobay/design` first, then a version bump here.
 - Dark theme (`theme="dark"` on `Base.astro`) is for the live-camera pages only.
 - Nothing secret in the repository, commits or chat. The site needs no credentials to build.

@@ -7,6 +7,7 @@ const intro =
   'Wahoo Bay is a public marine education park at the Hillsboro Inlet, inspiring ocean literacy through hands-on learning, immersive field experiences, and community conservation.';
 
 // One sentence each, from the old site: WaysToVisit.js, MainPage/EducationSection.js, MainPage/GetInvolvedSection.js.
+// The photos are decorative (alt=""): each card is one link, named by its heading and sentence.
 const doorways = [
   {
     title: 'Visit',
@@ -15,7 +16,6 @@ const doorways = [
     image: '/images/home/diver.jpg',
     width: 800,
     height: 533,
-    alt: 'A diver with a camera swims along the reef, light falling from the surface',
   },
   {
     title: 'Learn',
@@ -24,7 +24,6 @@ const doorways = [
     image: '/images/home/students.jpg',
     width: 800,
     height: 602,
-    alt: 'A group of students on a boat at the dock',
   },
   {
     title: 'Get involved',
@@ -33,7 +32,6 @@ const doorways = [
     image: '/images/home/manatee.jpg',
     width: 800,
     height: 533,
-    alt: 'A manatee over the sand in green water',
   },
 ];
 ---
@@ -52,7 +50,7 @@ const doorways = [
     <div class="wb-container site-hero__inner">
       <div class="wb-panel site-hero__panel">
         <h1 id="hero-title">{headline}</h1>
-        <p>{intro}</p>
+        <p class="wb-lead">{intro}</p>
         <div class="site-hero__actions">
           <a class="wb-btn wb-btn--action" href="/visit/">Explore Wahoo Bay</a>
           <a class="wb-btn wb-btn--ghost" href="/live/">Underwater Camera</a>
@@ -64,7 +62,7 @@ const doorways = [
   <section class="wb-container site-doorways" aria-label="Ways in">
     {doorways.map((door) => (
       <a class="wb-card" href={door.href}>
-        <img class="wb-card__media" src={door.image} width={door.width} height={door.height} alt={door.alt} loading="lazy">
+        <img class="wb-card__media" src={door.image} width={door.width} height={door.height} alt="" loading="lazy">
         <div class="wb-card__body">
           <h2>{door.title}</h2>
           <p>{door.text}</p>

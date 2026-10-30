@@ -5,22 +5,23 @@ interface Props {
   description: string;
   /** A path under public/ or an absolute URL; defaults to the home page photo. */
   image?: string;
+  /** Keep the page out of search results; it then names no canonical URL (the 404 page). */
+  noindex?: boolean;
 }
 
-const { title, description, image = '/WB-1.jpg' } = Astro.props;
+const { title, description, image = '/WB-1.jpg', noindex = false } = Astro.props;
 const site = Astro.site ?? new URL('https://wahoobay.net');
-const isHome = Astro.url.pathname === '/' || title === 'Wahoo Bay';
-const fullTitle = isHome ? 'Wahoo Bay' : `${title} · Wahoo Bay`;
+const fullTitle = Astro.url.pathname === '/' ? 'Wahoo Bay' : `${title} · Wahoo Bay`;
 const canonical = new URL(Astro.url.pathname, site).href;
 const imageUrl = new URL(image, site).href;
 ---
 <title>{fullTitle}</title>
 <meta name="description" content={description}>
-<link rel="canonical" href={canonical}>
+{noindex ? <meta name="robots" content="noindex"> : <link rel="canonical" href={canonical}>}
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Wahoo Bay">
 <meta property="og:title" content={fullTitle}>
 <meta property="og:description" content={description}>
 <meta property="og:image" content={imageUrl}>
-<meta property="og:url" content={canonical}>
+{!noindex && <meta property="og:url" content={canonical}>}
 <meta name="twitter:card" content="summary_large_image">
