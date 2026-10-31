@@ -38,3 +38,15 @@ test('a path under /api/public/ is the fish-ID app\'s, not a file in dist/; the 
   assert.match(res.stderr, /broken link "\/api\/private\/x\.jpg"/);
   assert.match(res.stderr, /broken link "\/api\/publicity\/"/);
 });
+
+// The downloads page links the public exports (Task 10): those links are skipped, and the summary says how many, so a
+// run that skips more than it checks is visible. href, src and each srcset candidate count once each.
+test('the summary counts the links under /api/public/ it skipped, beside the internal links it checked', () => {
+  const res = run({
+    '.': '<a href="/api/public/exports/events.csv?days=7">CSV</a><a href="/api/public/exports/README.md">README</a><a href="/about/">a</a>',
+    about: '<img src="/api/public/detections/1/crop.jpg" srcset="/api/public/a.jpg 1x, /api/public/b.jpg 2x" alt=""><a href="https://example.org/">x</a>',
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stdout, /^Checked 2 HTML files, 1 internal links; skipped 5 links under \/api\/public\/ \(the fish-ID app's\)\.$/m);
+  assert.match(run({ '.': '<a href="/">home</a>' }).stdout, /; skipped 0 links under \/api\/public\//);
+});

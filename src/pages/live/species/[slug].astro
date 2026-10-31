@@ -51,7 +51,7 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
 ---
 <Base title={name} description={description}>
   <div class="wb-container site-article">
-    <SectionNav section="live" here={'/live/species/'} items={liveNav(ai)} label="Live reef" />
+    <SectionNav section="live" here={`/live/species/${s.slug}/`} under="/live/species/" items={liveNav(ai)} label="Live reef" />
     <div class="site-species-page__head">
       <div class="site-species-page__names">
         {s.common ? <h1>{s.common}</h1> : <h1><i>{s.latin}</i></h1>}

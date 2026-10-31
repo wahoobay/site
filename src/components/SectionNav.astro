@@ -1,6 +1,8 @@
 ---
 // "In this section": the pages of one section (src/lib/sections.ts), led by the section's own page when that page
-// is outside the pages collection (sectionLead), the current one marked. Shown when it lists a page other than
+// is outside the pages collection (sectionLead), the current one marked: aria-current="page" on the page itself, or,
+// on a page below one of the items (`under`: a species' page under Species), that item with aria-current="true", as
+// the main navigation marks a section on a page below it (Nav.astro). Shown when it lists a page other than
 // this one: a page alone in its section has nowhere to send the reader. It is the design's section navigation
 // (.wb-subnav), above the page's H1 on every page (Ruling Z); a link that leaves the site carries the design's external
 // icon after its label (Ruling Z), and the words for a screen reader.
@@ -11,18 +13,24 @@ interface Props {
   section: PageEntry['data']['section'];
   /** This page's address. */
   here: string;
+  /**
+   * The item this page sits below when the page is not itself in the list (a species' page, under /live/species/):
+   * that item is current, aria-current="true".
+   */
+  under?: string;
   /** An explicit list (the Live reef pages' liveNav()) instead of the pages collection's. An `external` item opens in a new tab. */
   items?: { label: string; href: string; external?: boolean }[];
   /** The navigation's accessible name, so a page with two navigations can tell them apart. */
   label?: string;
 }
 
-const { section, here, items, label = 'In this section' } = Astro.props;
+const { section, here, under, items, label = 'In this section' } = Astro.props;
 const lead = sectionLead[section];
 const links: { href: string; label: string; external?: boolean }[] = items ?? [
   ...(lead ? [lead] : []),
   ...(await sectionPages(section)).map((page) => ({ href: urlOf(page), label: page.data.nav ?? page.data.title })),
 ];
+const current = (href: string) => (href === here ? 'page' : href === under ? 'true' : undefined);
 ---
 {links.some((link) => link.href !== here) && (
   <nav class="site-subnav" aria-label={label}>
@@ -33,9 +41,9 @@ const links: { href: string; label: string; external?: boolean }[] = items ?? [
             <a class="wb-nav__link" href={href} target="_blank" rel="noopener">{text}<Fragment set:html={external.trim()} /><span class="wb-sr-only"> (opens in a new tab)</span></a>
           ) : (
             <a
-              class:list={['wb-nav__link', { 'wb-nav__link--on': href === here }]}
+              class:list={['wb-nav__link', { 'wb-nav__link--on': current(href) }]}
               href={href}
-              aria-current={href === here ? 'page' : undefined}
+              aria-current={current(href)}
             >{text}</a>
           )}
         </li>

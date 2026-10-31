@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Link checker for the built site in dist/.
 //  1. Every internal href/src/srcset target must resolve to a file in dist, except a path under /api/public/: the
-//     site's distribution sends those to the fish-ID app (a species' latest crop, its reference photo).
+//     site's distribution sends those to the fish-ID app (a species' latest crop, its reference photo, the open-data
+//     page's files). They are skipped, and the summary says how many, beside the internal links checked.
 //  2. Every <img> has an alt attribute.
 // Exit code 1 if anything fails.
 import fs from "node:fs";
@@ -32,6 +33,7 @@ const htmlFiles = files.filter((f) => f.endsWith(".html"));
 
 const errors = [];
 let linksChecked = 0;
+let apiSkipped = 0;
 
 function resolveTarget(fromFile, target) {
   const clean = target.split("#")[0].split("?")[0];
@@ -49,7 +51,16 @@ function resolveTarget(fromFile, target) {
   return false;
 }
 
-const isExternal = (u) => /^(https?:)?\/\//i.test(u) || /^(mailto|tel|data|javascript):/i.test(u) || u.startsWith("/api/public/");
+const isApi = (u) => u.startsWith("/api/public/");
+const isExternal = (u) => /^(https?:)?\/\//i.test(u) || /^(mailto|tel|data|javascript):/i.test(u);
+/** A link this checker leaves alone: another site's, or the fish-ID app's under /api/public/ (counted). */
+function skipped(url) {
+  if (isApi(url)) {
+    apiSkipped++;
+    return true;
+  }
+  return isExternal(url);
+}
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(file, "utf8");
@@ -58,7 +69,7 @@ for (const file of htmlFiles) {
   // href / src attributes
   for (const m of html.matchAll(/\b(?:href|src)\s*=\s*"([^"]*)"/g)) {
     const url = m[1].trim();
-    if (!url || isExternal(url)) continue;
+    if (!url || skipped(url)) continue;
     linksChecked++;
     if (!resolveTarget(file, url)) errors.push(`${rel}: broken link "${url}"`);
   }
@@ -66,7 +77,7 @@ for (const file of htmlFiles) {
   for (const m of html.matchAll(/\bsrcset\s*=\s*"([^"]*)"/g)) {
     for (const part of m[1].split(",")) {
       const url = part.trim().split(/\s+/)[0];
-      if (!url || isExternal(url)) continue;
+      if (!url || skipped(url)) continue;
       linksChecked++;
       if (!resolveTarget(file, url)) errors.push(`${rel}: broken srcset "${url}"`);
     }
@@ -77,8 +88,7 @@ for (const file of htmlFiles) {
   }
 }
 
-
-console.log(`Checked ${htmlFiles.length} HTML files, ${linksChecked} internal links.`);
+console.log(`Checked ${htmlFiles.length} HTML files, ${linksChecked} internal links; skipped ${apiSkipped} links under /api/public/ (the fish-ID app's).`);
 if (errors.length) {
   console.error(`\n${errors.length} problem(s):`);
   for (const e of errors) console.error("  - " + e);

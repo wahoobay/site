@@ -27,7 +27,8 @@ export const mainNav = (ai) => [
 ];
 
 /**
- * The Live reef pages' own navigation (src/components/SectionNav.astro draws it on each of them), Fish ID last: the
+ * The Live reef pages' own navigation (src/components/SectionNav.astro draws it on each of them): the camera, what it
+ * has seen (highlights, species, trends), the data (dashboards, downloads), the sighting form, and Fish ID last: the
  * fish-ID app is another site, so it is `external` and opens in a new tab.
  * @param {string} ai the fish-ID app's address
  * @returns {{ label: string, href: string, external?: true }[]}
@@ -36,7 +37,10 @@ export const liveNav = (ai) => [
   { label: 'Camera', href: '/live/' },
   { label: 'Reef highlights', href: '/live/highlights/' },
   { label: 'Species', href: '/live/species/' },
+  // katie: review (new nav labels: the trends page and the open-data page)
+  { label: 'Trends', href: '/live/trends/' },
   { label: 'Data dashboards', href: '/live/data/' },
+  { label: 'Downloads', href: '/live/downloads/' },
   { label: 'Log a sighting', href: '/live/log-a-sighting/' },
   { label: 'Fish ID', href: ai, external: true },
 ];

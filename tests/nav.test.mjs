@@ -70,18 +70,31 @@ test('the nav lies over the photograph on the home page only', () => {
   }
 });
 
-test('liveNav lists the six live items with Fish ID last and external', () => {
+test('liveNav lists the eight live items in order, Trends after Species, Downloads after Data dashboards, Fish ID last and external', () => {
   const items = liveNav(PRODUCTION);
-  assert.deepEqual(items.map((i) => i.label), ['Camera', 'Reef highlights', 'Species', 'Data dashboards', 'Log a sighting', 'Fish ID']);
-  assert.deepEqual(items.map((i) => i.href), ['/live/', '/live/highlights/', '/live/species/', '/live/data/', '/live/log-a-sighting/', PRODUCTION]);
+  assert.deepEqual(items.map((i) => i.label), ['Camera', 'Reef highlights', 'Species', 'Trends', 'Data dashboards', 'Downloads', 'Log a sighting', 'Fish ID']);
+  assert.deepEqual(items.map((i) => i.href), ['/live/', '/live/highlights/', '/live/species/', '/live/trends/', '/live/data/', '/live/downloads/', '/live/log-a-sighting/', PRODUCTION]);
   assert.equal(items.at(-1).external, true);
   assert.equal(items.filter((i) => i.external).length, 1);
 });
 
-test('every live page carries the Live reef navigation above its H1, Fish ID last, in a new tab, and its own page current', () => {
+// Every live page, each with the item it marks current: its own (aria-current="page"), or, on a page below one of the
+// items (a species' page under Species), that item, marked as the main navigation marks a section on a page below it
+// (aria-current="true"), with no item marked "page".
+const LIVE_PAGES = {
+  live: { item: '/live/' },
+  'live/highlights': { item: '/live/highlights/' },
+  'live/species': { item: '/live/species/' },
+  'live/species/chelonia-mydas': { item: '/live/species/', below: true },
+  'live/trends': { item: '/live/trends/' },
+  'live/data': { item: '/live/data/' },
+  'live/downloads': { item: '/live/downloads/' },
+  'live/log-a-sighting': { item: '/live/log-a-sighting/' },
+};
+
+test('every live page carries the Live reef navigation above its H1, Fish ID last, in a new tab, and its own item current', () => {
   const expected = process.env.PUBLIC_AI_URL ?? STAGING;
-  const pages = { live: '/live/', 'live/highlights': '/live/highlights/', 'live/species': '/live/species/', 'live/data': '/live/data/', 'live/log-a-sighting': '/live/log-a-sighting/' };
-  for (const [p, here] of Object.entries(pages)) {
+  for (const [p, { item, below = false }] of Object.entries(LIVE_PAGES)) {
     const html = readFileSync(`dist/${p}/index.html`, 'utf8');
     const nav = html.match(/<nav\b(?=[^>]*\bclass="site-subnav")(?=[^>]*\baria-label="Live reef")[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? '';
     assert.ok(nav, `${p}: the Live reef navigation`);
@@ -92,13 +105,14 @@ test('every live page carries the Live reef navigation above its H1, Fish ID las
     assert.match(nav, /^<nav class="site-subnav" aria-label="Live reef"><ul class="wb-subnav">/, `${p}: the design's section navigation`);
     assert.match(nav, new RegExp(`>Fish ID${OUT}</a>`), `${p}: Fish ID carries the external icon`);
     const links = [...nav.matchAll(/<a\b([^>]*)>/g)].map((m) => m[1]);
-    assert.equal(links.length, 6, p);
+    assert.equal(links.length, 8, p);
     assert.equal(links.at(-1).match(/\bhref="([^"]*)"/)?.[1], expected, p);
     assert.match(links.at(-1), /\btarget="_blank"/, p);
     assert.match(links.at(-1), /\brel="noopener"/, p);
     assert.doesNotMatch(links.at(-1), /aria-current/, p);
-    assert.equal(links.filter((a) => /aria-current="page"/.test(a)).length, 1, p);
-    assert.match(links.find((a) => /aria-current="page"/.test(a)), new RegExp(`href="${here}"`), p);
+    const marked = links.filter((a) => /aria-current=/.test(a));
+    assert.equal(marked.length, 1, `${p}: one item current`);
+    assert.match(marked[0], new RegExp(`^ class="wb-nav__link wb-nav__link--on" href="${item}" aria-current="${below ? 'true' : 'page'}"$`), p);
   }
 });
 

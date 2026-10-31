@@ -36,6 +36,23 @@ const pages = defineCollection({
       )
       .max(3)
       .optional(),
+    /**
+     * The open-data page's files (src/content/pages/live/downloads.md): the fish-ID app's public exports, copied from
+     * GET /api/public/exports in its order: each one's name, its line, the window its links download (`default_days`)
+     * and the windows it offers (`allowed_days`).
+     */
+    exports: z
+      .array(
+        z
+          .object({
+            name: z.string().regex(/^[a-z_]+$/),
+            description: z.string(),
+            default_days: z.number().int().positive(),
+            allowed_days: z.array(z.number().int().positive()).min(1),
+          })
+          .refine((file) => file.allowed_days.includes(file.default_days), 'default_days is one of allowed_days'),
+      )
+      .optional(),
   }),
 });
 

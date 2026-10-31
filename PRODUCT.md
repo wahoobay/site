@@ -43,6 +43,7 @@ A real park with its own reef under a live camera: the fish-ID system names the 
 - Must keep working through the rebuild: the Instagram feed, the YouTube camera embeds (SeaHIVE `oBTGY6Ax870`, pier `mV8zVsX_o_0`), the sensor data, sighting uploads, Zeffy donations, the field-trip and ambassador pages, and every URL a search engine or a printed flyer knows.
 - Not in scope: a CMS, translations, changes to the Shipwreck Park site, a native app, and features beyond what exists plus the fish-ID public face (the donation map, school leaderboard, photo votes and best-of-reel admin are dropped unless Katie asks for them).
 - Budget: within the current monthly budget; the live video's egress is the one line that scales with popularity.
+- The Live reef pages exist, under one Live reef navigation: the camera with the fish named, reef highlights, the species explorer with a page per species, trends, the data dashboards, the open-data downloads and log a sighting, with Fish ID linking the fish-ID app. They read the fish-ID app's public API on the site's own origin; the downloads carry no reviewer data and name a camera by its id only.
 
 ## Brand Commitments
 

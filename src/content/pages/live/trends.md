@@ -8,5 +8,5 @@ description: The species the reef camera has seen and the readings of the water 
 section: live
 ---
 
-<!-- katie: review: a new sentence (the Power BI report on /live/data/ draws on the same sensors) -->
-The [Wahoo Bay dashboard](/live/data/) shows the same history in Power BI.
+<!-- katie: review: a new sentence (the Power BI report on /live/data/ draws on the same sensors; the open-data page has the exports these charts' CSV links come from) -->
+The [Wahoo Bay dashboard](/live/data/) shows the same history in Power BI, and the [open data](/live/downloads/) page has it as files to download.

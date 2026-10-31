@@ -250,8 +250,11 @@ test('the meta description says only what the page has: the camera\'s sightings,
   }
 });
 
+// Species is current on the index ("page") and on every species' page below it ("true": the page is under Species,
+// not Species itself; SectionNav's `under`).
 test('no species page carries Mapbox or a chip; every one has the Live nav above its h1, Species current', () => {
-  for (const file of ['dist/live/species/index.html', ...list.map((s) => pageOf(s.slug))]) {
+  const index = 'dist/live/species/index.html';
+  for (const file of [index, ...list.map((s) => pageOf(s.slug))]) {
     const html = read(file);
     assert.doesNotMatch(html, /mapbox/i, file);
     // Ruling O: the accent's chip is for what is alive right now; a status or a count here is caption text.
@@ -259,7 +262,9 @@ test('no species page carries Mapbox or a chip; every one has the Live nav above
     const main = mainOf(html);
     const nav = main.match(/<nav class="site-subnav" aria-label="Live reef">[\s\S]*?<\/nav>/)?.[0] ?? '';
     assert.ok(nav && main.indexOf(nav) < main.indexOf('<h1'), `${file}: the Live nav above the h1`);
-    assert.match(nav, /<a class="wb-nav__link wb-nav__link--on" href="\/live\/species\/" aria-current="page">Species<\/a>/, file);
+    const current = file === index ? 'page' : 'true';
+    assert.match(nav, new RegExp(`<a class="wb-nav__link wb-nav__link--on" href="/live/species/" aria-current="${current}">Species</a>`), file);
+    assert.equal(nav.match(/aria-current=/g)?.length, 1, `${file}: Species alone is marked`);
   }
 });
 

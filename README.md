@@ -12,7 +12,7 @@ npm run dev         # local server with live reload, http://localhost:4321; it s
 npm run build       # type-check (astro check), then build the site into dist/
 npm test            # node --test 'tests/*.test.mjs', against dist/ (build first)
 npm run check       # the Impeccable design detector on dist/
-npm run check:links # every internal link and image in dist/ resolves (a path under /api/public/ is the fish-ID app's)
+npm run check:links # every internal link and image in dist/ resolves (a path under /api/public/ is the fish-ID app's: skipped, and counted)
 npm run preview     # serve dist/ locally
 npm run sync:species # by hand only, never in CI: re-read the Java API's species and media lists into src/data/ for /live/species/; commit the two files
 npm run sync:datasources # by hand only, never in CI: re-read the Java API's list of sites into src/data/datasources.json for the map at /visit/map/; commit the file
@@ -27,11 +27,13 @@ CI runs `npm ci`, `npm run build`, `npm test`, `npm run check` and `npm run chec
 
 Page copy goes in `src/content/` as Markdown, JSON or YAML, one file per page or entry, with the URL following the file's path: `src/content/pages/about/mission.md` is `/about/mission/`, `src/content/pages/about/index.md` is `/about/`. A page's front matter gives its `title` (the heading), `description`, `section` (`visit`, `learn`, `live`, `get-involved` or `about`), and optionally `nav` (its label in the section's "In this section" links), `order` (its place there), `hero` (a banner photo, shown in a band that crops it), `heroPosition` (`top` or `bottom` keeps that edge of the banner in the band; `center` is the default) and `actions` (up to three buttons under the introduction, each `label`, `href` and `variant`: `action`, `ghost`, or `accent` for Donate alone); `src/content.config.ts` has the schema. Its body starts at `##` headings, since the title is the page's only `#`. Pages in `src/pages/` and components in `src/components/` render the copy, `src/layouts/Page.astro` lays out a Markdown page, and `src/layouts/Base.astro` is the shell every page uses (head, navigation, footer). The home page and the footer are the exception: their copy is edited in `src/pages/index.astro` and `src/components/Footer.astro`. Images and files served as they are go in `public/`: a page's photos in `public/images/<section>/`, made with `sips -Z 1600 -s format jpeg --setProperty formatOptions 74 <original> --out <photo>.jpg` (1600 px on the long side, quality 74), or the original file itself whenever that comes out larger; downloads in `public/docs/`. Styling comes from the design system's tokens and classes; `src/styles/site.css` holds layout rules only, with no colours. Changes arrive as pull requests; see `CLAUDE.md` for the ground rules.
 
+The Live reef pages are Astro pages of their own under `src/pages/live/`, each with the Live reef navigation (`liveNav` in `src/lib/nav.mjs`): the camera (`/live/`) and reef highlights (`/live/highlights/`), whose copy is in `src/content/live/`; the species explorer (`/live/species/`, and a page per species from the snapshots in `src/data/`); trends (`/live/trends/`); the data dashboards (`/live/data/`); the open data (`/live/downloads/`, the fish-ID app's public exports as the `exports` list in the front matter of `src/content/pages/live/downloads.md` gives them); and log a sighting (`/live/log-a-sighting/`). A Markdown file under `src/content/pages/live/` is a live page's copy, never a page of its own.
+
 ## Adding content
 
 Every change below is checked the same way before it merges: `npm run build && npm test && npm run check && npm run check:links` must all pass.
 
-**A page.** Add a Markdown file under `src/content/pages/<section>/`, where `<section>` is one of `visit`, `learn`, `get-involved` or `about` (the `live` pages are the two files in `src/content/live/`). Its front matter needs `title`, `description` and `section` (the same as the folder); add `nav`, `order`, `hero`, `heroPosition` and `actions` as described above. `actions` is a list of up to three buttons, for example:
+**A page.** Add a Markdown file under `src/content/pages/<section>/`, where `<section>` is one of `visit`, `learn`, `get-involved` or `about` (the `live` pages are built by their own pages under `src/pages/live/`, above). Its front matter needs `title`, `description` and `section` (the same as the folder); add `nav`, `order`, `hero`, `heroPosition` and `actions` as described above. `actions` is a list of up to three buttons, for example:
 
 ```yaml
 actions:

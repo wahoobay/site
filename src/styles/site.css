@@ -363,6 +363,31 @@ main { flex: 1 0 auto; }
 .site-dashboard .wb-video,
 .site-dashboard .wb-btn { margin-top: var(--wb-space-4); }
 
+/* Open data (/live/downloads/): under the copy, the fish-ID app's files, a card each, one column on phones and two
+   from 48rem, as wide as the other live pages' panels. A card's words start at its top (the design's card centres
+   them, for a card with a picture); its name, its line, its two buttons side by side (they wrap on a narrow card) and
+   the window they download with the windows it offers, a step apart. */
+.site-downloads {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wb-space-4);
+  max-width: 60rem;
+  margin: var(--wb-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 48rem) {
+  .site-downloads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.site-downloads__item { align-items: start; }
+.site-downloads__item .wb-card__body > * + * { margin-top: var(--wb-space-2); }
+.site-downloads__item .wb-card__body > .site-downloads__files { margin-top: var(--wb-space-3); }
+.site-downloads__files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wb-space-2);
+}
+
 /* Species, the explorer's index: the category list under the lead, then each category's heading over its cards, two a
    row on phones, three from 36rem, four from 48rem, five from 64rem. A card (a link to the species' page) is a grid,
    not the design's side-by-side flex, so its picture is over its words at every width and the cards of a row line up.

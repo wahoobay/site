@@ -354,9 +354,12 @@ test('/live/trends/: a light page with the Live reef nav, the h1, the lead, the 
   for (const [name, p] of Object.entries(order)) assert.ok(p >= 0, name);
   assert.deepEqual(Object.keys(order).sort((a, b) => order[a] - order[b]), Object.keys(order));
   const body = main.slice(order.body);
-  assert.match(body, /The <a href="\/live\/data\/">Wahoo Bay dashboard<\/a> shows the same history in Power BI\./);
-  assert.doesNotMatch(main, /\/live\/downloads\//, 'Task 10 makes the downloads page');
-  assert.match(md, /katie: review/);
+  assert.match(body, /The <a href="\/live\/data\/">Wahoo Bay dashboard<\/a> shows the same history in Power BI, and the <a href="\/live\/downloads\/">open data<\/a> page has it as files to download\./);
+  assert.match(md, /katie: review[^\n]*\n[^\n]*\/live\/downloads\//, 'the sentence is marked');
+  // The Live reef navigation marks Trends, this page, current.
+  const nav = main.match(/<nav class="site-subnav" aria-label="Live reef">[\s\S]*?<\/nav>/)?.[0] ?? '';
+  assert.match(nav, /<a class="wb-nav__link wb-nav__link--on" href="\/live\/trends\/" aria-current="page">Trends<\/a>/);
+  assert.equal(nav.match(/aria-current=/g)?.length, 1, 'Trends alone is marked');
 });
 
 test('/live/trends/: the island as built has the range switch, the figures in order with their CSV links, and no style', () => {

@@ -154,11 +154,15 @@ test('photos in the Markdown pages carry their size and load lazily; every one h
   }
 });
 
+// A path under /api/public/ is the fish-ID app's (the open-data page's README), never a file in dist/: the link checker
+// (scripts/check-links.mjs) skips it, and so do these two tests.
+const API = '/api/public/';
+
 test('every site-relative link and image in the pages\' Markdown resolves to a built page or a file', () => {
   for (const file of markdownFiles) {
     const md = readFileSync(file, 'utf8');
     const targets = [...md.matchAll(/\]\((\/[^)\s]*)\)|\b(?:href|src)="(\/[^"]*)"/g)].map((m) => (m[1] ?? m[2]).split('#')[0]);
-    for (const target of targets) {
+    for (const target of targets.filter((t) => !t.startsWith(API))) {
       const ok = target.endsWith('/') ? existsSync(distOf(target)) : existsSync(join('dist', decodeURI(target)));
       assert.ok(ok, `${file}: ${target} does not resolve in dist/`);
     }
@@ -184,6 +188,7 @@ test('every button on a Markdown page resolves; at most three actions; the accen
     for (const { attrs, variant, href, label } of buttons(main)) {
       const where = `${file}: "${label}" → ${href}`;
       if (href.startsWith('#')) assert.match(main, new RegExp(`\\bid="${href.slice(1)}"`), where);
+      else if (href.startsWith(API)) assert.ok(href.length > API.length, where);
       else if (href.startsWith('/')) assert.ok(existsSync(href.endsWith('/') ? distOf(href) : join('dist', href)), where);
       else if (href.startsWith('mailto:') || href.startsWith('tel:')) assert.ok(href.length > 7, where);
       else {
