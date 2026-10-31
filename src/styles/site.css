@@ -415,13 +415,15 @@ main { flex: 1 0 auto; }
   gap: var(--wb-space-2);
 }
 
-/* Species, the explorer's index: the category list under the lead, then each category's heading over its cards, two a
-   row on phones, three from 36rem, four from 48rem, five from 64rem. A card (a link to the species' page) is a grid,
+/* Species, the explorer's index: the category row under the lead, then each category's heading over its cards and,
+   after them, the way back up to the row; the cards two a row on phones, three from 36rem, four from 48rem, five from
+   64rem. A card (a link to the species' page) is a grid,
    not the design's side-by-side flex, so its picture is over its words at every width and the cards of a row line up.
    The picture is a square as wide as the card, cropped to it, never stretched; a reference photo's credit is under
    the card. A species without a picture is a card of words only (--text), as tall as its words, not its row's tallest. */
 .site-species__jump { margin-top: var(--wb-space-5); }
 .site-species__group { margin-top: var(--wb-space-6); }
+.site-species__top { margin-top: var(--wb-space-4); }
 .site-species {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

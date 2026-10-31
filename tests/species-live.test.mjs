@@ -109,8 +109,20 @@ test('renderState loaded: the profile\'s numbers, "When we see it" with the hour
     assert.equal(img.props.loading, 'lazy');
     assert.equal(typeof img.props.onError, 'function');
   }
+  // Ruling 48: a crop is captioned with the detection's date, Wahoo Bay's (11:00 UTC on Oct 31 is 7 am there; 03:00
+  // UTC on Oct 31 is still Oct 30 there).
   const captions = classed(tree, 'site-species-live__crops').flatMap((list) => nodes(list).filter((n) => n.type === 'figcaption')).map(text);
-  assert.deepEqual(captions.slice(0, 3), ['1 h ago', '2 h ago', '3 h ago']);
+  assert.deepEqual(captions.slice(0, 3), ['Oct 31, 2026', 'Oct 31, 2026', 'Oct 31, 2026']);
+  assert.equal(captions[8], 'Oct 30, 2026');
+});
+
+test('renderState loaded: the page\'s picture, when it is a crop, is not repeated in "Recent sightings" (Ruling 48)', () => {
+  const hero = PROFILE.recent[0].crop;
+  const crops = nodes(renderState('ok', { ...PAGE, profile: PROFILE, now: NOW, hero })).filter((n) => n.type === 'img').map((i) => i.props.src);
+  assert.ok(!crops.includes(hero));
+  assert.equal(crops.length, 12, 'the next one takes its place');
+  // A picture that is not a crop changes nothing.
+  assert.equal(nodes(renderState('ok', { ...PAGE, profile: PROFILE, now: NOW, hero: 'https://api.wahoobay.net/api/uploads/2.jpg' })).filter((n) => n.type === 'img').length, 12);
 });
 
 test('renderState loaded: a crop that failed to load is left out; a sighting with no crop is not drawn; no crops, no section', () => {

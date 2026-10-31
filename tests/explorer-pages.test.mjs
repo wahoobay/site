@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { pictureOf, seenTimes, unionSpecies } from '../src/lib/explorer.mjs';
+import { clipCaption, galleryOf, pictureOf, seenTimes, unionSpecies } from '../src/lib/explorer.mjs';
 import { CATEGORIES, categoryId, groupByCategory } from '../src/lib/species.mjs';
 
 const read = (file) => readFileSync(file, 'utf8');
@@ -111,9 +111,27 @@ test('the index: the Live nav, h1 "Species", the lead, no island and no script; 
   }
 });
 
+// Ruling 49: the category row is a second section navigation, of anchor links, named "Categories"; each category
+// ends with the way back up to it. Not sticky, no chips.
+test('the index: the categories as a second section navigation of anchor links, and each category\'s way back to it', () => {
+  const main = mainOf(index);
+  const navs = [...main.matchAll(/<nav class="([^"]+)"([^>]*)>([\s\S]*?)<\/nav>/g)];
+  assert.deepEqual(navs.map((n) => n[1]), ['site-subnav', 'site-subnav site-species__jump']);
+  const [, , attrs, row] = navs[1];
+  assert.equal(attrs, ' id="categories" aria-label="Categories"');
+  const shown = [...groupByCategory(list)].filter(([, l]) => l.length).map(([c]) => c);
+  const links = [...row.matchAll(/<li><a class="wb-nav__link" href="#([^"]+)">([^<]+)<\/a><\/li>/g)].map((m) => [m[1], m[2].replaceAll('&amp;', '&')]);
+  assert.match(row, /^<ul class="wb-subnav">/);
+  assert.deepEqual(links, shown.map((c) => [categoryId(c), c]));
+  const sections = [...main.matchAll(/<section class="site-species__group" aria-labelledby="([^"]+)">([\s\S]*?)<\/section>/g)];
+  assert.equal(sections.length, shown.length);
+  for (const [, id, body] of sections) assert.match(body, /<\/ul>\s*(?:<!--[\s\S]*?-->\s*)*<p class="site-species__top"><a href="#categories">Back to categories<\/a><\/p>\s*$/, id);
+  assert.doesNotMatch(read('src/styles/site.css').replace(/\/\*[\s\S]*?\*\//g, ''), /position:\s*sticky/, 'no sticky row');
+});
+
 // A species on the Java list only. The brief's was the manatee: the fish-ID catalogue gained it, a wrong label (Ruling
 // 42), and the site reads it as Java-only again (its test below); the banded coral shrimp stands for the rest.
-test('a species on the Java list only (the banded coral shrimp): a page with its clips and its picture, no island, no numbers', () => {
+test('a species on the Java list only (the banded coral shrimp): a page with its picture, which links to its clip, no island, no numbers', () => {
   const shrimp = bySlug.get(SHRIMP);
   assert.ok(shrimp && shrimp.species_id === null && shrimp.media.length > 0, 'the fixture: Java only, with clips');
   const html = read(pageOf(SHRIMP));
@@ -121,9 +139,10 @@ test('a species on the Java list only (the banded coral shrimp): a page with its
   assert.doesNotMatch(html, /wb-tile|wb-chart/, 'no tiles and no charts without a fish-ID id');
   const main = mainOf(html);
   assert.match(main, new RegExp(`<h1>${esc(shrimp.common)}</h1>\\s*(?:<!--[\\s\\S]*?-->\\s*)*<p class="wb-lead"><i>${shrimp.latin}</i></p>`));
-  assert.match(main, /<h2[^>]*>Photographs and clips from volunteers<\/h2>/);
-  for (const m of shrimp.media) assert.ok(main.includes(`<a href="${attr(m.url)}" target="_blank" rel="noopener">`), `clip ${m.id}`);
-  assert.match(main, new RegExp(`(Photo|Video)( \\d+)?<span class="wb-sr-only">: ${esc(shrimp.common)} \\(opens in a new tab\\)</span></a>`));
+  // Its one clip is its picture (Ruling 48): the picture links to it, and there is no gallery to repeat it in.
+  assert.equal(galleryOf(shrimp).clips.length, 0, 'the fixture: one clip, the picture');
+  assert.doesNotMatch(main, /Photographs and clips from volunteers/);
+  for (const m of shrimp.media) assert.ok(main.includes(`<a href="${attr(m.url)}" target="_blank" rel="noopener"><img class="wb-media" src="${attr(m.thumb)}" alt="${esc(shrimp.common)}"`), `clip ${m.id}: the picture's link`);
   assert.ok(main.includes(`src="${attr(pictureOf(shrimp).src)}"`), 'its picture, the first volunteer photo');
   assert.match(main, /<p class="site-species-page__back"><a class="wb-back" href="\/live\/species\/"><svg class="wb-icon"[\s\S]*?<\/svg> Back to species<\/a><\/p>/);
   for (const s of list.filter((x) => x.species_id === null)) assert.doesNotMatch(read(pageOf(s.slug)), /<astro-island\b/, `${s.slug}: no island`);
@@ -136,28 +155,46 @@ const clipLinks = (main) => {
   return [...(lists[0] ?? '').matchAll(/<li><a href="([^"]+)" target="_blank" rel="noopener">([\s\S]*?)<\/a><\/li>/g)].map((m) => ({ href: m[1], body: m[2] }));
 };
 
-// The 2a gallery's guarantee, moved to the species pages: a link per clip, in the snapshot's order, labelled as it was.
-test('every species page with clips: one link per clip, in order, each saying what it is and that it opens a new tab', () => {
+// The 2a gallery's guarantee, moved to the species pages: a link per clip, in the snapshot's order, labelled as it
+// was; Ruling 48: but the clip that is the page's picture, which the picture links to instead, and each with its date
+// (or what it is).
+test('every species page with clips: one link per clip but the picture\'s, in order, each with its caption, what it is and that it opens a new tab', () => {
   let pages = 0;
+  let heroes = 0;
   for (const s of list) {
     const main = mainOf(read(pageOf(s.slug)));
     const links = clipLinks(main);
-    assert.deepEqual(links.map((l) => l.href), s.media.map((m) => attr(m.url)), `${s.slug}: a link per clip`);
-    if (s.media.length === 0) {
-      assert.doesNotMatch(main, /Photographs and clips from volunteers/, `${s.slug}: no clips, no section`);
+    const { pictureClip, clips } = galleryOf(s);
+    assert.deepEqual(links.map((l) => l.href), clips.map((m) => attr(m.url)), `${s.slug}: a link per clip`);
+    const figure = main.match(/<figure class="site-species-page__picture">([\s\S]*?)<\/figure>/)?.[1] ?? '';
+    if (pictureClip) {
+      heroes += 1;
+      assert.ok(figure.startsWith(`<a href="${attr(pictureClip.url)}" target="_blank" rel="noopener"><img class="wb-media" src="${attr(pictureClip.thumb)}"`), `${s.slug}: the picture links to its clip`);
+      assert.ok(figure.includes(`<figcaption class="wb-caption">${esc(clipCaption(pictureClip))}</figcaption>`), `${s.slug}: the picture's caption`);
+      assert.ok(!links.some((l) => l.body.includes(`src="${attr(pictureClip.thumb)}"`)), `${s.slug}: the picture is not repeated`);
+    }
+    if (clips.length === 0) {
+      assert.doesNotMatch(main, /Photographs and clips from volunteers/, `${s.slug}: no other clips, no section`);
       continue;
     }
     pages += 1;
     for (const [i, { body }] of links.entries()) {
-      const m = s.media[i];
-      const same = s.media.filter((x) => x.kind === m.kind);
+      const m = clips[i];
+      const same = clips.filter((x) => x.kind === m.kind);
       const word = m.kind === 'video' ? 'Video' : 'Photo';
       const label = same.length > 1 ? `${word} ${same.indexOf(m) + 1}` : word;
-      assert.ok(body.endsWith(`${label}<span class="wb-sr-only">: ${esc(s.common ?? s.latin)} (opens in a new tab)</span>`), `${s.slug}: ${label}`);
+      assert.ok(body.endsWith(`<span class="wb-caption">${esc(clipCaption(m))}</span><span class="wb-sr-only">: ${label}, ${esc(s.common ?? s.latin)} (opens in a new tab)</span>`), `${s.slug}: ${label}`);
       assert.equal(/<img\b/.test(body), Boolean(m.thumb), `${s.slug}: a thumbnail when the clip has one`);
     }
   }
-  assert.ok(pages > 100, `${pages} pages with clips`);
+  // Most species have one clip (some listed twice), which is their picture: few pages have a gallery left.
+  assert.ok(pages >= 1, `${pages} pages with other clips`);
+  assert.ok(heroes > 100, `${heroes} pages whose picture is a volunteer photo`);
+  // Every clip is reachable: in the gallery, or as the picture's link.
+  for (const s of list) {
+    const main = mainOf(read(pageOf(s.slug)));
+    for (const m of s.media) assert.ok(main.includes(`<a href="${attr(m.url)}" target="_blank" rel="noopener">`), `${s.slug}: clip ${m.id}`);
+  }
 });
 
 // Ruling 42: the fish-ID catalogue's manatee is a wrong classifier label (every crop is a fish), so its page and card
@@ -171,7 +208,7 @@ test('the manatee (Ruling 42): no fish-ID numbers anywhere, its page the Java-on
   assert.doesNotMatch(html, /<astro-island\b|<script\b|SpeciesLive|wb-tile|wb-chart|\/api\/public\//, 'no island, no numbers, no crop');
   const main = mainOf(html);
   assert.ok(main.includes(`src="${attr(pictureOf(manatee).src)}"`), 'its picture, the first volunteer photo');
-  assert.deepEqual(clipLinks(main).map((l) => l.href), manatee.media.map((m) => attr(m.url)));
+  assert.deepEqual(clipLinks(main).map((l) => l.href), galleryOf(manatee).clips.map((m) => attr(m.url)));
   assert.ok(html.includes('<meta name="description" content="West Indian Manatee (Trichechus manatus) at Wahoo Bay: photographs and clips from volunteers.">'));
   const card = mainOf(index).match(/<a class="wb-card site-species__card" href="\/live\/species\/trichechus-manatus\/">([\s\S]*?)<\/a>/)?.[1] ?? '';
   assert.ok(card.includes('<h3>West Indian Manatee</h3>'));
@@ -195,6 +232,8 @@ test('a fish-ID species: the SpeciesLive island, visible-loaded, with its id and
   assert.ok(island.includes(`<p class="wb-tile__k">This week</p><p class="wb-tile__v" data-impeccable-ignore="low-contrast">${needlefish.sightings_7d.toLocaleString('en-US')}</p>`));
   assert.match(island, /<p class="wb-tile__k">Last seen<\/p><p class="wb-tile__v" data-impeccable-ignore="low-contrast">[A-Z][a-z]{2} \d{1,2}<\/p>/, 'a date until the island knows the time');
   assert.doesNotMatch(island, /wb-notice|wb-chart/, 'no notice and no chart before it loads');
+  // The island knows the page's picture, so a recent crop that is it is not shown again (Ruling 48).
+  assert.deepEqual(props.hero, [0, pictureOf(needlefish).src]);
   // Every species with a fish-ID id has the island with its own id; every other has none.
   for (const s of list) {
     const found = islandsOf(read(pageOf(s.slug)));
@@ -229,6 +268,7 @@ test('a page\'s picture: the same as its card\'s; a species without one has none
     if (picture) {
       assert.ok(figure?.includes(`src="${attr(picture.src)}"`), `${s.slug}: its picture`);
       assert.equal(/\bonerror=/.test(figure), picture.sameOrigin, s.slug);
+      if (picture.sameOrigin) assert.ok(figure.includes(`onerror="this.closest('figure').remove()"`), `${s.slug}: the figure goes`);
     } else assert.equal(figure, undefined, `${s.slug}: words only`);
     assert.ok(html.includes(`<meta name="description" content="${attr(descriptionOf(s))}">`), `${s.slug}: ${descriptionOf(s)}`);
     assert.doesNotMatch(html, /<html\b[^>]*data-theme="dark"/, `${s.slug}: a light page`);
@@ -298,7 +338,7 @@ test('the new words on the explorer\'s pages are marked for Katie', () => {
     assert.match(page.slice(Math.max(0, at - 300), at), /katie: review/, `${words} is marked`);
   }
   const index = read('src/pages/live/species/index.astro');
-  for (const words of ['<h1', 'wb-lead', '<h2']) {
+  for (const words of ['<h1', 'wb-lead', '<h2', 'aria-label="Categories"', 'Back to categories']) {
     const at = index.indexOf(words);
     assert.ok(at > 0, words);
     assert.match(index.slice(Math.max(0, at - 300), at), /katie: review/, `${words} is marked`);

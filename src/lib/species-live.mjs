@@ -7,7 +7,8 @@
 // - not loaded yet (the build, and until the profile arrives): the three tiles with the snapshot's numbers, the page's
 //   own (src/data/fish.json), and "Last seen" as a date, since the build cannot know how long ago it will be read;
 // - loaded ('ok'): the tiles with the profile's numbers and "Last seen" as how long ago; "When we see it", the day's
-//   hours and the last twelve months as the design's bar charts (src/lib/chart.mjs); the twelve most recent crops;
+//   hours and the last twelve months as the design's bar charts (src/lib/chart.mjs); the twelve most recent crops,
+//   each captioned with its date, the page's own picture left out (Ruling 48);
 // - failed ('error', any ApiError: a 404, a 5xx, no answer): the snapshot's numbers stay, and the design's notice says
 //   so, once (Review Focus 3).
 // Colour and type are the design's classes; nothing here sets a style. The one detector waiver is the design's own,
@@ -56,6 +57,8 @@ const isTime = (/** @type {unknown} */ v) => typeof v === 'string' && Number.isF
 
 // A date as Wahoo Bay has it, "Oct 30": the camera is in Florida.
 const DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+// A crop's caption: the detection's date there, with its year, as a volunteer clip's is ("Oct 30, 2026").
+const CROP_DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
 
 /**
  * The three tiles: seen in total, last seen and this week. "Last seen" is a date ("Oct 30") until the island knows the
@@ -146,6 +149,7 @@ const tileNode = (t) =>
  * @property {Partial<Numbers>} [snapshot] the page's numbers, from src/data/fish.json
  * @property {any} [profile] GET /api/public/species/{id}
  * @property {number} [now] epoch milliseconds, when the profile arrived
+ * @property {string | null} [hero] the page's own picture (pictureOf in src/lib/explorer.mjs): a crop that is it is left out
  * @property {string[]} [failed] the crops that did not load: left out
  * @property {(src: string) => void} [onCropError] told which crop did not load
  * @property {Size | null} [hourSize] the hours chart's SVG as measured
@@ -179,7 +183,9 @@ export const renderState = (status, data = {}) => {
       chartNode({ counts: monthCounts(profile, name), chartSize: data.monthSize, chartRef: data.monthRef, caption: BY_MONTH }),
     ),
   );
+  // A crop that failed to load, and the page's own picture (Ruling 48: the gallery never repeats it), are left out.
   const failed = new Set(data.failed ?? []);
+  if (data.hero) failed.add(data.hero);
   const crops = (Array.isArray(profile.recent) ? profile.recent : [])
     .filter((/** @type {any} */ r) => r && typeof r.crop === 'string' && !failed.has(r.crop))
     .slice(0, RECENT_MAX);
@@ -200,7 +206,7 @@ export const renderState = (status, data = {}) => {
               'figure',
               null,
               h('img', { className: 'wb-media site-species-live__crop', src: r.crop, alt: '', loading: 'lazy', decoding: 'async', onError: () => data.onCropError?.(r.crop) }),
-              h('figcaption', { className: 'wb-caption' }, relativeTime(r.ts, data.now ?? Number.NaN)),
+              h('figcaption', { className: 'wb-caption' }, isTime(r.ts) ? CROP_DATE.format(new Date(r.ts)) : null),
             ),
           ),
         ),

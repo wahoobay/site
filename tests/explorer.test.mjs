@@ -3,7 +3,7 @@
 // scientific name as nomenclature writes it (src/lib/names.mjs), one entry and one page slug per species. Pure: no build.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DOUBTFUL, byCategory, categoryOf, pictureOf, seenTimes, slugify, unionSpecies } from '../src/lib/explorer.mjs';
+import { DOUBTFUL, byCategory, categoryOf, clipCaption, galleryOf, pictureOf, seenTimes, slugify, unionSpecies } from '../src/lib/explorer.mjs';
 import { binomial } from '../src/lib/names.mjs';
 import { binomial as syncBinomial } from '../scripts/sync-species.mjs';
 import { CATEGORIES } from '../src/lib/species.mjs';
@@ -335,21 +335,51 @@ test('unionSpecies reads a DOUBTFUL fish-ID species as if the app did not list i
   assert.deepEqual(unionSpecies([...fish, { ...wrongLabel, latin: 'Trichechus Manatus' }], java, media), without);
 });
 
-// Rulings 13, 17 and AE: a species' picture, on its card and its page, is the catalogue's reference photo with its
-// attribution line, else the camera's latest crop, else the first volunteer photo (the first clip with a thumbnail, as
-// the 2a card had it), else none (a card of words only). A picture on the site's own origin (/api/public/...) can be
-// missing when the fish-ID app is; the page hides it then.
-test('pictureOf: the reference photo with its credit, else the latest crop, else the first volunteer photo, else none', () => {
+// Rulings 13, 17, AE and 48: a species' picture, on its card and its page, is the catalogue's reference photo with its
+// attribution line, else the first volunteer photo (the first clip with a thumbnail, as the 2a card had it), else the
+// camera's latest crop (the last resort: a crop is small and often blurred), else none (a card of words only). A
+// picture on the site's own origin (/api/public/...) can be missing when the fish-ID app is; the page hides it then.
+test('pictureOf: the reference photo with its credit, else the first volunteer photo, else the latest crop, else none', () => {
   const list = unionSpecies(fish, java, media);
   const major = list.find((s) => s.slug === 'abudefduf-saxatilis');
+  assert.ok(major.media.some((m) => m.thumb) && major.latest_crop, 'the fixture has a volunteer photo and a crop');
   assert.deepEqual(pictureOf(major), { src: '/api/public/species/abudefduf-saxatilis/photo.jpg', credit: '(c) A. Diver, some rights reserved (CC BY)', sameOrigin: true });
   assert.deepEqual(pictureOf({ ...major, photo: { url: 'https://static.inaturalist.org/photos/1/medium.jpg', attribution: null } }), { src: 'https://static.inaturalist.org/photos/1/medium.jpg', credit: null, sameOrigin: false }, 'a photo with no attribution has no credit line');
-  assert.deepEqual(pictureOf({ ...major, photo: null }), { src: '/api/public/detections/987/crop.jpg', credit: null, sameOrigin: true }, 'the latest crop');
-  assert.deepEqual(pictureOf({ ...major, photo: null, latest_crop: null }), { src: 'https://api.wahoobay.net/api/uploads/2.jpg', credit: null, sameOrigin: false }, 'the first volunteer photo');
+  assert.deepEqual(pictureOf({ ...major, photo: null }), { src: 'https://api.wahoobay.net/api/uploads/2.jpg', credit: null, sameOrigin: false }, 'the first volunteer photo before the crop');
+  assert.deepEqual(pictureOf({ ...major, photo: null, media: [] }), { src: '/api/public/detections/987/crop.jpg', credit: null, sameOrigin: true }, 'the latest crop, last');
+  assert.deepEqual(pictureOf({ ...major, photo: null, media: major.media.map((m) => ({ ...m, thumb: null })) }).src, '/api/public/detections/987/crop.jpg', 'clips without a thumbnail are no picture');
   const manatee = list.find((s) => s.slug === 'trichechus-manatus');
   assert.equal(pictureOf(manatee)?.src, 'https://img.youtube.com/vi/abcdefghijk/hqdefault.jpg', 'the first clip with a thumbnail');
   assert.equal(pictureOf(list.find((s) => s.slug === 'ophiothrix-sp')), null, 'no picture: words only');
   assert.equal(pictureOf(list.find((s) => s.slug === 'haemulon-sciurus')), null);
+});
+
+// Ruling 48: the page's picture is not repeated in its gallery, and every gallery item says when it is from.
+test('galleryOf: the volunteers\' clips but the one the page\'s picture is, in order; the picture\'s own clip', () => {
+  const list = unionSpecies(fish, java, media);
+  const major = list.find((s) => s.slug === 'abudefduf-saxatilis');
+  // With a reference photo, every clip is in the gallery.
+  assert.deepEqual(galleryOf(major), { pictureClip: null, clips: major.media });
+  // The first volunteer photo is the picture: its clip leaves the gallery, the rest keep their order.
+  const noPhoto = { ...major, photo: null };
+  const first = major.media.find((m) => m.thumb);
+  assert.deepEqual(galleryOf(noPhoto), { pictureClip: first, clips: major.media.filter((m) => m !== first) });
+  const manatee = list.find((s) => s.slug === 'trichechus-manatus');
+  assert.equal(galleryOf(manatee).pictureClip?.kind, 'video', 'a video\'s thumbnail can be the picture');
+  assert.equal(galleryOf(manatee).clips.length, manatee.media.length - 1);
+  assert.deepEqual(galleryOf({ photo: null, latest_crop: null, media: [] }), { pictureClip: null, clips: [] });
+  // The Java list has some clips twice (another id, the same file): the picture's twin leaves the gallery too.
+  const twin = { ...first, id: 999 };
+  assert.deepEqual(galleryOf({ ...noPhoto, media: [first, ...major.media.filter((m) => m !== first), twin] }).clips, major.media.filter((m) => m !== first));
+});
+
+test('clipCaption: a clip\'s date as "Mar 29, 2026", read as written; else what it is, a volunteer photo or video', () => {
+  assert.equal(clipCaption({ kind: 'image', date: '2026-03-29T00:00' }), 'Mar 29, 2026');
+  assert.equal(clipCaption({ kind: 'video', date: '2025-10-31T23:30' }), 'Oct 31, 2025', 'the date as written, no time zone moves it');
+  assert.equal(clipCaption({ kind: 'image', date: null }), 'Volunteer photo');
+  assert.equal(clipCaption({ kind: 'image' }), 'Volunteer photo');
+  assert.equal(clipCaption({ kind: 'video', date: '' }), 'Volunteer video');
+  assert.equal(clipCaption({ kind: 'image', date: 'sometime' }), 'Volunteer photo');
 });
 
 test('seenTimes: "Seen once", "Seen 412 times", "Seen 1,204 times"; nothing for a species never seen', () => {

@@ -188,20 +188,51 @@ export const byCategory = (list) => groupByCategory(list);
 /** @typedef {{ src: string, credit: string | null, sameOrigin: boolean }} Picture */
 
 /**
- * A species' picture, on its card and its page (Rulings 13, 17 and AE): the fish-ID catalogue's reference photo with
- * its attribution as the credit line, else the camera's latest crop, else the first volunteer photo (its first clip
- * with a thumbnail, as the 2a gallery's card had it), else null, a card of words only. `sameOrigin` is a picture on
- * the site's own origin, the fish-ID app's /api/public/ path, which the page hides when it does not load (the app can
- * be down, or have no such picture).
+ * A species' picture, on its card and its page (Rulings 13, 17, AE and 48): the fish-ID catalogue's reference photo
+ * with its attribution as the credit line, else the first volunteer photo (its first clip with a thumbnail, as the 2a
+ * gallery's card had it), else the camera's latest crop (the last resort: a crop is small and often blurred), else
+ * null, a card of words only. `sameOrigin` is a picture on the site's own origin, the fish-ID app's /api/public/
+ * path, which the page hides when it does not load (the app can be down, or have no such picture).
  * @param {Pick<Species, 'photo' | 'latest_crop' | 'media'>} species
  * @returns {Picture | null}
  */
 export const pictureOf = ({ photo, latest_crop, media }) => {
   const pick = (/** @type {string} */ src, /** @type {string | null} */ credit) => ({ src, credit, sameOrigin: src.startsWith('/api/public/') });
   if (photo?.url) return pick(photo.url, photo.attribution ?? null);
-  if (latest_crop) return pick(latest_crop, null);
   const thumb = media.find((m) => m.thumb)?.thumb;
-  return thumb ? pick(thumb, null) : null;
+  if (thumb) return pick(thumb, null);
+  return latest_crop ? pick(latest_crop, null) : null;
+};
+
+/**
+ * A species page's gallery of the volunteers' clips (Ruling 48): every clip but the one the page's picture is (its
+ * first volunteer photo, when that is the picture, and any other entry of the Java list with the same thumbnail: the
+ * list has some clips twice), in the snapshot's order, and that clip (`pictureClip`), which the page's picture links
+ * to instead.
+ * @param {Pick<Species, 'photo' | 'latest_crop' | 'media'>} species
+ * @returns {{ pictureClip: Media | null, clips: Media[] }}
+ */
+export const galleryOf = (species) => {
+  const picture = pictureOf(species);
+  const pictureClip = (picture && !species.photo?.url && species.media.find((m) => m.thumb === picture.src)) || null;
+  return { pictureClip, clips: species.media.filter((m) => !pictureClip || m.thumb !== pictureClip.thumb) };
+};
+
+// A clip's date as the Java list writes it ("2026-03-29T00:00", the volunteer's own clock): read as written.
+const CLIP_DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+// katie: review: new words (a volunteer's photo, under it in a species page's gallery, when the list has no date for it)
+const VOLUNTEER_PHOTO = 'Volunteer photo';
+// katie: review: new words (the same for a video's thumbnail)
+const VOLUNTEER_VIDEO = 'Volunteer video';
+
+/**
+ * A clip's caption in a species page's gallery (Ruling 48): its date ("Mar 29, 2026"), else what it is.
+ * @param {Pick<Media, 'kind'> & { date?: string | null }} clip
+ */
+export const clipCaption = ({ kind, date }) => {
+  const day = typeof date === 'string' ? /^(\d{4})-(\d{2})-(\d{2})/.exec(date) : null;
+  if (day) return CLIP_DATE.format(Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3])));
+  return kind === 'video' ? VOLUNTEER_VIDEO : VOLUNTEER_PHOTO;
 };
 
 /**

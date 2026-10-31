@@ -3,8 +3,10 @@
 // (src/data/fish.json, `npm run sync:fish`) and the Java API's list with its clips (src/data/species.json and
 // media.json, `npm run sync:species`), merged by unionSpecies (src/lib/explorer.mjs) and grouped by category in the
 // 2a gallery's order. Each species is a card (src/components/SpeciesCard.astro) linking to its own page,
-// /live/species/<slug>/, where its live numbers and its clips are. Static: no island and no script (the numbers on
-// the cards are the snapshot's), and the browser never asks an API for the lists. Light page.
+// /live/species/<slug>/, where its live numbers and its clips are. Under the lead, the categories as a second row of
+// the design's section navigation (Ruling 49: anchor links, "Categories" for a screen reader, not sticky), and each
+// category ends with the way back up to it. Static: no island and no script (the numbers on the cards are the
+// snapshot's), and the browser never asks an API for the lists. Light page.
 import Base from '../../../layouts/Base.astro';
 import SectionNav from '../../../components/SectionNav.astro';
 import SpeciesCard from '../../../components/SpeciesCard.astro';
@@ -34,7 +36,8 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
     <h1 id="species-title">Species</h1>
     <!-- katie: review (the lead is the old page's meta description, as a sentence: the explorer lists the fish-ID catalogue's species too) -->
     <p class="wb-lead">{description}.</p>
-    <nav class="site-subnav site-species__jump" aria-labelledby="species-title">
+    <!-- katie: review (new words: the category row's name for a screen reader) -->
+    <nav class="site-subnav site-species__jump" id="categories" aria-label="Categories">
       <ul class="wb-subnav">
         {groups.map((g) => (
           <li><a class="wb-nav__link" href={`#${g.id}`}>{g.title}</a></li>
@@ -48,6 +51,8 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
         <ul class="site-species" role="list">
           {g.species.map((s) => <SpeciesCard species={s} />)}
         </ul>
+        <!-- katie: review (new words: the way back up to the category row) -->
+        <p class="site-species__top"><a href="#categories">Back to categories</a></p>
       </section>
     ))}
   </div>
