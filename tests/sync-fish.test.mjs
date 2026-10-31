@@ -17,6 +17,8 @@ const row = (over = {}) => ({
   common: 'Sergeant major',
   family: 'Pomacentridae',
   order: 'Ovalentaria incertae sedis',
+  class: 'Teleostei',
+  phylum: 'Chordata',
   aphia_id: 159795,
   photo: { url: '/api/public/species/abudefduf-saxatilis/photo.jpg', attribution: '(c) A. Diver, some rights reserved (CC BY)', license: 'cc-by', observer: 'diver42' },
   latest_crop: '/api/public/detections/987/crop.jpg',
@@ -29,14 +31,16 @@ const row = (over = {}) => ({
   ...over,
 });
 
-test('the snapshot keeps exactly the public list\'s keys (Task 2, Ruling 17), and only url and attribution of a photo', () => {
-  assert.deepEqual([...FISH_KEYS].sort(), ['aphia_id', 'common', 'family', 'first_seen', 'last_seen', 'latest_crop', 'latin', 'order', 'photo', 'sightings_7d', 'sightings_total', 'species_id']);
+test('the snapshot keeps exactly the public list\'s keys (Task 2, Rulings 17 and 37), and only url and attribution of a photo', () => {
+  assert.deepEqual([...FISH_KEYS].sort(), ['aphia_id', 'class', 'common', 'family', 'first_seen', 'last_seen', 'latest_crop', 'latin', 'order', 'photo', 'phylum', 'sightings_7d', 'sightings_total', 'species_id']);
   assert.deepEqual(toFish(row()), {
     species_id: 'abudefduf-saxatilis',
     latin: 'Abudefduf saxatilis',
     common: 'Sergeant major',
     family: 'Pomacentridae',
     order: 'Ovalentaria incertae sedis',
+    class: 'Teleostei',
+    phylum: 'Chordata',
     aphia_id: 159795,
     photo: { url: '/api/public/species/abudefduf-saxatilis/photo.jpg', attribution: '(c) A. Diver, some rights reserved (CC BY)' },
     latest_crop: '/api/public/detections/987/crop.jpg',
@@ -52,6 +56,8 @@ test('the snapshot keeps exactly the public list\'s keys (Task 2, Ruling 17), an
     common: null,
     family: null,
     order: null,
+    class: null,
+    phylum: null,
     aphia_id: null,
     photo: null,
     latest_crop: null,
@@ -59,7 +65,7 @@ test('the snapshot keeps exactly the public list\'s keys (Task 2, Ruling 17), an
     sightings_7d: null,
     first_seen: null,
     last_seen: null,
-  }, 'a field the API leaves out is null');
+  }, 'a field the API leaves out is null: an API from before class and phylum (Ruling 37) gives null for both');
   assert.equal(toFish({ latin: 'Haemulon sciurus' }), null, 'no species id, no row');
   assert.equal(toFish({ species_id: 'x', latin: '  ' }), null, 'no scientific name, no row');
 });
@@ -93,6 +99,10 @@ test('a photo is kept only on the allow-list: a path under /api/public/, or http
 test('the sync refuses to write a key off the whitelist, ?key=, a user in a link, or an e-mail address', () => {
   const ok = selectFish([row()]).fish;
   assert.doesNotThrow(() => assertNoLeak(ok));
+  // A snapshot from before class and phylum (the keys absent) passes; a key the whitelist does not name never does.
+  const { class: _class, phylum: _phylum, ...before } = ok[0];
+  assert.doesNotThrow(() => assertNoLeak([before]));
+  assert.throws(() => assertNoLeak([{ ...ok[0], kingdom: 'Animalia' }]), /key "kingdom" is not on the whitelist/);
   const leaks = [
     [{ ...ok[0], reviewer: 'someone' }, /species abudefduf-saxatilis: key "reviewer"/],
     [{ ...ok[0], photo: { ...ok[0].photo, observer: 'diver42' } }, /key "photo\.observer"/],
@@ -190,7 +200,12 @@ test('the committed snapshot: the whitelist, no leak, one entry a species, sorte
   const { binomial } = await import('../src/lib/names.mjs');
   const fish = JSON.parse(read('src/data/fish.json'));
   assert.ok(fish.length >= 100, `${fish.length} species`);
-  for (const f of fish) assert.deepEqual(Object.keys(f), FISH_KEYS, f.species_id);
+  // The keys in the whitelist's order; a snapshot written before class and phylum (Ruling 37) lacks just those two.
+  const before = FISH_KEYS.filter((k) => k !== 'class' && k !== 'phylum');
+  for (const f of fish) {
+    const keys = Object.keys(f);
+    assert.ok(JSON.stringify(keys) === JSON.stringify(FISH_KEYS) || JSON.stringify(keys) === JSON.stringify(before), `${f.species_id}: ${keys}`);
+  }
   assert.doesNotThrow(() => assertNoLeak(fish));
   // Ruling 32: one entry per normalised binomial, and one per id.
   assert.equal(new Set(fish.map((f) => binomial(f.latin))).size, fish.length, 'one entry a species');
@@ -203,5 +218,5 @@ test('the committed snapshot: the whitelist, no leak, one entry a species, sorte
     }
     if (f.latest_crop !== null) assert.match(f.latest_crop, /^\/api\/public\/detections\/[\w-]+\/crop\.jpg$/, f.species_id);
   }
-  assert.deepEqual(selectFish(fish).fish, fish, 'the sync would write it as it is');
+  assert.deepEqual(selectFish(fish).fish, fish.map((f) => ({ ...f, class: f.class ?? null, phylum: f.phylum ?? null })), 'the sync would write it as it is');
 });

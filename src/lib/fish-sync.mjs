@@ -22,7 +22,7 @@ const add = (a, b) => (a === null && b === null ? null : (a ?? 0) + (b ?? 0));
 const pick = (a, b, later) => {
   if (time(a) === null) return b;
   if (time(b) === null) return a;
-  return later === time(b) > time(a) ? b : a;
+  return later === (time(b) > time(a)) ? b : a;
 };
 
 /**

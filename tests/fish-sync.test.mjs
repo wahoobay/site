@@ -78,3 +78,11 @@ test('a species under one id is untouched; the names match once normalised; the 
   assert.deepEqual([none.sightings_total, none.sightings_7d], [null, null], 'no counts on either: none');
   assert.deepEqual(staging, before);
 });
+
+test('the tie-break when two ids were last seen at the same time: more sightings, then the id', () => {
+  const at = '2026-10-30T10:00:00+00:00';
+  assert.equal(mergeSameSpecies([fish('b', 'X y', 3, 3, null, at), fish('a', 'X y', 5, 5, null, at)])[0].species_id, 'a', 'more sightings');
+  assert.equal(mergeSameSpecies([fish('b', 'X y', 5, 5, null, at), fish('c', 'X y', 3, 3, null, at)])[0].species_id, 'b', 'more sightings, whatever the id');
+  assert.equal(mergeSameSpecies([fish('b', 'X y', 4, 4, null, at), fish('a', 'X y', 4, 4, null, at)])[0].species_id, 'a', 'as many: the id first in order');
+  assert.equal(mergeSameSpecies([fish('b', 'X y', 4, 4, null, null), fish('a', 'X y', 9, 9, null, null)])[0].species_id, 'a', 'neither seen: more sightings');
+});

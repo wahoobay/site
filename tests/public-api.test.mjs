@@ -113,7 +113,7 @@ test('fahrenheit: a reading in °C as whole °F', () => {
   assert.equal(fahrenheit(Number.NaN), null);
 });
 
-test('relativeTime: how long ago, in words', () => {
+test('relativeTime: how long ago, in words; any time ahead of the clock is "just now"', () => {
   const now = Date.parse('2026-10-31T12:00:00Z');
   const ago = (ms) => new Date(now - ms).toISOString();
   const MIN = 60_000;
@@ -122,6 +122,7 @@ test('relativeTime: how long ago, in words', () => {
   assert.equal(relativeTime(ago(0), now), 'just now');
   assert.equal(relativeTime(ago(59_000), now), 'just now');
   assert.equal(relativeTime(ago(-5_000), now), 'just now', 'a clock a little ahead');
+  assert.equal(relativeTime(ago(-3 * 24 * 60 * 60_000), now), 'just now', 'any time ahead of the clock');
   assert.equal(relativeTime(ago(MIN), now), '1 min ago');
   assert.equal(relativeTime(ago(3 * MIN + 30_000), now), '3 min ago');
   assert.equal(relativeTime(ago(59 * MIN), now), '59 min ago');

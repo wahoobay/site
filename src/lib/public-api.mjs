@@ -101,7 +101,7 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 /**
- * How long before `now` a time was, in words: "just now" under a minute (or a time a little ahead of the clock),
+ * How long before `now` a time was, in words: "just now" under a minute, and for any time ahead of the clock,
  * "3 min ago" under an hour, "5 h ago" under a day, "yesterday" under two, then "4 days ago"; null for no time.
  * @param {string | null} iso an ISO 8601 time
  * @param {number | Date} now epoch milliseconds, or a Date

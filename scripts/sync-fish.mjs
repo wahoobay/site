@@ -5,7 +5,8 @@
 // the file after a sync.
 //
 // It keeps only the list's public keys (FISH_KEYS) and, of a photo, its url and attribution; a key the API leaves out
-// is written as null, and a row with no species id or scientific name is left out. A picture is published only from
+// is written as null (an API from before `class` and `phylum`, Ruling 37, gives null for both), a key it adds is not
+// read, and a row with no species id or scientific name is left out. A picture is published only from
 // the allow-list (cleanPhotoUrl): a path under /api/public/ on the fish-ID app, as the API gives it (the photo's own
 // route), or an https address on one of PHOTO_HOSTS; a photo anywhere else is left out, and the latest crop must be a
 // path under /api/public/detections/. Before writing, assertNoLeak refuses the whole file, and nothing is written, if
@@ -24,8 +25,8 @@ import { mergeSameSpecies } from '../src/lib/fish-sync.mjs';
 const SYNC_API = process.env.SYNC_API ?? 'https://staging-ai.wahoobay.net';
 const TIMEOUT_MS = 20_000;
 
-/** The keys of a species in GET /api/public/species (the fish-ID plan's Task 2, Ruling 17), the snapshot's only keys. */
-export const FISH_KEYS = ['species_id', 'latin', 'common', 'family', 'order', 'aphia_id', 'photo', 'latest_crop', 'sightings_total', 'sightings_7d', 'first_seen', 'last_seen'];
+/** The keys of a species in GET /api/public/species (the fish-ID plan's Task 2, Rulings 17 and 37), the snapshot's only keys. */
+export const FISH_KEYS = ['species_id', 'latin', 'common', 'family', 'order', 'class', 'phylum', 'aphia_id', 'photo', 'latest_crop', 'sightings_total', 'sightings_7d', 'first_seen', 'last_seen'];
 const PHOTO_KEYS = ['url', 'attribution'];
 
 /** The hosts a photo may be on: iNaturalist's two and the fish-ID app's, staging and production. */
@@ -71,6 +72,8 @@ export const toFish = (row) => {
     common: text(row.common),
     family: text(row.family),
     order: text(row.order),
+    class: text(row.class),
+    phylum: text(row.phylum),
     aphia_id: number(row.aphia_id),
     photo: toPhoto(row.photo),
     latest_crop: typeof row.latest_crop === 'string' && CROP_PATH.test(row.latest_crop) ? row.latest_crop : null,
