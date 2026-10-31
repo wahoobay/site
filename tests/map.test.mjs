@@ -149,6 +149,26 @@ test('the new words are the island\'s and are marked for Katie; only the island 
   assert.match(JSON.parse(read('package.json')).dependencies['mapbox-gl'], /^3\.\d+\.\d+$/, 'pinned to one 3.x release');
 });
 
+// Ruling Q: a sensor's marker was the accent's chip (the accent means alive right now) and a camera's the live badge.
+// A marker is the design's map pin now (@wahoobay/design 0.2.2): .wb-marker in action blue, a camera's the accent
+// (.wb-marker--camera), in a 44px target, named by its place; the place's name is the popup's title.
+test('a marker is the design\'s map pin, a camera\'s the live variant; no chip or live badge on the map', () => {
+  const island = read('src/islands/ParkMap.tsx');
+  const marker = island.slice(island.indexOf('const markerElement'), island.indexOf('const panelElement'));
+  assert.ok(marker.length > 0, 'markerElement');
+  assert.match(marker, /el\.className = m\.kind === 'camera' \? 'wb-marker wb-marker--camera' : 'wb-marker';/);
+  assert.match(marker, /el\.setAttribute\('aria-label', m\.name\);/);
+  assert.doesNotMatch(marker, /textContent/, 'a pin, not a label: the name is the popup\'s');
+  assert.doesNotMatch(island, /wb-chip|wb-live|pulsing-dot|site-map__marker/);
+  // Stacked places sit a whole target apart, so no marker's 44px target covers another's.
+  assert.match(island, /^const STACK_STEP = 44;/m);
+  assert.doesNotMatch(read('src/styles/site.css'), /site-map__marker/, 'the pin is the design\'s, cursor and all');
+  const design = read('node_modules/@wahoobay/design/dist/components.css');
+  assert.match(design, /\.wb-marker::before\s*\{[^}]*background:\s*var\(--wb-color-action\)/);
+  assert.match(design, /\.wb-marker--camera::before\s*\{[^}]*background:\s*var\(--wb-color-accent\)/);
+  assert.match(design, /\.wb-map \.mapboxgl-popup-content/, 'the map\'s popups in the system\'s face');
+});
+
 // Astro drops a stylesheet an island imports dynamically from the client build, and the island's preload of it 404s:
 // every file the island's chunk names must be in dist/ (Mapbox GL's chunk and stylesheet among them).
 test('the built island names only files that are in dist/, Mapbox GL\'s script and stylesheet among them', () => {

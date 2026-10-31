@@ -65,6 +65,8 @@ const PHOTOS = 'Photos (optional)';
 const PHOTOS_HELP = 'JPG, PNG, HEIC — you can add several';
 const SUBMIT = 'Submit Sighting';
 const PAUSED = 'Submissions paused';
+// katie: review (new status label: the submit button's words while the sighting and its photos send)
+const SENDING = 'Sending…';
 const SUBMIT_ANOTHER = 'Submit another';
 
 // The notices. Their words are the old form's own; the API's reason ("Sighting submissions are temporarily paused.
@@ -528,8 +530,9 @@ export default function SightingForm({ cameras, species, env }: Props) {
           </div>
         )}
         <div>
-          <button className="wb-btn wb-btn--action" type="submit" disabled={sending || closed}>
-            {closed ? PAUSED : SUBMIT}
+          {/* While it sends, the design's busy button (its ring turns after the label), disabled; closed, disabled (Ruling V). */}
+          <button className={`wb-btn wb-btn--action${sending ? ' wb-btn--busy' : ''}`} type="submit" disabled={sending || closed}>
+            {closed ? PAUSED : sending ? SENDING : SUBMIT}
           </button>
         </div>
       </div>

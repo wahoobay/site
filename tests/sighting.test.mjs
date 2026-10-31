@@ -214,11 +214,27 @@ test('the island\'s new words are marked for Katie', () => {
     [island, 'Something went wrong submitting your sighting. Please try again.'],
     [island, 'Sighting submissions are temporarily unavailable. Please check back soon.'],
     [island, 'Thank you for contributing to the Wahoo Bay marine database.'],
+    [island, 'Sending…'],
   ]) {
     const at = source.indexOf(words);
     assert.ok(at > 0, words);
     assert.match(source.slice(Math.max(0, source.lastIndexOf('\n', at - 1) - 200), at), /katie: review/, `${words} is marked`);
   }
+});
+
+// Ruling V: the submit was disabled while the sighting sent and looked exactly as before, so the page seemed dead for
+// the length of an upload. With @wahoobay/design 0.2.2 it is the busy button, disabled, saying so; closed, it is the
+// disabled button the design now draws.
+test('while it sends, the submit is the design\'s busy button, disabled, saying "Sending…"; closed, it is disabled', () => {
+  const island = read('src/islands/SightingForm.tsx');
+  const button = island.match(/<button className=\{`wb-btn wb-btn--action[\s\S]*?<\/button>/)?.[0] ?? '';
+  assert.match(button, /^<button className=\{`wb-btn wb-btn--action\$\{sending \? ' wb-btn--busy' : ''\}`\} type="submit" disabled=\{sending \|\| closed\}>/);
+  assert.match(button, /\{closed \? PAUSED : sending \? SENDING : SUBMIT\}/);
+  assert.match(island, /^const SENDING = 'Sending…';$/m);
+  assert.match(island, /^const PAUSED = 'Submissions paused';$/m);
+  const design = read('node_modules/@wahoobay/design/dist/components.css');
+  assert.match(design, /\.wb-btn:disabled,\s*\.wb-btn\[aria-disabled="true"\]\s*\{[^}]*opacity:/);
+  assert.match(design, /\.wb-btn--busy::after\s*\{[^}]*animation:\s*wb-spin/);
 });
 
 test('the page has the island, the no-script fallback, and is light', () => {

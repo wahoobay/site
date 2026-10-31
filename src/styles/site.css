@@ -341,9 +341,8 @@ main { flex: 1 0 auto; }
 /* Visit: the park map, between the lead and the page's text, where the page's picture was. The map is the design's
    map frame (.wb-map), filled by Mapbox GL (.site-map__canvas), with its loading and failed words over its middle.
    Without a token, or without script, the picture stands alone at its own size, as it did in the text column; with
-   no script the frame, which would only ever say it is loading, is left out. A marker is the design's live badge (a
-   camera) or chip (a sensor); a popup is the design's raised panel, so Mapbox's own popup box and its tip draw nothing
-   around it. */
+   no script the frame, which would only ever say it is loading, is left out. A marker is the design's map pin
+   (.wb-marker); a popup is the design's raised panel, so Mapbox's own popup box and its tip draw nothing around it. */
 .site-map,
 .site-map__still { margin-top: var(--wb-space-6); }
 .site-map__still { width: auto; }
@@ -364,7 +363,6 @@ main { flex: 1 0 auto; }
 @media (scripting: none) {
   .site-map { display: none; }
 }
-.site-map__marker { cursor: pointer; }
 .site-map__popup .mapboxgl-popup-content { display: contents; }
 .site-map__popup .mapboxgl-popup-tip { display: none; }
 

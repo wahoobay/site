@@ -4,9 +4,11 @@
 // The stylesheet is imported as a URL and linked when the island runs: Astro drops a stylesheet that an island
 // imports dynamically from the build (it takes it for one the server render already put on the page), and a static
 // import would put it on every page of [...slug].astro.
-// The frame is the design's .wb-map; a camera's marker is the design's live badge, a sensor's its chip, and a
-// marker's popup its raised panel (a surface over a photograph) with the place's name and one link. Colour and type
-// are the design's classes; the island sets no style of its own (Mapbox GL positions its markers and popups itself).
+// The frame is the design's .wb-map, which also sets the map's popups and controls in the system's face; a marker is
+// the design's map pin (.wb-marker, action blue; a camera's .wb-marker--camera, the accent, because a camera is alive
+// right now; Ruling Q), named by its place, and a marker's popup is the design's raised panel (a surface over a
+// photograph) with the place's name and one link. Colour and type are the design's classes; the island sets no style
+// of its own (Mapbox GL positions its markers and popups itself).
 import { useEffect, useRef, useState } from 'react';
 import type { Map as MapboxMap, Marker as MapboxMarker, Popup as MapboxPopup } from 'mapbox-gl';
 import mapboxCss from 'mapbox-gl/dist/mapbox-gl.css?url';
@@ -43,7 +45,7 @@ const linkLabel = (href: string) => (href === '/live/' ? WATCH_LIVE : href.start
 // Places closer than this stack one under another, so no marker hides another at the opening zoom: two of the park's
 // sensors share one place, and the reef camera is some 30 m from them.
 const STACK_METRES = 250;
-const STACK_STEP = 32; // px, a little more than a marker's height
+const STACK_STEP = 44; // px, a marker's whole target, so no marker's target covers another's
 // Between a marker's edge and its popup.
 const GAP = 6;
 
@@ -75,12 +77,10 @@ const linkStylesheet = () =>
     document.head.append(link);
   });
 
-/** The marker: the place's name on the design's live badge (a camera) or chip (a sensor). */
+/** The marker: the design's map pin, a camera's the live one, named by its place (the popup shows the name). */
 const markerElement = (m: Marker) => {
   const el = document.createElement('div');
-  el.className = `${m.kind === 'camera' ? 'wb-live' : 'wb-chip'} site-map__marker`;
-  if (m.kind === 'camera') el.dataset.impeccableIgnore = 'pulsing-dot';
-  el.textContent = m.name;
+  el.className = m.kind === 'camera' ? 'wb-marker wb-marker--camera' : 'wb-marker';
   // Mapbox GL names a marker "Map marker" unless it has a name; it makes it a button once it has a popup.
   el.setAttribute('aria-label', m.name);
   return el;
