@@ -8,4 +8,4 @@ wahoobay.net: an Astro static site on the `@wahoobay/design` system (pinned by G
 - Nothing secret in the repository, commits or chat. The site needs no credentials to build.
 - Students contribute by fork and pull request; nobody needs AWS access to work on the site. Deploys go through GitHub Actions only.
 - Tests first: write the failing `node --test` test in `tests/`, then the change.
-- Before every pull request: `npm run build && npm test && npm run check` (check is the Impeccable detector on `dist/`; fix findings, do not waive them, unless the design system already sanctions the case in `.impeccable/config.json` with its reason).
+- Before every pull request: `npm run build && npm test && npm run check` (check is the Impeccable detector on `dist/`; fix findings, do not waive them, unless the design system already sanctions the case: its docs page and tests name the allowed per-element waivers, and the site uses the same attribute on the same elements and nothing else).

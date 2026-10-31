@@ -161,6 +161,15 @@ test('the doorways keep their three sections, sentences and photos', () => {
   ]);
 });
 
+// Final review, minor 9: the doorways' accessible name is new wording, heard and not seen, and is marked for Katie too.
+test('the doorways\' accessible name, "Ways in", is marked for Katie', () => {
+  const source = readFileSync('src/components/Doorways.astro', 'utf8');
+  const at = source.indexOf('aria-label="Ways in"');
+  assert.ok(at > 0);
+  assert.match(source.slice(source.lastIndexOf('\n', source.lastIndexOf('\n', at) - 1), at), /katie: review/);
+  assert.match(home(), /<section class="wb-container site-doors" aria-label="Ways in">/);
+});
+
 test('the map teaser is the map page\'s title and description on a raised panel, with its two actions and the map still', () => {
   const teaser = home().match(/<section class="site-map-teaser"[\s\S]*?<\/section>/)?.[0] ?? '';
   // The manatee's signature sits at its bottom right: the band keeps the top of the frame (wb-media--top).
