@@ -24,19 +24,25 @@ test('the page frames each dashboard with a title and an always-visible full-siz
 });
 
 // Ruling AA (finish review, fix 4): at 390px the framed report is drawn at a sixth of its size and cannot be read, and
-// the panel's sentence repeated the H1. Each panel: its heading, one line saying the report reads best at full size,
-// the full-size link as the primary action, then the frame, at every width.
+// the panel's sentence repeated the H1. Each panel: its heading (the design's panel title), one line saying the report
+// reads best at full size, the full-size link as the primary action, then the frame. Step 2b's polish: under 48rem the
+// frame is left out (site.css), so a phone has the line and the button alone; there is no still of the report.
 test('each dashboard: its heading, the one line, the full-size action, then the frame', () => {
   const html = readFileSync('dist/live/data/index.html', 'utf8');
   const panels = [...html.matchAll(/<section class="wb-panel site-dashboard"[^>]*>([\s\S]*?)<\/section>/g)].map((m) => m[1].replace(/<!--[\s\S]*?-->/g, ''));
   assert.equal(panels.length, onlineDashboards().length);
   const esc = (text) => text.replace(/&/g, '&amp;').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   onlineDashboards().forEach((d, i) => {
-    assert.match(panels[i], new RegExp(`^<h2 id="dash-${d.id}">${esc(d.title)}</h2>` +
+    assert.match(panels[i], new RegExp(`^<h2 class="wb-panel__title" id="dash-${d.id}">${esc(d.title)}</h2>` +
       '<p>The report reads best at full size\\.</p>' +
       `<a class="wb-btn wb-btn--action" href="${esc(d.open)}" target="_blank" rel="noopener">Open full size<span class="wb-sr-only"> \\(opens in a new tab\\)</span></a>` +
-      `<div class="wb-video"><iframe src="${esc(d.src)}" title="${esc(d.title)}"`), d.id);
+      `<div class="wb-video site-dashboard__frame"><iframe src="${esc(d.src)}" title="${esc(d.title)}"`), d.id);
   });
+  // The frame is collapsed under 48rem and only there; nothing hides the button.
+  const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /@media \(max-width: 47\.99rem\)\s*\{\s*\.site-dashboard__frame\s*\{\s*display:\s*none;\s*\}\s*\}/);
+  assert.equal((css.match(/\.site-dashboard__frame\s*\{[^}]*display:\s*none/g) ?? []).length, 1, 'hidden in that one media query');
+  assert.doesNotMatch(css, /\.site-dashboard \.wb-btn\s*\{[^}]*display:\s*none/);
   assert.doesNotMatch(html, /with its data and charts/, 'the old sentence is gone');
   const source = readFileSync('src/pages/live/data/index.astro', 'utf8');
   const at = source.indexOf('The report reads best at full size.');

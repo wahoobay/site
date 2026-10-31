@@ -1,10 +1,11 @@
 ---
-// /live/downloads/: the open data. The lead, the copy (src/content/pages/live/downloads.md: the windows, the README
-// and its licence, what the files leave out), then the fish-ID app's public exports as the content file lists them, a
-// card each: its name, its line, CSV and Parquet buttons over its default window, and the windows it offers. The files
-// are the fish-ID app's, at /api/public/exports/ on the site's own origin; the page links them and fetches nothing.
-// A button is its format alone (and, for a screen reader, which file and window); the window is said once, under the
-// pair, so the two buttons stay side by side on a phone.
+// /live/downloads/: the open data. The lead, the copy (src/content/pages/live/downloads.md: the README and its
+// licence, what the files leave out), then the fish-ID app's public exports as the content file lists them, a card
+// each: its name, its line, CSV and Parquet buttons over its default window first, then every window it offers as a
+// link per format (Ruling 52: "CSV: 7 · 30 · 90 · 365 days"), so no reader edits an address. The files are the fish-ID
+// app's, at /api/public/exports/ on the site's own origin; the page links them and fetches nothing. A button is its
+// format alone (and, for a screen reader, which file and window); the window is said once, under the pair, so the two
+// buttons stay side by side on a phone. A window's link is its number, named in full for a screen reader.
 // Light page.
 import { getEntry, render } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
@@ -23,8 +24,6 @@ const FORMATS = [
   { ext: 'parquet', label: 'Parquet' },
 ];
 const href = (name: string, ext: string, days: number) => `${API_BASE}/exports/${name}.${ext}?days=${days}`;
-// "7 or 30 days", "7, 30, 90 or 365 days".
-const windows = (days: number[]) => (days.length > 1 ? `${days.slice(0, -1).join(', ')} or ${days.at(-1)} days` : `${days[0]} days`);
 ---
 <Base title={title} description={description}>
   <div class="wb-container site-article">
@@ -43,8 +42,15 @@ const windows = (days: number[]) => (days.length > 1 ? `${days.slice(0, -1).join
                 <a class="wb-btn wb-btn--ghost" href={href(name, ext, days)}>{label}<span class="wb-sr-only"> of {name}, {days} days</span></a>
               ))}
             </p>
-            <!-- katie: review (new words: the window the buttons download, and the windows a file offers) -->
-            <p class="wb-caption">The last {days} days. Windows: {windows(allowed)}.</p>
+            <!-- katie: review (new words: the window the buttons download, then every window, a link each, per format) -->
+            <p class="wb-caption">The last {days} days.</p>
+            <ul class="site-downloads__windows" role="list">
+              {FORMATS.map(({ ext, label }) => (
+                <li class="wb-caption">{label}: {allowed.map((d, i) => (
+                  <Fragment>{i > 0 && <span aria-hidden="true"> · </span>}<a href={href(name, ext, d)} aria-label={`${label} of ${name}, ${d} days`}>{d}</a></Fragment>
+                ))} days</li>
+              ))}
+            </ul>
           </div>
         </li>
       ))}

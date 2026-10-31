@@ -3,8 +3,9 @@
 # and Parquet links, under the lead and this text. The list below is the fish-ID app's own (GET /api/public/exports,
 # PUBLIC_EXPORTS in the ai repository), copied once, in its order; the page does not fetch it. When the fish-ID app
 # adds, drops or changes an export, change it here.
-# katie: review: a new page; its title, its description (also its lead) and the sentences below are new words.
-title: Open data
+# katie: review: a new page; its title (the navigation's word, Downloads; it was "Open data"), its description (also its
+# lead) and the sentences below are new words.
+title: Downloads
 description: The reef camera's detections and sightings and the water and weather sensors' readings at Wahoo Bay, as CSV and Parquet files to download.
 section: live
 # katie: review: each file's line is the fish-ID app's own description of it (GET /api/public/exports), copied as it is.
@@ -46,9 +47,6 @@ exports:
     default_days: 7
     allowed_days: [7, 30]
 ---
-
-<!-- katie: review: a new sentence (each export's link downloads its default window; the fish-ID app also serves the windows listed under it) -->
-Each button downloads the last 7 or 90 days, as its card says. For another of a file's windows, change the number after days= at the end of the link's address.
 
 <!-- katie: review: a new sentence (the exports have no data licence yet, so the API's licence is empty: Katie and Dan decide one) -->
 Licence: see the [README](/api/public/exports/README.md), which also explains each file's columns and caveats.

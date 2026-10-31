@@ -2,8 +2,10 @@
 // /live/data/: the dashboards whose host answers (onlineDashboards(); today the Power BI report), framed, under a line
 // leading to the trends page (/live/trends/), which charts the same sensors. Light page.
 // Scripts are not sandboxed away: Power BI needs scripts and same-origin inside its own frame. Each panel (Ruling AA):
-// its heading, one line saying the report reads best at full size, the full-size link as the primary action, then the
-// frame, in that order at every width: on a phone the framed report is too small to read.
+// its heading (the design's panel title), one line saying the report reads best at full size, the full-size link as the
+// primary action, then the frame. Under 48rem the frame is left out (site.css, .site-dashboard__frame): on a phone the
+// framed report is drawn at a sixth of its size and cannot be read, and there is no still of it, so the line and the
+// button stand alone.
 import Base from '../../../layouts/Base.astro';
 import SectionNav from '../../../components/SectionNav.astro';
 import { aiUrl, liveNav } from '../../../lib/nav.mjs';
@@ -24,12 +26,12 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
     {shown.map((d) => (
       <section class="wb-panel site-dashboard" aria-labelledby={`dash-${d.id}`}>
         <!-- katie: review (new title for this dashboard) -->
-        <h2 id={`dash-${d.id}`}>{d.title}</h2>
+        <h2 class="wb-panel__title" id={`dash-${d.id}`}>{d.title}</h2>
         <!-- katie: review (new sentence) -->
         <p>The report reads best at full size.</p>
         <!-- katie: review (new link label) -->
         <a class="wb-btn wb-btn--action" href={d.open} target="_blank" rel="noopener">Open full size<span class="wb-sr-only"> (opens in a new tab)</span></a>
-        <div class="wb-video">
+        <div class="wb-video site-dashboard__frame">
           <iframe src={d.src} title={d.title} loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
         </div>
       </section>

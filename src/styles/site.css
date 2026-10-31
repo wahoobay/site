@@ -385,15 +385,19 @@ main { flex: 1 0 auto; }
 }
 
 /* Data dashboards: the panels stack with room between them; the full-size link, then the frame, a step apart below
-   the line. */
+   the line. Under 48rem the frame is left out: the report drawn a sixth of its size cannot be read, and the line and
+   the full-size button stand alone. */
 .site-dashboard { margin-top: var(--wb-space-6); }
 .site-dashboard .wb-video,
 .site-dashboard .wb-btn { margin-top: var(--wb-space-4); }
+@media (max-width: 47.99rem) {
+  .site-dashboard__frame { display: none; }
+}
 
-/* Open data (/live/downloads/): under the copy, the fish-ID app's files, a card each, one column on phones and two
+/* Downloads (/live/downloads/): under the copy, the fish-ID app's files, a card each, one column on phones and two
    from 48rem, as wide as the other live pages' panels. A card's words start at its top (the design's card centres
-   them, for a card with a picture); its name, its line, its two buttons side by side (they wrap on a narrow card) and
-   the window they download with the windows it offers, a step apart. */
+   them, for a card with a picture); its name, its line, its two buttons side by side (they wrap on a narrow card), the
+   window they download, and every window a link per format, a line each, a step apart. */
 .site-downloads {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -413,6 +417,13 @@ main { flex: 1 0 auto; }
   display: flex;
   flex-wrap: wrap;
   gap: var(--wb-space-2);
+}
+.site-downloads__windows {
+  display: grid;
+  gap: var(--wb-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 /* Species, the explorer's index: the category row under the lead, then each category's heading over its cards and,
