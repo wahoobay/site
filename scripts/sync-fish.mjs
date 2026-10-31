@@ -18,6 +18,10 @@
 // scientific names match once normalised become one (mergeSameSpecies, src/lib/fish-sync.mjs): the id seen most
 // recently (its profile is the live one), the sightings in total and this week summed, the earliest first seen and the
 // latest last seen, and the newest id's photo and latest crop, else the other's. The API keeps both ids.
+//
+// The snapshot keeps every species the API lists, the doubtful ones too: DOUBTFUL in src/lib/explorer.mjs (Ruling 42,
+// a classifier label the public site must not present, the manatee first) is read at build time, and the explorer
+// treats a species on it as if the fish-ID app did not list it. The fish-ID reviewers own the fix.
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { mergeSameSpecies } from '../src/lib/fish-sync.mjs';

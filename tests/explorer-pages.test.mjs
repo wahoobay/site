@@ -22,6 +22,17 @@ const attr = (s) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;');
 const islandsOf = (html) => [...html.matchAll(/<astro-island\b([^>]*)>/g)].map((m) => m[1]);
 const propsOf = (attrs) => JSON.parse((attrs.match(/\bprops="([^"]*)"/)?.[1] ?? '{}').replaceAll('&quot;', '"').replaceAll('&amp;', '&'));
 
+/** The meta description a page should have: it names only what the page shows (the camera's numbers, the clips). */
+const descriptionOf = (s) => {
+  const name = s.common ? `${s.common} (${s.latin})` : s.latin;
+  const camera = s.species_id !== null;
+  const clips = s.media.length > 0;
+  if (camera && clips) return `${name} at Wahoo Bay: sightings from the reef camera and photographs and clips from volunteers.`;
+  if (camera) return `${name} at Wahoo Bay: sightings from the reef camera.`;
+  if (clips) return `${name} at Wahoo Bay: photographs and clips from volunteers.`;
+  return `${name}, one of the species recorded at Wahoo Bay.`;
+};
+
 const MANATEE = 'trichechus-manatus';
 const SHRIMP = 'stenopus-hispidus';
 const NEEDLEFISH = 'ablennes-hians';
@@ -61,7 +72,8 @@ test('the index: the Live nav, h1 "Species", the lead, no island and no script; 
   // The site marks new words for Katie with HTML comments (CLAUDE.md), which the build keeps.
   assert.match(main, /<h1 id="species-title">Species<\/h1>\s*(?:<!--[\s\S]*?-->\s*)*<p class="wb-lead">Photos and video clips of every species the Wahoo Bay underwater cameras and volunteers have recorded\.<\/p>/);
   assert.doesNotMatch(index, /<astro-island\b|<script\b/, 'static: no island, no script');
-  const cards = [...main.matchAll(/<li class="site-species__item( site-species__item--text)?"><a class="wb-card site-species__card" href="\/live\/species\/([^"/]+)\/">([\s\S]*?)<\/a><\/li>/g)];
+  // A reference photo's credit follows the card's link (never inside it, where it would start the link's name).
+  const cards = [...main.matchAll(/<li class="site-species__item( site-species__item--text)?"><a class="wb-card site-species__card" href="\/live\/species\/([^"/]+)\/">([\s\S]*?)<\/a>(?:<p class="wb-caption site-species__credit">[^<]*<\/p>)?<\/li>/g)];
   assert.equal(cards.length, list.length);
   for (const [, text, slug, body] of cards) {
     const s = bySlug.get(slug);
@@ -87,13 +99,20 @@ test('the index: the Live nav, h1 "Species", the lead, no island and no script; 
   assert.doesNotMatch(sections, /wb-initials|target="_blank"/, 'no initials square; the clips have moved to the species pages');
   // In each category the cards with a picture come first, then the cards of words only (the 2a fix wave's rule).
   for (const [, id, body] of main.matchAll(/<section class="site-species__group" aria-labelledby="([^"]+)">([\s\S]*?)<\/section>/g)) {
-    const kinds = [...body.matchAll(/<li class="site-species__item( site-species__item--text)?">/g)].map((m) => (m[1] ? 'text' : 'picture'));
+    const items = [...body.matchAll(/<li class="site-species__item( site-species__item--text)?"><a class="wb-card site-species__card" href="\/live\/species\/([^"/]+)\/">/g)];
+    const kinds = items.map((m) => (m[1] ? 'text' : 'picture'));
     assert.deepEqual(kinds, [...kinds].sort((a, b) => (a === b ? 0 : a === 'picture' ? -1 : 1)), `${id}: pictures first`);
+    // Each group in the union's name order (the 2a gallery's): the common name, else the Latin.
+    const order = new Map(list.map((x, i) => [x.slug, i]));
+    for (const kind of ['picture', 'text']) {
+      const at = items.filter((_, i) => kinds[i] === kind).map((m) => order.get(m[2]));
+      assert.deepEqual(at, [...at].sort((a, b) => a - b), `${id}: the ${kind} cards in name order`);
+    }
   }
 });
 
-// The brief's Java-only species was the manatee; since the fish-ID catalogue gained it (Trichechus manatus, Mammalia),
-// it is on both lists, and the banded coral shrimp stands for a species on the Java list only.
+// A species on the Java list only. The brief's was the manatee: the fish-ID catalogue gained it, a wrong label (Ruling
+// 42), and the site reads it as Java-only again (its test below); the banded coral shrimp stands for the rest.
 test('a species on the Java list only (the banded coral shrimp): a page with its clips and its picture, no island, no numbers', () => {
   const shrimp = bySlug.get(SHRIMP);
   assert.ok(shrimp && shrimp.species_id === null && shrimp.media.length > 0, 'the fixture: Java only, with clips');
@@ -107,20 +126,56 @@ test('a species on the Java list only (the banded coral shrimp): a page with its
   assert.match(main, new RegExp(`(Photo|Video)( \\d+)?<span class="wb-sr-only">: ${esc(shrimp.common)} \\(opens in a new tab\\)</span></a>`));
   assert.ok(main.includes(`src="${attr(pictureOf(shrimp).src)}"`), 'its picture, the first volunteer photo');
   assert.match(main, /<p class="site-species-page__back"><a class="wb-back" href="\/live\/species\/"><svg class="wb-icon"[\s\S]*?<\/svg> Back to species<\/a><\/p>/);
-  // Every species on the Java list only: no island; a clip a link.
-  for (const s of list.filter((x) => x.species_id === null)) {
-    const page = read(pageOf(s.slug));
-    assert.doesNotMatch(page, /<astro-island\b/, s.slug);
-    assert.equal((mainOf(page).match(/ target="_blank" rel="noopener">/g) ?? []).length - 1, s.media.length, `${s.slug}: a link per clip (and Fish ID)`);
-  }
+  for (const s of list.filter((x) => x.species_id === null)) assert.doesNotMatch(read(pageOf(s.slug)), /<astro-island\b/, `${s.slug}: no island`);
 });
 
-test('the manatee, on both lists now: its page has the island and the volunteers\' clips', () => {
+/** The volunteers' clips on a species page: each link of its clip list, in order. */
+const clipLinks = (main) => {
+  const lists = main.match(/<ul class="site-species-page__clip-list" role="list">[\s\S]*?<\/ul>/g) ?? [];
+  assert.ok(lists.length <= 1, 'one clip list');
+  return [...(lists[0] ?? '').matchAll(/<li><a href="([^"]+)" target="_blank" rel="noopener">([\s\S]*?)<\/a><\/li>/g)].map((m) => ({ href: m[1], body: m[2] }));
+};
+
+// The 2a gallery's guarantee, moved to the species pages: a link per clip, in the snapshot's order, labelled as it was.
+test('every species page with clips: one link per clip, in order, each saying what it is and that it opens a new tab', () => {
+  let pages = 0;
+  for (const s of list) {
+    const main = mainOf(read(pageOf(s.slug)));
+    const links = clipLinks(main);
+    assert.deepEqual(links.map((l) => l.href), s.media.map((m) => attr(m.url)), `${s.slug}: a link per clip`);
+    if (s.media.length === 0) {
+      assert.doesNotMatch(main, /Photographs and clips from volunteers/, `${s.slug}: no clips, no section`);
+      continue;
+    }
+    pages += 1;
+    for (const [i, { body }] of links.entries()) {
+      const m = s.media[i];
+      const same = s.media.filter((x) => x.kind === m.kind);
+      const word = m.kind === 'video' ? 'Video' : 'Photo';
+      const label = same.length > 1 ? `${word} ${same.indexOf(m) + 1}` : word;
+      assert.ok(body.endsWith(`${label}<span class="wb-sr-only">: ${esc(s.common ?? s.latin)} (opens in a new tab)</span>`), `${s.slug}: ${label}`);
+      assert.equal(/<img\b/.test(body), Boolean(m.thumb), `${s.slug}: a thumbnail when the clip has one`);
+    }
+  }
+  assert.ok(pages > 100, `${pages} pages with clips`);
+});
+
+// Ruling 42: the fish-ID catalogue's manatee is a wrong classifier label (every crop is a fish), so its page and card
+// show the Java list's manatee alone.
+test('the manatee (Ruling 42): no fish-ID numbers anywhere, its page the Java-only shape with the volunteers\' clips', () => {
   const manatee = bySlug.get(MANATEE);
-  assert.ok(manatee.species_id && manatee.java_id && manatee.media.length > 0);
+  assert.ok(json('src/data/fish.json').some((f) => f.latin === 'Trichechus manatus'), 'the snapshot still carries the row');
+  assert.deepEqual([manatee.species_id, manatee.sightings_total, manatee.latest_crop, manatee.photo], [null, 0, null, null]);
+  assert.ok(manatee.java_id !== null && manatee.media.length > 0 && manatee.category === 'Mammal');
   const html = read(pageOf(MANATEE));
-  assert.deepEqual(islandsOf(html).map((a) => propsOf(a).speciesId), [[0, manatee.species_id]]);
-  for (const m of manatee.media) assert.ok(mainOf(html).includes(`<a href="${attr(m.url)}" target="_blank" rel="noopener">`), `clip ${m.id}`);
+  assert.doesNotMatch(html, /<astro-island\b|<script\b|SpeciesLive|wb-tile|wb-chart|\/api\/public\//, 'no island, no numbers, no crop');
+  const main = mainOf(html);
+  assert.ok(main.includes(`src="${attr(pictureOf(manatee).src)}"`), 'its picture, the first volunteer photo');
+  assert.deepEqual(clipLinks(main).map((l) => l.href), manatee.media.map((m) => attr(m.url)));
+  assert.ok(html.includes('<meta name="description" content="West Indian Manatee (Trichechus manatus) at Wahoo Bay: photographs and clips from volunteers.">'));
+  const card = mainOf(index).match(/<a class="wb-card site-species__card" href="\/live\/species\/trichechus-manatus\/">([\s\S]*?)<\/a>/)?.[1] ?? '';
+  assert.ok(card.includes('<h3>West Indian Manatee</h3>'));
+  assert.doesNotMatch(card, /Seen |\/api\/public\//, 'no "Seen N times" and no crop on its card');
 });
 
 test('a fish-ID species: the SpeciesLive island, visible-loaded, with its id and the snapshot\'s numbers in its tiles', () => {
@@ -175,16 +230,32 @@ test('a page\'s picture: the same as its card\'s; a species without one has none
       assert.ok(figure?.includes(`src="${attr(picture.src)}"`), `${s.slug}: its picture`);
       assert.equal(/\bonerror=/.test(figure), picture.sameOrigin, s.slug);
     } else assert.equal(figure, undefined, `${s.slug}: words only`);
-    const name = s.common ? `${s.common} (${s.latin})` : s.latin;
-    assert.ok(html.includes(`<meta name="description" content="${attr(`${name} at Wahoo Bay: sightings from the reef camera and photographs from volunteers.`)}">`), s.slug);
+    assert.ok(html.includes(`<meta name="description" content="${attr(descriptionOf(s))}">`), `${s.slug}: ${descriptionOf(s)}`);
     assert.doesNotMatch(html, /<html\b[^>]*data-theme="dark"/, `${s.slug}: a light page`);
   }
 });
 
-test('no species page carries Mapbox; every one has the Live nav above its h1, Species current', () => {
+test('the meta description says only what the page has: the camera\'s sightings, the volunteers\' clips, both, or neither', () => {
+  const shapes = new Map();
+  for (const s of list) {
+    const key = `${s.species_id !== null ? 'camera' : ''}${s.media.length > 0 ? '+clips' : ''}` || 'neither';
+    if (!shapes.has(key)) shapes.set(key, s);
+  }
+  assert.deepEqual([...shapes.keys()].sort(), ['+clips', 'camera', 'camera+clips', 'neither'], 'the snapshot has all four');
+  for (const [key, s] of shapes) {
+    const content = read(pageOf(s.slug)).match(/<meta name="description" content="([^"]*)">/)?.[1] ?? '';
+    assert.equal(content, attr(descriptionOf(s)), `${key}: ${s.slug}`);
+    assert.equal(content.includes('reef camera'), key.startsWith('camera'), `${key}: the camera named only with its numbers`);
+    assert.equal(content.includes('volunteers'), key.endsWith('clips'), `${key}: the volunteers named only with their clips`);
+  }
+});
+
+test('no species page carries Mapbox or a chip; every one has the Live nav above its h1, Species current', () => {
   for (const file of ['dist/live/species/index.html', ...list.map((s) => pageOf(s.slug))]) {
     const html = read(file);
     assert.doesNotMatch(html, /mapbox/i, file);
+    // Ruling O: the accent's chip is for what is alive right now; a status or a count here is caption text.
+    assert.doesNotMatch(html, /\bwb-chip\b/, `${file}: no chip`);
     const main = mainOf(html);
     const nav = main.match(/<nav class="site-subnav" aria-label="Live reef">[\s\S]*?<\/nav>/)?.[0] ?? '';
     assert.ok(nav && main.indexOf(nav) < main.indexOf('<h1'), `${file}: the Live nav above the h1`);
@@ -200,6 +271,12 @@ test('the card and the page print a reference photo\'s credit under it, as a cap
     assert.match(source, /pictureOf\(/, `${file}: the picture is pictureOf's`);
     assert.match(source, /picture\.credit && <(p|figcaption) class="wb-caption[^"]*">\{picture\.credit\}<\/\1>/, `${file}: the credit line`);
   }
+  // On the card the credit follows the link, so the link's name is the species', not the licence's.
+  const card = read('src/components/SpeciesCard.astro');
+  const template = card.slice(card.lastIndexOf('---'));
+  const credit = template.indexOf('picture.credit && <p class="wb-caption site-species__credit">');
+  assert.ok(credit > template.indexOf('</a>') && template.indexOf('</a>') > 0, 'the credit is after the card\'s </a>');
+  assert.ok(credit < template.indexOf('</li>'), 'and inside its list item');
 });
 
 test('the new words on the explorer\'s pages are marked for Katie', () => {
@@ -210,7 +287,7 @@ test('the new words on the explorer\'s pages are marked for Katie', () => {
     assert.match(lib.slice(Math.max(0, at - 300), at), /katie: review/, `${words} is marked`);
   }
   const page = read('src/pages/live/species/[slug].astro');
-  for (const words of ['Also listed as', '<dt>Family</dt>', '<dt>Order</dt>', '<dt>Conservation status</dt>', 'Photographs and clips from volunteers', 'Back to species', 'at Wahoo Bay: sightings', 'KIND_LABEL']) {
+  for (const words of ['Also listed as', '<dt>Family</dt>', '<dt>Order</dt>', '<dt>Conservation status</dt>', 'Photographs and clips from volunteers', 'Back to species', 'sightings from the reef camera', 'photographs and clips from volunteers', 'one of the species recorded', 'KIND_LABEL']) {
     const at = page.indexOf(words);
     assert.ok(at > 0, words);
     assert.match(page.slice(Math.max(0, at - 300), at), /katie: review/, `${words} is marked`);

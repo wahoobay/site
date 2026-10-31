@@ -3,7 +3,7 @@
 // scientific name as nomenclature writes it (src/lib/names.mjs), one entry and one page slug per species. Pure: no build.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { byCategory, categoryOf, pictureOf, seenTimes, slugify, unionSpecies } from '../src/lib/explorer.mjs';
+import { DOUBTFUL, byCategory, categoryOf, pictureOf, seenTimes, slugify, unionSpecies } from '../src/lib/explorer.mjs';
 import { binomial } from '../src/lib/names.mjs';
 import { binomial as syncBinomial } from '../scripts/sync-species.mjs';
 import { CATEGORIES } from '../src/lib/species.mjs';
@@ -257,8 +257,11 @@ test('categoryOf: the Java category wins; else the class: bony fish, sharks and 
 test('the committed snapshots: distinct species after the union, every species of both lists once, a slug each; categories', async () => {
   const { readFileSync } = await import('node:fs');
   const read = (file) => JSON.parse(readFileSync(file, 'utf8'));
-  const [fishList, javaList, mediaList] = [read('src/data/fish.json'), read('src/data/species.json'), read('src/data/media.json')];
-  const list = unionSpecies(fishList, javaList, mediaList);
+  const [allFish, javaList, mediaList] = [read('src/data/fish.json'), read('src/data/species.json'), read('src/data/media.json')];
+  const list = unionSpecies(allFish, javaList, mediaList);
+  // Ruling 42: the doubtful fish-ID rows stay in the snapshot and are read as if the app did not list them.
+  const fishList = allFish.filter((f) => !DOUBTFUL.has(binomial(f.latin)));
+  assert.equal(allFish.length - fishList.length, 1, 'the manatee\'s row is in the snapshot');
   assert.equal(new Set(list.map((s) => s.slug)).size, list.length, 'a slug each');
   for (const s of list) assert.match(s.slug, /^[a-z0-9]+(-[a-z0-9]+)*$/, s.slug);
   assert.deepEqual(list.filter((s) => s.species_id !== null).map((s) => s.species_id).sort(), fishList.map((f) => f.species_id).sort());
@@ -289,8 +292,47 @@ test('the committed snapshots: distinct species after the union, every species o
     assert.ok(CATEGORIES.includes(s.category), `${s.latin}: ${s.category}`);
     if (s.java_id !== null && javaCategory.get(s.java_id)) assert.equal(s.category, javaCategory.get(s.java_id), s.latin);
   }
-  assert.equal(list.find((s) => s.latin === 'Trichechus manatus')?.category, 'Mammal');
+  const manatee = list.find((s) => s.latin === 'Trichechus manatus');
+  assert.equal(manatee?.category, 'Mammal');
+  assert.deepEqual([manatee.species_id, manatee.sightings_total, manatee.latest_crop], [null, 0, null], 'Ruling 42: no fish-ID numbers');
+  assert.ok(manatee.java_id !== null && manatee.media.length > 0, 'its Java entry and photographs');
   assert.equal([...byCategory(list).values()].flat().length, list.length, 'byCategory: each species once');
+});
+
+// Ruling 42: the catalogue's manatee is a wrong classifier label (its crops are fish); the site shows its Java entry
+// alone, and a doubtful species only the fish-ID app lists has no page at all.
+test('unionSpecies reads a DOUBTFUL fish-ID species as if the app did not list it: the manatee is its Java entry alone', () => {
+  assert.ok(DOUBTFUL.has('Trichechus manatus'));
+  assert.ok(Object.isFrozen(DOUBTFUL));
+  const wrongLabel = {
+    species_id: 'Trichechus manatus',
+    latin: 'Trichechus manatus',
+    common: 'West Indian Manatee',
+    family: 'Trichechidae',
+    order: 'Sirenia',
+    class: 'Mammalia',
+    phylum: 'Chordata',
+    aphia_id: 127160,
+    photo: { url: '/api/public/species/Trichechus%20manatus/photo.jpg', attribution: '(c) someone' },
+    latest_crop: '/api/public/detections/161901/crop.jpg',
+    sightings_total: 41,
+    sightings_7d: 41,
+    first_seen: '2026-10-26T10:00:00Z',
+    last_seen: '2026-10-31T10:00:00Z',
+  };
+  const withIt = unionSpecies([...fish, wrongLabel], java, media);
+  const without = unionSpecies(fish, java, media);
+  assert.deepEqual(withIt, without, 'the same union as without the row');
+  const manatee = withIt.find((s) => s.slug === 'trichechus-manatus');
+  assert.equal(manatee.species_id, null);
+  assert.deepEqual([manatee.sightings_total, manatee.sightings_7d, manatee.last_seen, manatee.latest_crop, manatee.photo, manatee.order], [0, 0, null, null, null, null]);
+  assert.deepEqual([manatee.common, manatee.family, manatee.category, manatee.conservation_status, manatee.java_id], ['West Indian Manatee', 'Trichechidae', 'Mammal', 'Vulnerable', 12]);
+  assert.deepEqual(manatee.media.map((m) => m.id), [3, 1], 'its volunteers\' clips');
+  assert.equal(seenTimes(manatee.sightings_total), null, 'no "Seen N times"');
+  // Only the fish-ID app has it: no page.
+  assert.ok(!unionSpecies([...fish, wrongLabel], java.filter((j) => j.id !== 12), media).some((s) => s.latin === 'Trichechus manatus'));
+  // Named as the snapshot may write it.
+  assert.deepEqual(unionSpecies([...fish, { ...wrongLabel, latin: 'Trichechus Manatus' }], java, media), without);
 });
 
 // Rulings 13, 17 and AE: a species' picture, on its card and its page, is the catalogue's reference photo with its

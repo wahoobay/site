@@ -366,8 +366,8 @@ main { flex: 1 0 auto; }
 /* Species, the explorer's index: the category list under the lead, then each category's heading over its cards, two a
    row on phones, three from 36rem, four from 48rem, five from 64rem. A card (a link to the species' page) is a grid,
    not the design's side-by-side flex, so its picture is over its words at every width and the cards of a row line up.
-   The picture is a square as wide as the card, cropped to it, never stretched, with its credit under it when it has
-   one. A species without a picture is a card of words only (--text), as tall as its words, not its row's tallest. */
+   The picture is a square as wide as the card, cropped to it, never stretched; a reference photo's credit is under
+   the card. A species without a picture is a card of words only (--text), as tall as its words, not its row's tallest. */
 .site-species__jump { margin-top: var(--wb-space-5); }
 .site-species__group { margin-top: var(--wb-space-6); }
 .site-species {
@@ -387,7 +387,12 @@ main { flex: 1 0 auto; }
 @media (min-width: 64rem) {
   .site-species { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
-.site-species__item { display: flex; }
+/* A card fills its item, and a reference photo's credit, after the card's link, sits under it. */
+.site-species__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wb-space-1);
+}
 .site-species__item--text { align-self: start; }
 /* The cards of words only follow a category's pictures (the page orders them so) and start a row of their own. */
 .site-species__item:not(.site-species__item--text) + .site-species__item--text { grid-column-start: 1; }
@@ -396,7 +401,6 @@ main { flex: 1 0 auto; }
   flex: 1;
   align-content: start;
 }
-.site-species__picture { display: grid; gap: var(--wb-space-2); }
 .site-species__media {
   width: 100%;
   aspect-ratio: 1;

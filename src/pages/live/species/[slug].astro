@@ -28,8 +28,15 @@ interface Props {
 const { species: s } = Astro.props;
 const name = s.common ?? s.latin ?? s.slug;
 const picture = pictureOf(s);
-// katie: review (a new sentence: the species page's meta description)
-const description = `${s.common && s.latin ? `${s.common} (${s.latin})` : name} at Wahoo Bay: sightings from the reef camera and photographs from volunteers.`;
+// The meta description names only what the page shows: the reef camera's sightings for a species the fish-ID app
+// counts, the volunteers' photographs and clips for one that has some, both, or neither.
+const named = s.common && s.latin ? `${s.common} (${s.latin})` : name;
+// katie: review (new words: the species page's meta description, in its four shapes)
+const CAMERA = 'sightings from the reef camera';
+const VOLUNTEERS = 'photographs and clips from volunteers';
+const NEITHER = 'one of the species recorded at Wahoo Bay';
+const shows = [s.species_id !== null ? CAMERA : null, s.media.length > 0 ? VOLUNTEERS : null].filter((w) => w !== null);
+const description = shows.length > 0 ? `${named} at Wahoo Bay: ${shows.join(' and ')}.` : `${named}, ${NEITHER}.`;
 
 type Kind = 'image' | 'video';
 // katie: review (the 2a gallery's link labels, moved here: a clip's link says what it is, numbered when a species has

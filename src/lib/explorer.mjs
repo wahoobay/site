@@ -72,6 +72,17 @@ export const categoryOf = ({ fish, java }) => {
   return CLASS_CATEGORY.get(cls) ?? (phylum !== null && phylum !== 'Chordata' ? 'Invertebrate' : 'Other');
 };
 
+/**
+ * Ruling 42: the fish-ID species whose numbers the site does not show, by accepted name. The fish-ID catalogue lists
+ * the West Indian manatee (Trichechus manatus) with 41 "sightings" in a week, and every crop of them is a fish: a
+ * wrong classifier label, which the public site must not present as the camera's record. unionSpecies treats a
+ * doubtful species as if the fish-ID app did not list it (no id, no counts, no crop, no photo, so no "Seen N times",
+ * no island and no charts); on the Java list it keeps its own entry, photographs, words and category. The snapshot
+ * (src/data/fish.json) still carries the row. The fix is the fish-ID reviewers' (retire or retrain the label); a
+ * species leaves this list when they have.
+ */
+export const DOUBTFUL = Object.freeze(new Set(['Trichechus manatus']));
+
 // The order a card shows them in, as the 2a gallery's (scripts/sync-species.mjs, byName): the common name, else the
 // scientific one, then the scientific name.
 const byName = (/** @type {Species} */ a, /** @type {Species} */ b) =>
@@ -89,9 +100,10 @@ const byName = (/** @type {Species} */ a, /** @type {Species} */ b) =>
  * gallery showed them; its order, photo, latest crop and counts are the fish-ID app's, and its family the fish-ID
  * catalogue's where it has one. A common name or family missing from one list is taken from the other. Its category is
  * categoryOf's (the Java category, else the fish-ID class). A Java-only species has no fish-ID id, no photo of its own
- * and no counts (0, last seen null); a fish-ID-only species has no Java id and no clips. Two species that would share a
- * page (one scientific name twice in a list, or two names with one slug) throw: no species is dropped or doubled
- * silently.
+ * and no counts (0, last seen null); a fish-ID-only species has no Java id and no clips. A fish-ID species on DOUBTFUL
+ * (Ruling 42) is read as if the fish-ID app did not list it: a Java species of that name is Java-only, and one the Java
+ * list does not have is left out. Two species that would share a page (one scientific name twice in a list, or two
+ * names with one slug) throw: no other species is dropped or doubled silently.
  * @param {Fish[]} fish
  * @param {JavaSpecies[]} javaSpecies
  * @param {Media[]} media
@@ -103,7 +115,7 @@ export const unionSpecies = (fish, javaSpecies, media) => {
   const entries = [];
   /** @type {Map<string, Entry>} the fish-ID entries by accepted name */
   const byLatin = new Map();
-  for (const f of fish) {
+  for (const f of fish.filter((x) => !DOUBTFUL.has(keyOf(x.latin) ?? ''))) {
     const key = keyOf(f.latin);
     if (key !== null && byLatin.has(key)) throw new Error(`unionSpecies: ${slugify(key)} is listed twice in the fish-ID list`);
     const entry = { fish: f };
