@@ -15,6 +15,9 @@ import {
   lineNode,
   linePath,
   niceDomain,
+  extendRanking,
+  rankingOf,
+  seriesFor,
   stackModel,
   stackNode,
   ticks,
@@ -43,7 +46,7 @@ const COUNTS = {
   other: [22, 329, 182, 258, 534, 351, 0],
 };
 
-test('chartModel: stacked bars per day, the five species as series 1 to 5 and the rest as 6, drawn at the measured size', () => {
+test('chartModel: stacked bars per day, the five species as series 1 to 5 and the rest as "other", drawn at the measured size', () => {
   const chart = chartModel(COUNTS, { width: 600, height: 120 });
   assert.equal(chart.empty, false);
   assert.equal(chart.viewBox, '0 0 600 120', 'one unit is one CSS pixel, so the axis text keeps its token size');
@@ -53,15 +56,15 @@ test('chartModel: stacked bars per day, the five species as series 1 to 5 and th
     { series: '3', label: 'Harengula humeralis' },
     { series: '4', label: 'Striped Mullet' },
     { series: '5', label: 'Green Sea Turtle' },
-    { series: '6', label: 'Other species' },
+    { series: 'other', label: 'Other species' },
   ]);
   assert.deepEqual(chart.days.map((d) => d.label), ['Oct 25', 'Oct 26', 'Oct 27', 'Oct 28', 'Oct 29', 'Oct 30', 'Oct 31']);
   // No bar for a zero count; each day's bars stack from the axis up, series 1 at the bottom.
   const bars = chart.bars;
   assert.ok(bars.every((b) => b.height > 0));
-  assert.deepEqual(bars.filter((b) => b.day === 0).map((b) => b.series), ['6']);
+  assert.deepEqual(bars.filter((b) => b.day === 0).map((b) => b.series), ['other']);
   const oct29 = bars.filter((b) => b.day === 4);
-  assert.deepEqual(oct29.map((b) => b.series), ['1', '2', '3', '4', '5', '6']);
+  assert.deepEqual(oct29.map((b) => b.series), ['1', '2', '3', '4', '5', 'other']);
   for (let i = 1; i < oct29.length; i++) assert.ok(Math.abs(oct29[i].y + oct29[i].height - oct29[i - 1].y) < 1e-6, 'stacked');
   assert.ok(Math.abs(oct29[0].y + oct29[0].height - chart.baseline) < 1e-6, 'from the axis');
   // The tallest day (Oct 29, 1,296) fits under the top tick, and the ticks are round numbers.
@@ -82,6 +85,49 @@ test('chartModel: a narrow chart labels every other day, ending on today; all ze
   // No "Other species" when the rest is nothing.
   const fewer = chartModel({ ...COUNTS, series: COUNTS.series.slice(0, 2), other: COUNTS.other.map(() => 0) }, { width: 600, height: 120 });
   assert.deepEqual(fewer.legend.map((l) => l.series), ['1', '2']);
+});
+
+// Ruling 50: a species keeps its colour on a page. Its series is its place in the page's ranking (the trends page's
+// 30-day species order, the live page's 7-day order), taken once and reused for every chart; a species the ranking
+// does not reach is folded into "Other species", which is data-series="other" everywhere.
+test('seriesFor: a species\' place in the page\'s ranking, 1 to 8; past the eighth, or not ranked, "other"', () => {
+  const ranking = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
+  assert.equal(seriesFor('a', ranking), '1');
+  assert.equal(seriesFor('h', ranking), '8');
+  assert.equal(seriesFor('i', ranking), 'other', 'the design has eight series colours');
+  assert.equal(seriesFor('z', ranking), 'other');
+  assert.equal(seriesFor('a', []), 'other');
+  assert.equal(seriesFor('a', null), 'other');
+});
+
+test('rankingOf and extendRanking: a counts answer\'s species in its order; a page\'s ranking only ever grows at its end', () => {
+  assert.deepEqual(rankingOf(COUNTS), ['Diplodus argenteus', 'Ocyurus chrysurus', 'Harengula humeralis', 'Mugil cephalus', 'Chelonia mydas']);
+  assert.deepEqual(rankingOf(null), []);
+  assert.deepEqual(rankingOf({ series: [{ species_id: 'x' }, { latin: 'Latin only' }, { common: 'No name' }, null] }), ['x', 'Latin only'], 'the id, else the Latin');
+  const week = { series: [{ species_id: 'Mugil cephalus' }, { species_id: 'Pterois volitans' }, { species_id: 'Diplodus argenteus' }] };
+  const page = extendRanking(rankingOf(COUNTS), week);
+  assert.deepEqual(page, [...rankingOf(COUNTS), 'Pterois volitans'], 'a species already placed keeps its place');
+  assert.deepEqual(extendRanking(page, week), page, 'the same answer again changes nothing');
+  assert.deepEqual(extendRanking(null, COUNTS), rankingOf(COUNTS));
+});
+
+test('chartModel with a page\'s ranking: the colours follow the species, not the order; one the ranking cannot colour joins "other"', () => {
+  // The same species in another order: each keeps the series its place in the ranking gives it.
+  const swapped = { ...COUNTS, series: [COUNTS.series[3], COUNTS.series[0]], other: COUNTS.other };
+  const ranking = rankingOf(COUNTS);
+  const m = chartModel(swapped, { width: 600, height: 120 }, { ranking });
+  assert.deepEqual(m.legend, [{ series: '4', label: 'Striped Mullet' }, { series: '1', label: 'Silver Porgy' }, { series: 'other', label: 'Other species' }]);
+  // Mullet at the bottom of each stack, as the answer orders them: the order is the answer's, the colour the species'.
+  assert.deepEqual(m.bars.filter((b) => b.day === 4).map((b) => b.series), ['4', '1', 'other']);
+  // Eight species placed already: a ninth is folded into "other", its counts added to it.
+  const full = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+  const ninth = { buckets: ['2026-10-30', '2026-10-31'], series: [{ species_id: 'p2', common: 'Two', counts: [1, 2] }, { species_id: 'n9', common: 'Nine', counts: [3, 4] }], other: [5, 0] };
+  const folded = chartModel(ninth, { width: 600, height: 120 }, { ranking: full });
+  assert.deepEqual(folded.legend, [{ series: '2', label: 'Two' }, { series: 'other', label: 'Other species' }]);
+  const other = folded.bars.filter((b) => b.series === 'other');
+  assert.equal(other.length, 2);
+  // Without a ranking a chart ranks its own answer: positions, as before, and "other" for the rest.
+  assert.deepEqual(chartModel(swapped, { width: 600, height: 120 }).legend.map((l) => l.series), ['1', '2', 'other']);
 });
 
 // The browser check (blocked stream, 1440): a ResizeObserver once reported the SVG at 0 wide, and the chart drew bars of
@@ -106,6 +152,13 @@ test('chartNode: the figure with its caption, the SVG to measure, and the legend
   const empty = chartNode({ counts: null });
   assert.deepEqual(empty.children.map((c) => c.props.className ?? c.type), ['figcaption', 'wb-chart__empty']);
   assert.equal(text(empty.children[1]), emptyText('chart'));
+  // Ruling 50: in a panel with its own title the caption is for a screen reader only, the figure's name; not shown.
+  const panel = chartNode({ counts: COUNTS, hiddenCaption: true });
+  assert.equal(panel.children[0].type, 'figcaption');
+  assert.equal(panel.children[0].props.className, 'wb-sr-only');
+  assert.equal(text(panel.children[0]), 'Sightings per day');
+  assert.equal(chartNode({ counts: null, hiddenCaption: true }).children[0].props.className, 'wb-sr-only');
+  assert.equal(figure.children[0].props.className, undefined, 'shown by default');
 });
 
 test('the chart\'s new words are marked for Katie, and it sets no style', () => {
@@ -361,6 +414,12 @@ test('lineNode: a tall chart frame with its caption, the line as a path of serie
   const empty = lineNode({ ...LINE, points: [], caption: 'Water temperature', label: 'x', size: { width: 600, height: 300 }, after: link });
   assert.deepEqual(empty.children.map((c) => c.props.className ?? c.type), ['figcaption', 'wb-chart__empty', 'a']);
   assert.equal(text(empty.children[1]), emptyText('chart'));
+  // Ruling 50: "pH" keeps its case, against the caption's capitals (the design's .wb-as-is), in every state.
+  for (const points of [LINE.points, undefined, []]) {
+    const ph = lineNode({ ...LINE, points, caption: 'pH', asIs: true, label: 'pH over the last 7 days', size: { width: 600, height: 300 } });
+    assert.equal(ph.children[0].props.className, 'wb-as-is');
+  }
+  assert.equal(figure.children[0].props.className, undefined);
 });
 
 const TOP6 = {
@@ -368,12 +427,12 @@ const TOP6 = {
   series: [...COUNTS.series, { species_id: 'Pterois volitans', latin: 'Pterois volitans', common: 'Lionfish (invasive)', counts: [0, 25, 17, 22, 77, 45, 0] }],
 };
 
-test('stackModel: the six species most seen as series 1 to 6 and the rest as 7, round ticks from zero, days labelled', () => {
+test('stackModel: the six species most seen as series 1 to 6 and the rest as "other", round ticks from zero, days labelled', () => {
   const m = stackModel(TOP6, { width: 600, height: 300 }, { granularity: 'day' });
   assert.equal(m.empty, false);
-  assert.deepEqual(m.legend.map((l) => l.series), ['1', '2', '3', '4', '5', '6', '7']);
+  assert.deepEqual(m.legend.map((l) => l.series), ['1', '2', '3', '4', '5', '6', 'other']);
   assert.deepEqual(m.legend.map((l) => l.label).slice(5), ['Lionfish (invasive)', 'Other species']);
-  assert.ok(m.bars.every((b) => /^[1-7]$/.test(b.series) && b.height > 0));
+  assert.ok(m.bars.every((b) => /^([1-6]|other)$/.test(b.series) && b.height > 0));
   assert.equal(m.ticks[0].value, 0);
   assert.ok(m.ticks.every((t) => Number.isInteger(t.value)), 'whole sightings');
   assert.ok(m.ticks.at(-1).value >= 1296 + 77, 'the tallest day under the top tick');
@@ -433,5 +492,6 @@ test('the chart module sets no style, and draws only with the design\'s chart cl
   assert.doesNotMatch(source, /\bstyle\b\s*:/);
   assert.doesNotMatch(source, /Week of|LABEL_ROOM/, 'no words no visitor sees; one label-room rule');
   const classes = [...source.matchAll(/className: '([^']+)'/g)].flatMap((m) => m[1].split(' '));
-  assert.ok(classes.every((c) => c.startsWith('wb-chart')), classes.join());
+  // The design's chart classes, its hidden-text utility for a panel chart's caption, and .wb-as-is for "pH".
+  assert.ok(classes.every((c) => c.startsWith('wb-chart') || c === 'wb-sr-only' || c === 'wb-as-is'), classes.join());
 });

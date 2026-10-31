@@ -17,6 +17,7 @@ import {
   mergeRound,
   pathsOf,
   pointsOf,
+  rainFromGauge,
   rangeOf,
   renderState,
   trendsTiles,
@@ -76,7 +77,8 @@ const loaded = (range = THIRTY, answers = { counts: COUNTS, history: HISTORY, la
   );
 const SIZES = Object.fromEntries(CHART_KEYS.map((key) => [key, key === 'species' ? { width: 900, height: 450 } : { width: 440, height: 220 }]));
 
-const CAPTIONS = ['Species seen per day', 'Water temperature', 'pH', 'Oxygen', 'Turbidity', 'Air temperature', 'Wind speed', 'Rain gauge, accumulated (mm)'];
+const RAIN = 'Rain (mm, from the station\'s gauge)';
+const CAPTIONS = ['Species seen per day', 'Water temperature', 'pH', 'Oxygen', 'Turbidity', 'Air temperature', 'Wind speed', RAIN];
 /** The class of each of the island's own parts, in order (Ruling 46: the switch under the tiles, above the charts). */
 const parts = (tree) => tree.children.map((c) => c.props.className);
 
@@ -106,6 +108,11 @@ test('the four ranges (Ruling 44): 7 days, 30 days, 1 year and All, 30 days firs
     '/api/public/exports/water_quality.csv?days=365',
   ]);
   assert.deepEqual(pathsOf(THIRTY), [countsPath(THIRTY), historyPath(THIRTY), '/environment/latest']);
+  // Ruling 50: until the page has its species ranking (the 30-day order), another range's round asks for the 30-day
+  // counts too.
+  assert.deepEqual(pathsOf(rangeOf('7d')), [countsPath(rangeOf('7d')), historyPath(rangeOf('7d')), '/environment/latest', countsPath(THIRTY)]);
+  assert.deepEqual(pathsOf(rangeOf('7d'), { ranked: true }), [countsPath(rangeOf('7d')), historyPath(rangeOf('7d')), '/environment/latest']);
+  assert.deepEqual(pathsOf(THIRTY, { ranked: false }), pathsOf(THIRTY), 'the 30-day round has it already');
   assert.equal(REFRESH_MS, 10 * 60_000, 'every ten minutes');
 });
 
@@ -118,6 +125,18 @@ test('pointsOf: a measure\'s readings in its unit, a gap where a bucket has no r
   assert.deepEqual(ph, [8.01, 8.01, null, 8.01, null, 8.01, 8.01]);
   assert.deepEqual(pointsOf([], { field: 'ph' }, BUCKET), []);
   assert.deepEqual(pointsOf(null, { field: 'ph' }, BUCKET), []);
+});
+
+// Ruling 53: the station's rain gauge reports a running total that resets; the chart draws the rain in each bucket,
+// the total's rise since the bucket before, a reset (the total falling) counting as no rain.
+test('rainFromGauge: each bucket\'s rise in the gauge\'s total; a reset is zero; the first reading, and one after a gap, unknown', () => {
+  const t = (i) => i * BUCKET;
+  const gauge = [0, 0.4, 1.6, 1.6, 0.2, 0.6, null, 2.0, 2.5].map((v, i) => ({ t: t(i), v }));
+  const rain = rainFromGauge(gauge);
+  assert.deepEqual(rain.map((p) => p.t), gauge.map((p) => p.t), 'the same buckets');
+  assert.deepEqual(rain.map((p) => (p.v === null ? null : Math.round(p.v * 100) / 100)), [null, 0.4, 1.2, 0, 0, 0.4, null, null, 0.5]);
+  assert.deepEqual(rainFromGauge([]), []);
+  assert.deepEqual(rainFromGauge([{ t: 0, v: 3 }]), [{ t: 0, v: null }]);
 });
 
 test('trendsTiles: water in °F with °C, pH, oxygen, turbidity, air in °F with °C, wind in mph with m/s; a missing reading is v: null', () => {
@@ -157,6 +176,8 @@ test('mergeRound: each answer by its path with when it came; a failed fetch keep
   assert.deepEqual(failed.answers[historyPath(THIRTY)].water, [], 'an answer that came is taken');
   const healed = mergeRound(failed, [[countsPath(THIRTY), { status: 'fulfilled', value: COUNTS }]], later + REFRESH_MS);
   assert.equal(healed.failed, false);
+  assert.deepEqual(first.ranking, COUNTS.series.map((s) => s.species_id), 'the 30-day order is the page\'s ranking');
+  assert.equal(healed.ranking, first.ranking, 'taken once');
   assert.equal(mergeRound(null, [[LATEST, { status: 'rejected', reason: new Error('x') }]], NOW).failed, true);
 });
 
@@ -193,15 +214,41 @@ test('renderState before any answer (the build): the range switch with 30 days p
   assert.ok(csv.every((a) => classed(a, 'wb-sr-only').length === 1), 'each link says which file it is to a screen reader');
 });
 
-test('renderState loaded: stacked bars as series 1 to 7 with a square legend, a line per measure, the tiles and their readings\' age', () => {
+// Ruling 50: a species keeps its colour from range to range: its place in the 30-day order, taken once; a species
+// the 30-day chart did not have takes the next colour, and keeps it.
+test('mergeRound and renderState: the species chart\'s colours follow the 30-day ranking in every range', () => {
+  const week = {
+    ...COUNTS,
+    series: [COUNTS.series[3], { species_id: 'Sparisoma viride', latin: 'Sparisoma viride', common: 'Stoplight Parrotfish', counts: [0, 9, 9, 9, 9, 9, 0] }, COUNTS.series[0]],
+  };
+  const seven = rangeOf('7d');
+  let store = loaded();
+  store = mergeRound(store, [[countsPath(seven), { status: 'fulfilled', value: week }], [historyPath(seven), { status: 'fulfilled', value: HISTORY }]], NOW + 1);
+  const legendOf = (tree) => classed(classed(tree, 'wb-chart__legend')[0], 'wb-chart__legend')[0].children.map((li) => [li.props['data-series'], text(li)]);
+  assert.deepEqual(legendOf(renderState({ range: '7d', ...store, sizes: SIZES })), [
+    ['4', 'Striped Mullet'],
+    ['7', 'Stoplight Parrotfish'],
+    ['1', 'Silver Porgy'],
+    ['other', 'Other species'],
+  ]);
+  assert.deepEqual(store.ranking.slice(6), ['Sparisoma viride'], 'a species new to the page is added once, at the end');
+  // Back to 30 days: the same colours as before.
+  assert.deepEqual(legendOf(renderState({ range: '30d', ...store, sizes: SIZES })).map(([series]) => series), ['1', '2', '3', '4', '5', '6', 'other']);
+  // Before the 30-day answer has come, a chart ranks its own answer.
+  const early = mergeRound(null, [[countsPath(seven), { status: 'fulfilled', value: week }]], NOW);
+  assert.equal(early.ranking, undefined);
+  assert.deepEqual(legendOf(renderState({ range: '7d', ...early, sizes: SIZES })).map(([series]) => series), ['1', '2', '3', 'other']);
+});
+
+test('renderState loaded: stacked bars as series 1 to 6 and "other" with a square legend, a line per measure, the tiles and their readings\' age', () => {
   const store = loaded();
   const tree = renderState({ range: '30d', ...store, sizes: SIZES });
   const [species, ...lines] = nodes(tree).filter((n) => n.type === 'figure');
   const bars = classed(species, 'wb-chart__bar');
   assert.ok(bars.length > 20);
-  assert.ok(bars.every((b) => /^[1-7]$/.test(b.props['data-series'])));
+  assert.ok(bars.every((b) => /^([1-6]|other)$/.test(b.props['data-series'])));
   const legend = classed(species, 'wb-chart__legend')[0];
-  assert.deepEqual(legend.children.map((li) => li.props['data-series']), ['1', '2', '3', '4', '5', '6', '7']);
+  assert.deepEqual(legend.children.map((li) => li.props['data-series']), ['1', '2', '3', '4', '5', '6', 'other']);
   assert.ok(legend.children.every((li) => li.props['data-kind'] === 'bar'));
   assert.equal(text(legend.children[6]), 'Other species');
   assert.match(species.children[1].props['aria-label'], /^Species seen per day over the last 30 days: Silver Porgy 751, /);
@@ -219,6 +266,11 @@ test('renderState loaded: stacked bars as series 1 to 7 with a square legend, a 
   assert.match(lines[0].children[1].props['aria-label'], /^Water temperature over the last 30 days: from 80\.78°F to 82\.76°F$/);
   const tiles = classed(tree, 'wb-tile');
   assert.deepEqual(tiles.map((t) => text(classed(t, 'wb-tile__k')[0])), ['Water', 'pH', 'Oxygen', 'Turbidity', 'Air', 'Wind']);
+  // Ruling 50: "pH" keeps its case, on its tile and its chart's caption.
+  assert.deepEqual(tiles.map((t) => classed(t, 'wb-as-is').length), [0, 1, 0, 0, 0, 0]);
+  assert.deepEqual(lines.map((f) => f.children[0].props.className ?? null), [null, 'wb-as-is', null, null, null, null, null]);
+  // Ruling 53: the rain chart draws each bucket's rain, the gauge's rise (0, 0.4, 1.6 mm: 0.4 then 1.2).
+  assert.match(lines[6].children[1].props['aria-label'], /^Rain \(mm, from the station's gauge\) over the last 30 days: from 0\.4 mm to 1\.2 mm$/);
   assert.equal(text(classed(tiles[5], 'wb-tile__v')[0]), '13mph5.7 m/s');
   const age = classed(tree, 'site-trends__age')[0];
   assert.equal(text(age), 'Water measured 5 days ago. Weather measured 3 min ago.');
@@ -239,7 +291,7 @@ test('renderState: a near-flat pH is a nearly flat line on distinct labels; flat
   const figures = Object.fromEntries(nodes(tree).filter((n) => n.type === 'figure').map((f) => [text(f.children[0]), f]));
   const yLabels = (f) => nodes(f).filter((n) => n.type === 'text' && n.props.textAnchor === 'end').map(text);
   const tickValues = (f) => yLabels(f).map((l) => Number(l.replace(/[^\d.-]/g, '')));
-  for (const [caption, span] of [['pH', 0.5], ['Water temperature', 3.6], ['Oxygen', 10], ['Turbidity', 1], ['Air temperature', 3.6], ['Wind speed', 4.47], ['Rain gauge, accumulated (mm)', 5]]) {
+  for (const [caption, span] of [['pH', 0.5], ['Water temperature', 3.6], ['Oxygen', 10], ['Turbidity', 1], ['Air temperature', 3.6], ['Wind speed', 4.47], [RAIN, 5]]) {
     const labels = yLabels(figures[caption]);
     assert.equal(new Set(labels).size, labels.length, `${caption}: ${labels.join(', ')}`);
     const values = tickValues(figures[caption]);
@@ -248,7 +300,7 @@ test('renderState: a near-flat pH is a nearly flat line on distinct labels; flat
   const path = nodes(figures.pH).find((n) => n.type === 'path').props.d;
   const ys = [...path.matchAll(/[ML][\d.]+ ([\d.]+)/g)].map((m) => Number(m[1]));
   assert.ok(Math.max(...ys) - Math.min(...ys) < 0.05 * 220, `pH's 0.01 is ${Math.max(...ys) - Math.min(...ys)}px, not the chart's height`);
-  for (const caption of ['Oxygen', 'Turbidity', 'Wind speed', 'Rain gauge, accumulated (mm)']) {
+  for (const caption of ['Oxygen', 'Turbidity', 'Wind speed', RAIN]) {
     assert.ok(tickValues(figures[caption]).every((v) => v >= 0), `${caption}: ${yLabels(figures[caption]).join(', ')}`);
   }
 });
@@ -310,7 +362,7 @@ test('renderState: a range button tells the island which range was chosen; the m
 
 test('the new words are marked for Katie, and the trends render sets no style', () => {
   const lib = readFileSync('src/lib/trends.mjs', 'utf8');
-  for (const words of ["'Species seen per day'", "'Species seen per week'", "'Water temperature'", "'Air temperature'", "'Wind speed'", "'Rain gauge, accumulated (mm)'", "'Chart range'", "'Air'", "'Wind'", "'Water measured '", "'Weather measured '", "'Species'", "'Weather'"]) {
+  for (const words of ["'Species seen per day'", "'Species seen per week'", "'Water temperature'", "'Air temperature'", "'Wind speed'", "'Rain (mm, from the station\\'s gauge)'", "'Chart range'", "'Air'", "'Wind'", "'Water measured '", "'Weather measured '", "'Species'", "'Weather'"]) {
     const at = lib.indexOf(words);
     assert.ok(at > 0, words);
     assert.match(lib.slice(lib.lastIndexOf('\n', lib.lastIndexOf('\n', at) - 1), at), /katie: review/, `${words} is marked`);
@@ -325,7 +377,7 @@ test('the new words are marked for Katie, and the trends render sets no style', 
 // --- the built pages -----------------------------------------------------------------------------------------------
 
 const read = (file) => readFileSync(file, 'utf8');
-const decode = (s) => s.replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&amp;', '&');
+const decode = (s) => s.replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&#x27;', "'").replaceAll('&amp;', '&');
 const islandsOf = (html) =>
   [...html.matchAll(/<astro-island\b([^>]*)>/g)].map((m) => {
     const attr = (name) => m[1].match(new RegExp(`\\b${name}="([^"]*)"`))?.[1] ?? null;
@@ -369,7 +421,8 @@ test('/live/trends/: the island as built has the range switch, the figures in or
   assert.match(island, /<button class="wb-seg__btn" type="button" aria-pressed="true">30 days<\/button>/);
   // As built (no reading yet, so no tiles), the switch is the island's first part and right above the first chart's section.
   assert.match(island, /<div class="site-trends"><div class="wb-seg site-trends__range"[^>]*>(?:<button\b[^>]*>[^<]*<\/button>){4}<\/div><section class="site-trends__section" aria-labelledby="trends-species">/);
-  const captions = [...island.matchAll(/<figure class="wb-chart wb-chart--tall"><figcaption>([^<]+)<\/figcaption>/g)].map((m) => decode(m[1]));
+  const captions = [...island.matchAll(/<figure class="wb-chart wb-chart--tall"><figcaption(?: class="wb-as-is")?>([^<]+)<\/figcaption>/g)].map((m) => decode(m[1]));
+  assert.match(island, /<figcaption class="wb-as-is">pH<\/figcaption>/);
   assert.deepEqual(captions, CAPTIONS);
   const csv = [...island.matchAll(/<a href="([^"]+)">CSV/g)].map((m) => m[1]);
   assert.equal(csv.length, 8);

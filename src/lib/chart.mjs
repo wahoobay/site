@@ -4,12 +4,16 @@
 // no DOM, part of the islands' VDOM (h in src/lib/vdom.mjs), so the tests read it without a browser
 // (tests/chart.test.mjs). Its charts:
 // - chartNode: the live camera page's species chart (/live/, "Species this week": GET /api/public/species/counts
-//   ?days=7&top=5, the five species most seen as series 1 to 5 and every other species as 6, the days' bars stacked
-//   from the axis), and a species page's two (src/lib/species-live.mjs: the day's hours, "07:00", and the last twelve
-//   months, "2026-09", each with a caption of its own);
+//   ?days=7&top=5, the five species most seen and every other species as "Other species", the days' bars stacked
+//   from the axis; in its titled panel the caption is for a screen reader only), and a species page's two
+//   (src/lib/species-live.mjs: the day's hours, "07:00", and the last twelve months, "2026-09", each with a caption of
+//   its own);
 // - stackNode and lineNode: the trends page's (/live/trends/, src/lib/trends.mjs): the species seen per day or week
-//   (the six most seen as series 1 to 6, the rest as 7) and the sensors' history as lines, both in the tall frame,
+//   (the six most seen, and the rest as "Other species") and the sensors' history as lines, both in the tall frame,
 //   on round ticks (niceDomain, ticks) and dates at Wahoo Bay's midnight (timeTicks).
+// A species' colour is its own on a page (Ruling 50): seriesFor gives it its place in the page's ranking (the trends
+// page's 30-day species order, the live page's 7-day order, taken once and grown at its end by extendRanking), so a
+// species keeps its colour from range to range and refresh to refresh; "Other species" is data-series="other".
 import { emptyText } from './public-api.mjs';
 import { h } from './vdom.mjs';
 
@@ -45,6 +49,48 @@ export const bucketLabel = (bucket, granularity) => {
   const hour = /^(\d{2}):00$/.exec(bucket);
   if (hour) return `${Number(hour[1]) % 12 || 12} ${Number(hour[1]) < 12 ? 'am' : 'pm'}`;
   return bucket;
+};
+
+// --- A species' colour on a page (Ruling 50) -------------------------------------------------------------------
+
+/** The design's series colours, 1 to 8; past them is "other". */
+const SERIES_COLOURS = 8;
+
+/** A counts series' species: its id, else its Latin; null for neither. */
+const speciesOf = (/** @type {any} */ s) => (s && (s.species_id ?? s.latin)) || null;
+
+/**
+ * The species of a counts answer (GET /api/public/species/counts, or a chart in its shape), in its order, the most
+ * seen first.
+ * @param {any} counts
+ * @returns {string[]}
+ */
+export const rankingOf = (counts) => (Array.isArray(counts?.series) ? counts.series.map(speciesOf).filter((id) => id !== null).map(String) : []);
+
+/**
+ * A page's ranking with the species of `counts` it does not have yet added at its end, in the answer's order: a
+ * species already placed keeps its place, so its colour, for the rest of the page's life. No ranking yet is the
+ * answer's own.
+ * @param {string[] | null | undefined} ranking
+ * @param {any} counts
+ * @returns {string[]}
+ */
+export const extendRanking = (ranking, counts) => {
+  const known = Array.isArray(ranking) ? ranking : [];
+  const added = rankingOf(counts).filter((id, i, all) => !known.includes(id) && all.indexOf(id) === i);
+  return added.length > 0 ? [...known, ...added] : known;
+};
+
+/**
+ * A species' series on a page: its place in the page's ranking, "1" to "8"; "other" past the eighth place, or for a
+ * species the ranking does not have.
+ * @param {string} speciesId
+ * @param {string[] | null | undefined} ranking
+ * @returns {string}
+ */
+export const seriesFor = (speciesId, ranking) => {
+  const at = Array.isArray(ranking) ? ranking.indexOf(speciesId) : -1;
+  return at >= 0 && at < SERIES_COLOURS ? String(at + 1) : 'other';
 };
 
 // --- The maths: domains, ticks, scales, lines and stacked bars ----------------------------------------------------
@@ -325,24 +371,32 @@ const plottable = (/** @type {Size | null | undefined} */ size) =>
   size != null && size.width - PAD.left - PAD.right >= MIN_PLOT && size.height - PAD.top - PAD.bottom >= MIN_PLOT;
 
 /**
- * The counts as series: the `top` species most seen (series 1 to `top`) and every other species summed (the next
- * series, when there are any), each with a count per bucket; null when there is nothing to draw. The label, the SVG's
- * aria-label, is the caption, the span ("Oct 25 to Oct 31", or the words given) and each series' total.
+ * The counts as series: the `top` species most seen, each in its colour on the page (seriesFor its place in
+ * `ranking`, which the answer's own order extends; without one, the answer's order), and every other species summed
+ * as "other", with a species the ranking cannot colour added to it; each with a count per bucket, in the answer's
+ * order, "other" last; null when there is nothing to draw. The label, the SVG's aria-label, is the caption, the span
+ * ("Oct 25 to Oct 31", or the words given) and each series' total.
  * @param {any} counts GET /api/public/species/counts, or a species page's chart in its shape
- * @param {{ caption?: string, top?: number, span?: string }} [options]
+ * @param {{ caption?: string, top?: number, span?: string, ranking?: string[] | null }} [options]
  */
-const chartSeries = (counts, { caption = SIGHTINGS_PER_DAY, top = 5, span } = {}) => {
+const chartSeries = (counts, { caption = SIGHTINGS_PER_DAY, top = 5, span, ranking } = {}) => {
   const buckets = counts && Array.isArray(counts.buckets) ? counts.buckets.map(String) : [];
   const n = buckets.length;
   const clean = (/** @type {unknown} */ list) =>
     Array.isArray(list) && list.length === n ? list.map((v) => (typeof v === 'number' && v > 0 ? v : 0)) : buckets.map(() => 0);
-  const series = (Array.isArray(counts?.series) ? counts.series : []).slice(0, top).map((/** @type {any} */ s, /** @type {number} */ i) => ({
-    series: String(i + 1),
-    label: String(s.common || s.latin || s.species_id),
-    counts: clean(s.counts),
-  }));
+  const shown = (Array.isArray(counts?.series) ? counts.series : []).slice(0, top);
+  const page = extendRanking(ranking, { series: shown });
   const other = clean(counts?.other);
-  if (other.some((v) => v > 0)) series.push({ series: String(series.length + 1), label: OTHER, counts: other });
+  /** @type {{ series: string, label: string, counts: number[] }[]} */
+  const series = [];
+  for (const s of shown) {
+    const id = speciesOf(s);
+    const colour = id === null ? 'other' : seriesFor(String(id), page);
+    const values = clean(s?.counts);
+    if (colour === 'other') values.forEach((v, i) => (other[i] += v));
+    else series.push({ series: colour, label: String(s.common || s.latin || s.species_id), counts: values });
+  }
+  if (other.some((v) => v > 0)) series.push({ series: 'other', label: OTHER, counts: other });
   const totals = buckets.map((_, d) => series.reduce((sum, s) => sum + s.counts[d], 0));
   const max = Math.max(0, ...totals);
   if (n === 0 || max === 0) return null;
@@ -359,9 +413,10 @@ const chartSeries = (counts, { caption = SIGHTINGS_PER_DAY, top = 5, span } = {}
  * nothing to draw.
  * @param {any} counts GET /api/public/species/counts?days=7&top=5
  * @param {Size} size the SVG's size on the page
+ * @param {{ ranking?: string[] | null }} [options] the page's ranking (seriesFor)
  */
-export const chartModel = (counts, { width, height }) => {
-  const data = chartSeries(counts);
+export const chartModel = (counts, { width, height }, { ranking } = {}) => {
+  const data = chartSeries(counts, { ranking });
   if (!data) return /** @type {const} */ ({ empty: true });
   const n = data.buckets.length;
   const plotW = width - PAD.left - PAD.right;
@@ -394,10 +449,10 @@ export const chartModel = (counts, { width, height }) => {
  * short of the right edge by what that label needs to stay in the frame. `empty` when there is nothing to draw.
  * @param {any} counts GET /api/public/species/counts?days=…&granularity=…&top=6
  * @param {Size} size
- * @param {{ granularity?: 'day' | 'week', top?: number }} [options]
+ * @param {{ granularity?: 'day' | 'week', top?: number, ranking?: string[] | null }} [options]
  */
-export const stackModel = (counts, { width, height }, { granularity = 'day', top = 6 } = {}) => {
-  const data = chartSeries(counts, { top });
+export const stackModel = (counts, { width, height }, { granularity = 'day', top = 6, ranking } = {}) => {
+  const data = chartSeries(counts, { top, ranking });
   const domain = data && niceDomain([0, data.max], { zero: true, floor: 0 });
   if (!data || !domain) return /** @type {const} */ ({ empty: true });
   const values = ticks(domain).filter(Number.isInteger);
@@ -492,27 +547,34 @@ const legendNode = (/** @type {{ series: string, label: string }[]} */ legend) =
 const emptyNode = () => h('p', { className: 'wb-chart__empty' }, emptyText('chart'));
 
 /**
- * The frame: the caption, the drawing (or the empty sentence), then what follows it (a legend, a link).
- * @param {string} caption
+ * The frame: the caption, the drawing (or the empty sentence), then what follows it (a legend, a link). The caption
+ * can carry a class: wb-sr-only in a panel whose title already says what the chart is (it stays the figure's name for
+ * a screen reader), wb-as-is for a caption that keeps its case ("pH").
+ * @param {string | { text: string, className?: string }} caption
  * @param {boolean} tall the trends page's 2:1 frame
  * @param {...any} children
  */
-const frameNode = (caption, tall, ...children) =>
-  h('figure', { className: tall ? 'wb-chart wb-chart--tall' : 'wb-chart' }, h('figcaption', null, caption), ...children);
+const frameNode = (caption, tall, ...children) => {
+  const { text, className } = typeof caption === 'string' ? { text: caption, className: undefined } : caption;
+  return h('figure', { className: tall ? 'wb-chart wb-chart--tall' : 'wb-chart' }, h('figcaption', className ? { className } : null, text), ...children);
+};
 
 /**
  * The live page's species panel chart (and a species page's two): the design's chart frame with its caption, the SVG
  * (drawn once the island has measured it), and the legend; the empty chart's sentence when there is nothing to draw.
- * `caption` is "Sightings per day" unless the chart has its own (a species page's).
- * @param {{ counts?: any, chartSize?: Size | null, chartRef?: any, caption?: string }} data
+ * `caption` is "Sightings per day" unless the chart has its own (a species page's); `hiddenCaption` keeps it for a
+ * screen reader only, in a panel whose title already says what the chart shows (Ruling 50). `ranking` is the page's
+ * (seriesFor).
+ * @param {{ counts?: any, chartSize?: Size | null, chartRef?: any, caption?: string, hiddenCaption?: boolean, ranking?: string[] | null }} data
  * @returns {VNode}
  */
 export const chartNode = (data) => {
-  const caption = data.caption ?? SIGHTINGS_PER_DAY;
-  const series = chartSeries(data.counts, { caption });
+  const words = data.caption ?? SIGHTINGS_PER_DAY;
+  const caption = data.hiddenCaption ? { text: words, className: 'wb-sr-only' } : words;
+  const series = chartSeries(data.counts, { caption: words, ranking: data.ranking });
   if (!series) return frameNode(caption, false, emptyNode());
   // The SVG is drawn once the island has measured it (data.chartSize, a ResizeObserver on data.chartRef).
-  const model = data.chartSize && plottable(data.chartSize) ? chartModel(data.counts, data.chartSize) : null;
+  const model = data.chartSize && plottable(data.chartSize) ? chartModel(data.counts, data.chartSize, { ranking: data.ranking }) : null;
   const drawing =
     model && !model.empty
       ? [gridNode(model), barsNode(model.bars), axisNode(model, model.days)]
@@ -530,15 +592,15 @@ export const chartNode = (data) => {
  * measure, labelled with the caption and the span; with nothing to draw, the empty sentence; else the stacked bars
  * (stackModel, once measured), labelled with each series' total, and the square-keyed legend. `after` follows the
  * legend (the page's CSV link).
- * @param {{ counts?: any, granularity?: 'day' | 'week', caption: string, span: string, size?: Size | null, chartRef?: any, after?: any }} data
+ * @param {{ counts?: any, granularity?: 'day' | 'week', caption: string, span: string, size?: Size | null, chartRef?: any, after?: any, ranking?: string[] | null }} data
  * @returns {VNode}
  */
 export const stackNode = (data) => {
-  const { caption, span } = data;
+  const { caption, span, ranking } = data;
   if (data.counts === undefined) return frameNode(caption, true, h('svg', { ref: data.chartRef, role: 'img', 'aria-label': `${caption} ${span}` }), data.after);
-  const series = chartSeries(data.counts, { caption, top: 6, span });
+  const series = chartSeries(data.counts, { caption, top: 6, span, ranking });
   if (!series) return frameNode(caption, true, emptyNode(), data.after);
-  const model = data.size && plottable(data.size) ? stackModel(data.counts, data.size, { granularity: data.granularity }) : null;
+  const model = data.size && plottable(data.size) ? stackModel(data.counts, data.size, { granularity: data.granularity, ranking }) : null;
   const drawing =
     model && !model.empty
       ? [gridNode(model), barsNode(model.bars), axisNode(model, model.days)]
@@ -556,11 +618,13 @@ export const stackNode = (data) => {
  * A trends line chart in the tall frame: before its answer has arrived (`points` undefined) the SVG to measure,
  * labelled `label`; with no value to draw, the empty sentence; else the line as a path of series 1 over the grid and
  * axis (lineModel, once measured), labelled with the lowest and highest values. `after` follows the drawing.
- * @param {{ points?: Point[], domain: [number, number], unit?: string, caption: string, label: string, size?: Size | null, chartRef?: any, after?: any } & Scale} data
+ * @param {{ points?: Point[], domain: [number, number], unit?: string, caption: string, asIs?: boolean, label: string, size?: Size | null, chartRef?: any, after?: any } & Scale} data
+ *   `asIs`: the caption keeps its case ("pH"; the design's .wb-as-is)
  * @returns {VNode}
  */
 export const lineNode = (data) => {
-  const { caption, label, points, unit = '' } = data;
+  const { label, points, unit = '' } = data;
+  const caption = data.asIs ? { text: data.caption, className: 'wb-as-is' } : data.caption;
   if (points === undefined) return frameNode(caption, true, h('svg', { ref: data.chartRef, role: 'img', 'aria-label': label }), data.after);
   const values = /** @type {number[]} */ (points.map((p) => p.v).filter(isValue));
   if (values.length === 0) return frameNode(caption, true, emptyNode(), data.after);

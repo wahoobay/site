@@ -273,19 +273,29 @@ test('renderState live: the three panels, their headings, chips with counts, fou
   assert.deepEqual(nodes(panels).filter((n) => n.type === 'h2').map((n) => n.props.className), ['wb-panel__title', 'wb-panel__title', 'wb-panel__title']);
   assert.equal(classed(panels, 'wb-panel').length, 3);
   assert.ok(text(panels).includes('5 days ago'), 'the reading\'s age under the tiles');
+  // Ruling 50: "pH" keeps its case on the tile; the chart's caption is the panel title's duplicate, so it is for a
+  // screen reader only (the figure's name).
+  assert.deepEqual(tileNodes.map((t) => classed(t, 'wb-tile__k')[0].props.className), ['wb-tile__k', 'wb-tile__k wb-as-is', 'wb-tile__k', 'wb-tile__k']);
   const chart = classed(panels, 'wb-chart')[0];
   assert.equal(chart.type, 'figure');
-  assert.equal(text(nodes(chart).find((n) => n.type === 'figcaption')), 'Sightings per day');
+  const caption = nodes(chart).find((n) => n.type === 'figcaption');
+  assert.equal(text(caption), 'Sightings per day');
+  assert.equal(caption.props.className, 'wb-sr-only');
   const svg = nodes(chart).find((n) => n.type === 'svg');
   assert.equal(svg.props.viewBox, '0 0 600 120');
   assert.equal(svg.props.role, 'img');
   assert.match(svg.props['aria-label'], /^Sightings per day, Oct 25 to Oct 31: Silver Porgy 751, Yellowtail Snapper 630, /);
   assert.ok(classed(svg, 'wb-chart__bar').length > 20);
-  assert.ok(classed(svg, 'wb-chart__bar').every((b) => b.type === 'rect' && /^[1-6]$/.test(b.props['data-series'])));
+  assert.ok(classed(svg, 'wb-chart__bar').every((b) => b.type === 'rect' && /^([1-5]|other)$/.test(b.props['data-series'])));
   assert.equal(classed(svg, 'wb-chart__axis').length, 1);
   assert.equal(classed(svg, 'wb-chart__grid').length, 1);
   const legend = classed(chart, 'wb-chart__legend')[0];
-  assert.deepEqual(legend.children.map((li) => [li.props['data-series'], li.props['data-kind'], text(li)]).at(-1), ['6', 'bar', 'Other species']);
+  assert.deepEqual(legend.children.map((li) => [li.props['data-series'], li.props['data-kind'], text(li)]).at(-1), ['other', 'bar', 'Other species']);
+  // The page's ranking (the week's order, taken once): a later answer with the order changed keeps each species' colour.
+  const ranking = ['Diplodus argenteus', 'Ocyurus chrysurus', 'Harengula humeralis', 'Mugil cephalus', 'Chelonia mydas'];
+  const later = { ...COUNTS, series: [COUNTS.series[3], COUNTS.series[0], COUNTS.series[1], COUNTS.series[2], COUNTS.series[4]] };
+  const again = classed(renderState('live', { counts: later, ranking, chartSize: { width: 600, height: 120 } }).panels, 'wb-chart__legend')[0];
+  assert.deepEqual(again.children.map((li) => li.props['data-series']), ['4', '1', '2', '3', '5', 'other']);
 });
 
 test('renderState live: empty panels say so; the chart before it is measured has its SVG to measure and nothing in it', () => {

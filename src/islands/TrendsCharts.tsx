@@ -4,8 +4,9 @@
 // begin with; choosing one asks for that range's answers at once (one already fetched is drawn meanwhile), and the
 // island asks again every ten minutes, waiting while the page is hidden (poll, src/lib/live-status.mjs). A failed
 // fetch keeps what was drawn and the design's notice says so, once (mergeRound). Each chart is drawn at the size it
-// is shown, a ResizeObserver on its SVG, so its axis text keeps its token size. The markup is renderState's.
-import { useEffect, useMemo, useState } from 'react';
+// is shown, a ResizeObserver on its SVG, so its axis text keeps its token size; each species in its colour for the
+// page's life (mergeRound's ranking). The markup is renderState's.
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson } from '../lib/public-api.mjs';
 import { poll } from '../lib/live-status.mjs';
 import { CHART_KEYS, DEFAULT_RANGE, REFRESH_MS, mergeRound, pathsOf, rangeOf, renderState, type Store } from '../lib/trends.mjs';
@@ -50,11 +51,17 @@ export default function TrendsCharts() {
   const [range, setRange] = useState<string>(DEFAULT_RANGE);
   const [store, setStore] = useState<Store | null>(null);
   const [sizes, refs] = useMeasuredSizes(CHART_KEYS);
+  // Whether the store has the page's species ranking yet (the 30-day order, Ruling 50): until then each round asks
+  // for the 30-day counts too.
+  const ranked = useRef(false);
+  useEffect(() => {
+    ranked.current = Boolean(store?.ranking);
+  }, [store?.ranking]);
 
   useEffect(
     () =>
       poll(async (signal) => {
-        const paths = pathsOf(rangeOf(range));
+        const paths = pathsOf(rangeOf(range), { ranked: ranked.current });
         const settled = await Promise.allSettled(paths.map((path) => fetchJson(path, { signal })));
         // A range chosen meanwhile (or the island going away) aborts the round: nothing to say then.
         if (signal.aborted) return;

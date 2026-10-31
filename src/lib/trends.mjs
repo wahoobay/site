@@ -10,8 +10,11 @@
 // the tiles with the readings' age; the switch, right above the charts (Ruling 46); "Species", the stacked bars;
 // "Water" and "Weather", a line chart a measure. Each chart is a figure in the design's tall frame (src/lib/chart.mjs) with its caption, an SVG whose
 // aria-label states the range (before its answer arrives too), and a "CSV" link to the matching public export, over
-// the export's nearest window (the exports allow 7, 30, 90 and 365 days).
-import { lineNode, stackNode } from './chart.mjs';
+// the export's nearest window (the exports allow 7, 30, 90 and 365 days). A species keeps its colour in every range
+// (Ruling 50): the page's ranking is the 30-day counts' species order, taken once (mergeRound) and grown at its end by
+// the other ranges' species. The rain chart draws each bucket's rain from the gauge's running total (rainFromGauge,
+// Ruling 53).
+import { extendRanking, lineNode, rankingOf, stackNode } from './chart.mjs';
 import { API_BASE, emptyText, fahrenheit, relativeTime } from './public-api.mjs';
 import { tiles } from './live.mjs';
 import { h } from './vdom.mjs';
@@ -43,8 +46,8 @@ const WATER_TEMPERATURE = 'Water temperature';
 const AIR_TEMPERATURE = 'Air temperature';
 // katie: review
 const WIND_SPEED = 'Wind speed';
-// katie: review: the weather station's rain gauge reports a running total that resets (Ruling 46), so the chart says so
-const RAIN_GAUGE = 'Rain gauge, accumulated (mm)';
+// katie: review: the rain chart's caption, the rain in each bucket from the station gauge's running total (Ruling 53)
+const RAIN = 'Rain (mm, from the station\'s gauge)';
 // katie: review: the weather tiles' labels, beside the live page's water tiles
 const AIR = 'Air';
 // katie: review
@@ -92,27 +95,62 @@ export const countsPath = (/** @type {Range} */ r) => `/species/counts?days=${r.
 export const historyPath = (/** @type {Range} */ r) => `/environment/history?days=${r.history.days}&max_points=${r.history.maxPoints}`;
 /** A public export's CSV over a range's nearest window. */
 export const csvHref = (/** @type {string} */ name, /** @type {Range} */ r) => `${API_BASE}/exports/${name}.csv?days=${r.exportDays}`;
-/** Every path the island asks for a range: the counts, the history, the latest reading. */
-export const pathsOf = (/** @type {Range} */ r) => [countsPath(r), historyPath(r), LATEST];
+/** The range whose species order is the page's ranking (Ruling 50). */
+const RANKING_RANGE = '30d';
+
+/**
+ * Every path the island asks for a range: the counts, the history, the latest reading; and, until the page has its
+ * ranking (`ranked`), the 30-day counts it is taken from, when the range is another.
+ * @param {Range} r
+ * @param {{ ranked?: boolean }} [options]
+ */
+export const pathsOf = (r, { ranked = false } = {}) => [
+  countsPath(r),
+  historyPath(r),
+  LATEST,
+  ...(ranked || r.id === RANKING_RANGE ? [] : [countsPath(rangeOf(RANKING_RANGE))]),
+];
 
 const reading = (/** @type {unknown} */ v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const toF = (/** @type {number} */ c) => (c * 9) / 5 + 32;
 const toMph = (/** @type {number} */ ms) => ms * 2.236936;
 
 /**
- * A line chart of the page: its key (the island measures each chart's SVG by it), caption, the history's list and
- * field, the unit the chart shows it in (and the conversion to it), its axis (src/lib/chart.mjs's Scale: from zero,
+ * A line chart of the page: its key (the island measures each chart's SVG by it), caption (`asIs` when it keeps its
+ * case, "pH"), the history's list and field, the unit the chart shows it in (and the conversion to it, and `derive`,
+ * what it draws from the readings: the rain from the gauge's total), its axis (src/lib/chart.mjs's Scale: from zero,
  * at least `minSpan` wide in the chart's unit, never below `floor`), and its export. The minimum spans keep a change
  * within a sensor's noise a nearly flat line: pH 0.5, turbidity 1 FNU, temperatures 2 °C, oxygen 10 %, wind 2 m/s,
  * rain 5 mm. Oxygen, turbidity, wind and rain are never below zero.
- * @typedef {{ key: string, caption: string, list: 'water' | 'weather', field: string, unit: string, convert?: (v: number) => number, file: string } & import('./chart.mjs').Scale} Measure
+ * @typedef {{ key: string, caption: string, asIs?: boolean, list: 'water' | 'weather', field: string, unit: string, convert?: (v: number) => number, derive?: (points: Point[]) => Point[], file: string } & import('./chart.mjs').Scale} Measure
  */
+
+/**
+ * The rain in each bucket from the station's gauge, which reports a running total that resets (Ruling 53): each
+ * reading's rise since the reading before it; a fall (the gauge reset) is no rain in that bucket. The first reading,
+ * and the first after a gap, have no reading before them: unknown (null, a gap in the line).
+ * @param {Point[]} points the gauge's totals in time order, in mm
+ * @returns {Point[]}
+ */
+export const rainFromGauge = (points) => {
+  /** @type {number | null} */
+  let last = null;
+  return points.map(({ t, v }) => {
+    if (v === null || !Number.isFinite(v)) {
+      last = null;
+      return { t, v: null };
+    }
+    const rain = last === null ? null : Math.max(0, v - last);
+    last = v;
+    return { t, v: rain };
+  });
+};
 /** 2 °C as a span of °F. */
 const TWO_DEGREES_C = (2 * 9) / 5;
 /** @type {Measure[]} */
 const WATER_CHARTS = [
   { key: 'water-temp', caption: WATER_TEMPERATURE, list: 'water', field: 'water_temp_c', unit: '°F', convert: toF, minSpan: TWO_DEGREES_C, file: 'water_quality' },
-  { key: 'ph', caption: PH, list: 'water', field: 'ph', unit: '', minSpan: 0.5, file: 'water_quality' },
+  { key: 'ph', caption: PH, asIs: true, list: 'water', field: 'ph', unit: '', minSpan: 0.5, file: 'water_quality' },
   { key: 'oxygen', caption: OXYGEN, list: 'water', field: 'do_pct', unit: '%', minSpan: 10, floor: 0, file: 'water_quality' },
   { key: 'turbidity', caption: TURBIDITY, list: 'water', field: 'turbidity_fnu', unit: 'FNU', minSpan: 1, floor: 0, file: 'water_quality' },
 ];
@@ -120,7 +158,7 @@ const WATER_CHARTS = [
 const WEATHER_CHARTS = [
   { key: 'air-temp', caption: AIR_TEMPERATURE, list: 'weather', field: 'air_temp_c', unit: '°F', convert: toF, minSpan: TWO_DEGREES_C, file: 'weather' },
   { key: 'wind', caption: WIND_SPEED, list: 'weather', field: 'wind_speed_avg_ms', unit: 'mph', convert: toMph, zero: true, minSpan: toMph(2), floor: 0, file: 'weather' },
-  { key: 'rain', caption: RAIN_GAUGE, list: 'weather', field: 'rain_accum_mm', unit: 'mm', zero: true, minSpan: 5, floor: 0, file: 'weather' },
+  { key: 'rain', caption: RAIN, list: 'weather', field: 'rain_accum_mm', unit: 'mm', derive: rainFromGauge, zero: true, minSpan: 5, floor: 0, file: 'weather' },
 ];
 /** The species chart's export: the sightings, one row per fish followed, which is what the chart counts. */
 const SPECIES_FILE = 'sightings';
@@ -171,7 +209,9 @@ export const trendsTiles = (latest) => {
 
 /**
  * The island's store after a round of fetches: each answer by its path and when it came, the last one kept when its
- * fetch fails; `failed` while the latest round did not all answer.
+ * fetch fails; `failed` while the latest round did not all answer; and the page's species ranking (Ruling 50): the
+ * 30-day counts' order once that answer has come, then grown at its end by each counts answer's new species, never
+ * reordered.
  * @param {Store | null} was
  * @param {Array<[string, PromiseSettledResult<any>]>} round
  * @param {number} now epoch milliseconds
@@ -187,7 +227,14 @@ export const mergeRound = (was, round, now) => {
       at[path] = now;
     } else failed = true;
   }
-  return { answers, at, failed };
+  const anchor = answers[countsPath(rangeOf(RANKING_RANGE))];
+  let ranking = was?.ranking ?? (anchor === undefined ? undefined : rankingOf(anchor));
+  if (ranking) {
+    for (const [path, settled] of round) {
+      if (path.startsWith('/species/counts') && settled.status === 'fulfilled') ranking = extendRanking(ranking, settled.value);
+    }
+  }
+  return { answers, at, failed, ranking };
 };
 
 /**
@@ -195,6 +242,7 @@ export const mergeRound = (was, round, now) => {
  * @property {Record<string, any>} answers the API's answers by path
  * @property {Record<string, number>} at when each arrived, epoch milliseconds
  * @property {boolean} failed the latest round's fetches did not all answer
+ * @property {string[] | undefined} ranking the page's species order for the chart's colours, once the 30-day counts came
  */
 
 /**
@@ -204,6 +252,7 @@ export const mergeRound = (was, round, now) => {
  * @property {Record<string, any>} [answers] mergeRound's
  * @property {Record<string, number>} [at] mergeRound's
  * @property {boolean} [failed] mergeRound's
+ * @property {string[]} [ranking] mergeRound's
  * @property {Record<string, Size | null | undefined>} [sizes] each chart's SVG as measured, by its key (CHART_KEYS)
  * @property {Record<string, any>} [refs] React's ref for each chart's SVG, by its key
  * @property {(id: string) => void} [onRange] told which range was chosen
@@ -245,7 +294,8 @@ const nowNode = (/** @type {any} */ latest, /** @type {number | undefined} */ no
         h(
           'div',
           { key: t.k, className: 'wb-tile' },
-          h('p', { className: 'wb-tile__k' }, t.k),
+          // "pH" keeps its case against the label's capitals (the design's .wb-as-is; Ruling 50).
+          h('p', { className: t.k === PH ? 'wb-tile__k wb-as-is' : 'wb-tile__k' }, t.k),
           // The unit is the design's small after the number; the °C (or m/s) is a small of its own, on its own line.
           h('p', { className: 'wb-tile__v' }, t.v, t.unit && h('small', null, t.unit), t.sub && h('small', { className: 'site-trends__sub' }, t.sub)),
         ),
@@ -280,13 +330,14 @@ export const renderState = (data = {}) => {
   const bucketMs = (range.history.days * 86_400_000) / range.history.maxPoints;
   const line = (/** @type {Measure} */ m) =>
     lineNode({
-      points: history ? pointsOf(history[m.list], m, bucketMs) : undefined,
+      points: history ? (m.derive ?? ((p) => p))(pointsOf(history[m.list], m, bucketMs)) : undefined,
       domain,
       unit: m.unit,
       zero: m.zero,
       minSpan: m.minSpan,
       floor: m.floor,
       caption: m.caption,
+      asIs: m.asIs,
       label: `${m.caption} ${range.span}`,
       size: sizes[m.key],
       chartRef: refs[m.key],
@@ -313,6 +364,7 @@ export const renderState = (data = {}) => {
         span: range.span,
         size: sizes.species,
         chartRef: refs.species,
+        ranking: data.ranking,
         after: csvNode(SPECIES_FILE, range),
       }),
     ),

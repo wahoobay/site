@@ -302,7 +302,8 @@ const panelsNode = (status, data) => {
               h(
                 'div',
                 { key: t.k, className: 'wb-tile' },
-                h('p', { className: 'wb-tile__k' }, t.k),
+                // "pH" keeps its case against the label's capitals (the design's .wb-as-is; Ruling 50).
+                h('p', { className: t.k === PH ? 'wb-tile__k wb-as-is' : 'wb-tile__k' }, t.k),
                 // The unit is the design's small after the number; the °C is a small of its own, on its own line.
                 h('p', { className: 'wb-tile__v' }, t.v, t.unit && h('small', null, t.unit), t.sub && h('small', { className: 'site-live-now__sub' }, t.sub)),
               ),
@@ -314,7 +315,13 @@ const panelsNode = (status, data) => {
   );
   const week = compact
     ? null
-    : h('div', { className: 'wb-panel site-live-now__panel site-live-now__panel--chart' }, h(heading, { className: 'wb-panel__title' }, SPECIES_WEEK), chartNode(data));
+    : h(
+        'div',
+        { className: 'wb-panel site-live-now__panel site-live-now__panel--chart' },
+        h(heading, { className: 'wb-panel__title' }, SPECIES_WEEK),
+        // The panel's title says what the chart is: its caption is the figure's name for a screen reader only.
+        chartNode({ ...data, hiddenCaption: true }),
+      );
   // A panel whose answer has not arrived yet is left out: it never says "nothing" before it knows.
   const pending = new Set(data.pending ?? []);
   return h('div', { className }, !pending.has('summary') && hour, !pending.has('latest') && waterNow, !pending.has('counts') && week);
@@ -339,6 +346,7 @@ const panelsNode = (status, data) => {
  * @property {any} [summary] GET /api/public/detections/summary?hours=1
  * @property {any} [latest] GET /api/public/environment/latest
  * @property {any} [counts] GET /api/public/species/counts?days=7&top=5
+ * @property {string[] | null} [ranking] the page's species order for the chart's colours (seriesFor in src/lib/chart.mjs)
  * @property {string[]} [pending] the answers not arrived yet ('summary', 'latest', 'counts'): their panels are left out
  * @property {Size | null} [chartSize] the chart's SVG as measured
  * @property {any} [chartRef] React's ref for the chart's SVG
