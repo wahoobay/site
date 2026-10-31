@@ -308,12 +308,15 @@ main { flex: 1 0 auto; }
   margin: var(--wb-space-1) 0 0;
 }
 /* The home band's: a grid item of the band, under the still from 48rem (the band's gap above it), its panels a step
-   apart and its four tiles two a row on phones, side by side from 30rem, so no row has an empty slot. */
+   apart and its four tiles two a row, so no row has an empty slot; four side by side only in a panel at least 36rem
+   wide, where a tile is some 8.25rem, enough for "Turbidity" and "2.8 FNU" at the largest value size. The panel is
+   the container: from 48rem it sits in the band's narrower column, where four tiles were 70 to 120px and overflowed. */
 .site-live-now--compact {
   gap: var(--wb-space-5);
   margin-top: 0;
 }
-@media (min-width: 30rem) {
+.site-live-now--compact .site-live-now__panel { container-type: inline-size; }
+@container (min-width: 36rem) {
   .site-live-now--compact .site-live-now__tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .site-live__cards {

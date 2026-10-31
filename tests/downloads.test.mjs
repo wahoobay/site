@@ -128,6 +128,11 @@ test('/live/downloads/: the README for the licence and what the files leave out;
   assert.match(words, /The files carry no reviewer data and name each camera by its id only\./);
 });
 
+test('site.css: a window\'s link has a step of room either side, so neighbouring targets are 24px apart (WCAG 2.5.8)', () => {
+  const css = read('src/styles/site.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.site-downloads__windows a\s*\{\s*padding-inline:\s*var\(--wb-space-1\);\s*\}/);
+});
+
 test('the page renders its content file and fetches nothing', () => {
   const source = read('src/pages/live/downloads/index.astro');
   assert.match(source, /getEntry\('pages', 'live\/downloads'\)/);

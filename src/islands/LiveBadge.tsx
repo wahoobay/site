@@ -1,6 +1,7 @@
 // The live badge beside the camera page's h1 and on the home band's still: "Live" while the camera's stream is on,
-// "Offline" when it is not (the design's .wb-live and .wb-live--off), and nothing until the status is known, so it never
-// says Live before it knows. Hydrated at once (client:load); the status is the one the live islands share
+// "Offline" when the camera is off (the design's .wb-live and .wb-live--off); nothing for the embed (a camera with no
+// worker, whose YouTube embed plays: neither live nor off, Ruling 56), and nothing until the status is known, so it
+// never says Live before it knows. Hydrated at once (client:load); the status is the one the live islands share
 // (src/islands/live-shared.ts), asked again every 30 s. The badge itself is renderState's (src/lib/live.mjs).
 import { renderState } from '../lib/live.mjs';
 import { toReact, useCameraState } from './live-shared';

@@ -455,6 +455,23 @@ test('/live/: the body\'s three H2 groups are grids of their H3 items, the copy 
   assert.match(css, /@media \(min-width: 48rem\)\s*\{[^}]*\.site-live__items\s*\{[^}]*grid-template-columns:/);
 });
 
+// site.css's live rules (fix round 1 of the wave): the hour panel keeps its own height beside the water's (Ruling 54);
+// the home band's four tiles are two a row unless the panel is wide enough for four tiles that hold their words, a
+// container query on the panel, not the viewport: from 48rem the band's column is narrower than a phone's.
+const LIVE_CSS = () => read('src/styles/site.css').replace(/\/\*[\s\S]*?\*\//g, '');
+test('site.css: the hour panel aligns to the start of its row', () => {
+  assert.match(LIVE_CSS(), /\.site-live-now__panel--hour\s*\{\s*align-self:\s*start;\s*\}/);
+});
+
+test('site.css: the band\'s tiles are two a row, four only in a panel at least 36rem wide (4 x 8.25rem and the gaps)', () => {
+  const css = LIVE_CSS();
+  assert.match(css, /\.site-live-now--compact \.site-live-now__panel\s*\{\s*container-type:\s*inline-size;\s*\}/);
+  assert.match(css, /@container \(min-width: 36rem\)\s*\{\s*\.site-live-now--compact \.site-live-now__tiles\s*\{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);\s*\}\s*\}/);
+  // The tiles' base rule is two a row; no viewport query puts the band's tiles four across.
+  assert.match(css, /\.site-live-now__tiles\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  for (const [, body] of css.matchAll(/@media[^{]*\{([\s\S]*?\})\s*\}/g)) assert.doesNotMatch(body, /--compact \.site-live-now__tiles/);
+});
+
 test('video.mjs builds the nocookie address the YouTube component and the player share', () => {
   assert.equal(embedUrl('oBTGY6Ax870'), 'https://www.youtube-nocookie.com/embed/oBTGY6Ax870');
   assert.equal(embedUrl('PLDuZ7tdc3LUCZh0F45bTNuC-LkgCVjyTG', { playlist: true }), 'https://www.youtube-nocookie.com/embed/videoseries?list=PLDuZ7tdc3LUCZh0F45bTNuC-LkgCVjyTG&rel=0');
