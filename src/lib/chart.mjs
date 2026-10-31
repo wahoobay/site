@@ -22,24 +22,21 @@ import { h } from './vdom.mjs';
 const SIGHTINGS_PER_DAY = 'Sightings per day';
 // katie: review: new words (the chart's last series: every species after the five, or six, most seen)
 const OTHER = 'Other species';
-// katie: review: new words before a week's first day ("Week of Oct 3")
-const WEEK_OF = 'Week of ';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /**
  * A bucket as a chart names it, read as written, with no time zone to shift it. With a granularity: a day
- * ("2026-10-03") as "Oct 3", a week by its first day as "Week of Oct 3", a month ("2026-10-03" or "2026-10") as
- * "Oct 2026". Without one, by its shape: a day as "Oct 25", a month ("2026-09") as "Sep", an hour ("07:00") as "7 am";
- * anything else as it is.
+ * ("2026-10-03") as "Oct 3", a month ("2026-10-03" or "2026-10") as "Oct 2026". Without one, by its shape: a day as
+ * "Oct 25", a month ("2026-09") as "Sep", an hour ("07:00") as "7 am"; anything else as it is.
  * @param {string} bucket
- * @param {'day' | 'week' | 'month'} [granularity]
+ * @param {'day' | 'month'} [granularity]
  */
 export const bucketLabel = (bucket, granularity) => {
   const date = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(bucket);
   if (granularity && date) {
     const month = MONTHS[Number(date[2]) - 1];
     if (granularity === 'month') return `${month} ${date[1]}`;
-    if (date[3]) return `${granularity === 'week' ? WEEK_OF : ''}${month} ${Number(date[3])}`;
+    if (date[3]) return `${month} ${Number(date[3])}`;
   }
   const day = /^\d{4}-(\d{2})-(\d{2})$/.exec(bucket);
   if (day) return `${MONTHS[Number(day[1]) - 1]} ${Number(day[2])}`;
@@ -48,34 +45,6 @@ export const bucketLabel = (bucket, granularity) => {
   const hour = /^(\d{2}):00$/.exec(bucket);
   if (hour) return `${Number(hour[1]) % 12 || 12} ${Number(hour[1]) < 12 ? 'am' : 'pm'}`;
   return bucket;
-};
-
-/**
- * The counts as series: the `top` species most seen (series 1 to `top`) and every other species summed (the next
- * series, when there are any), each with a count per bucket; null when there is nothing to draw. The label, the SVG's
- * aria-label, is the caption, the span ("Oct 25 to Oct 31", or the words given) and each series' total.
- * @param {any} counts GET /api/public/species/counts, or a species page's chart in its shape
- * @param {{ caption?: string, top?: number, span?: string }} [options]
- */
-const chartSeries = (counts, { caption = SIGHTINGS_PER_DAY, top = 5, span } = {}) => {
-  const buckets = counts && Array.isArray(counts.buckets) ? counts.buckets.map(String) : [];
-  const n = buckets.length;
-  const clean = (/** @type {unknown} */ list) =>
-    Array.isArray(list) && list.length === n ? list.map((v) => (typeof v === 'number' && v > 0 ? v : 0)) : buckets.map(() => 0);
-  const series = (Array.isArray(counts?.series) ? counts.series : []).slice(0, top).map((/** @type {any} */ s, /** @type {number} */ i) => ({
-    series: String(i + 1),
-    label: String(s.common || s.latin || s.species_id),
-    counts: clean(s.counts),
-  }));
-  const other = clean(counts?.other);
-  if (other.some((v) => v > 0)) series.push({ series: String(series.length + 1), label: OTHER, counts: other });
-  const totals = buckets.map((_, d) => series.reduce((sum, s) => sum + s.counts[d], 0));
-  const max = Math.max(0, ...totals);
-  if (n === 0 || max === 0) return null;
-  const legend = series.map(({ series: id, label }) => ({ series: id, label }));
-  const words = series.map((s) => `${s.label} ${s.counts.reduce((a, b) => a + b, 0).toLocaleString('en-US')}`).join(', ');
-  const label = span ? `${caption} ${span}: ${words}` : `${caption}, ${bucketLabel(buckets[0])} to ${bucketLabel(buckets[n - 1])}: ${words}`;
-  return { buckets, series, legend, max, label };
 };
 
 // --- The maths: domains, ticks, scales, lines and stacked bars ----------------------------------------------------
@@ -94,33 +63,41 @@ const niceStep = (/** @type {number} */ span, /** @type {number} */ count) => {
 const isValue = (/** @type {unknown} */ v) => typeof v === 'number' && Number.isFinite(v);
 
 /**
- * The values' extent, rounded out to a round step (about four of them), from zero when `zero` (counts, wind, rain).
- * A flat line gets room above and below; no values at all is null.
+ * How a chart's value axis is drawn: from zero (counts, wind, rain); at least `minSpan` wide, centred on the values,
+ * so a change smaller than the sensor's noise stays a nearly flat line (0.5 for pH); never below `floor` (0 for what
+ * cannot be negative).
+ * @typedef {{ zero?: boolean, minSpan?: number, floor?: number }} Scale
+ */
+
+/**
+ * The values' extent, rounded out to a round step (about four of them), as `scale` says. A flat line gets room above
+ * and below; no values at all is null.
  * @param {Array<number | null | undefined>} values
- * @param {{ zero?: boolean }} [options]
+ * @param {Scale} [scale]
  * @returns {[number, number] | null}
  */
-export const niceDomain = (values, { zero = false } = {}) => {
+export const niceDomain = (values, { zero = false, minSpan = 0, floor = -Infinity } = {}) => {
   const finite = /** @type {number[]} */ (values.filter(isValue));
   if (finite.length === 0) return null;
   let lo = Math.min(...finite);
   let hi = Math.max(...finite);
+  // From zero: zero is on the axis, and for values that are never negative it is the axis' foot.
   if (zero) {
     lo = Math.min(lo, 0);
     hi = Math.max(hi, 0);
+    if (lo === 0) floor = Math.max(floor, 0);
   }
-  if (lo === hi) {
-    const pad = Math.abs(lo) / 10 || 1;
-    if (zero && lo === 0) hi = pad;
-    else [lo, hi] = [lo - pad, hi + pad];
-  }
+  const span = Math.max(minSpan, lo === hi ? Math.abs(lo) / 5 || (zero ? 1 : 2) : 0);
+  if (hi - lo < span) [lo, hi] = [(lo + hi - span) / 2, (lo + hi + span) / 2];
+  // Off the floor by moving the span up, so it keeps its width.
+  if (lo < floor) [lo, hi] = [floor, hi + floor - lo];
   for (let i = 0; i < 4; i += 1) {
     const step = niceStep(hi - lo, 4);
     const next = [tidy(Math.floor(lo / step + 1e-9) * step), tidy(Math.ceil(hi / step - 1e-9) * step)];
     if (next[0] === lo && next[1] === hi) break;
     [lo, hi] = next;
   }
-  return [lo, hi];
+  return [Math.max(lo, floor), hi];
 };
 
 /**
@@ -208,15 +185,28 @@ export const barRects = (series, buckets, xs, ys) =>
     });
   });
 
-const NUMBER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+/** How many decimal places a step has: 1 for 0.5, 3 for 0.002, none for 500. */
+const placesOf = (/** @type {number} */ step) => {
+  let places = 0;
+  while (places < 10 && Math.abs(tidy(step * 10 ** places) - Math.round(step * 10 ** places)) > 1e-9) places += 1;
+  return places;
+};
+/** @type {Map<number, Intl.NumberFormat>} */
+const NUMBERS = new Map();
+const numberTo = (/** @type {number} */ places) => {
+  if (!NUMBERS.has(places)) NUMBERS.set(places, new Intl.NumberFormat('en-US', { maximumFractionDigits: places }));
+  return /** @type {Intl.NumberFormat} */ (NUMBERS.get(places));
+};
 /**
- * A value as an axis shows it: to two places at most, grouped ("1,500"), with its unit after it, a % or a degree
- * sign close up ("90%", "26.5°F"), any other after a space ("12 mph").
+ * A value as an axis shows it: to as many places as the axis' step has (so no two ticks read the same), or two
+ * without one; grouped ("1,500"); with its unit after it, a % or a degree sign close up ("90%", "26.5°F"), any
+ * other after a space ("12 mph").
  * @param {number} value
  * @param {string} [unit]
+ * @param {number} [step] the axis' step between ticks
  */
-export const formatTick = (value, unit = '') => {
-  const n = NUMBER.format(tidy(value));
+export const formatTick = (value, unit = '', step) => {
+  const n = numberTo(step !== undefined && step > 0 ? placesOf(step) : 2).format(tidy(value));
   if (!unit) return n;
   return /^[%°]/.test(unit) ? `${n}${unit}` : `${n} ${unit}`;
 };
@@ -257,8 +247,10 @@ const EDGE = 8;
 const textWidth = (/** @type {string} */ label) => label.length * CHAR_PX;
 const fits = (/** @type {number} */ x, /** @type {string} */ label, /** @type {number} */ width) =>
   x - textWidth(label) / 2 >= -EDGE && x + textWidth(label) / 2 <= width + EDGE;
-const DAY_ROOM = textWidth('Oct 25') + LABEL_GAP;
-const MONTH_ROOM = textWidth('Oct 2026') + LABEL_GAP;
+/** The room a label needs on an axis: its width and the gap to the next. */
+const roomFor = (/** @type {string} */ label) => textWidth(label) + LABEL_GAP;
+const DAY_ROOM = roomFor('Oct 25');
+const MONTH_ROOM = roomFor('Oct 2026');
 
 /**
  * The dates to mark under a time axis `width` pixels wide: each day at Wahoo Bay's midnight while a label fits in a
@@ -313,6 +305,9 @@ const bucketTicks = (buckets, granularity, slot) => {
 
 // --- The models: what to draw at a measured size ------------------------------------------------------------------
 
+/** The step between an axis' ticks; 1 for a single tick. */
+const stepOf = (/** @type {number[]} */ values) => (values.length > 1 ? tidy(values[1] - values[0]) : 1);
+
 /** The smallest round step at least `v`: 1, 1.5, 2, 2.5, 3, 4, 5 … 10 times a power of ten, and never a fraction. */
 const roundStep = (/** @type {number} */ v) => {
   const power = 10 ** Math.floor(Math.log10(v));
@@ -323,14 +318,39 @@ const roundStep = (/** @type {number} */ v) => {
 // The chart's room, in CSS pixels: the values' labels on the left (the trends charts measure theirs), the dates'
 // under the axis.
 const PAD = { left: 44, right: 0, top: 8, bottom: 22 };
-// The least room a day's label needs on the live page's chart; narrower days are labelled every other day (or every
-// third …), ending on today.
-const LABEL_ROOM = 48;
 // The least plot a measured size must leave to be drawn at all (a ResizeObserver can report an SVG at 0 wide while
 // the page lays out): a smaller size is a chart not measured yet.
 const MIN_PLOT = 24;
 const plottable = (/** @type {Size | null | undefined} */ size) =>
   size != null && size.width - PAD.left - PAD.right >= MIN_PLOT && size.height - PAD.top - PAD.bottom >= MIN_PLOT;
+
+/**
+ * The counts as series: the `top` species most seen (series 1 to `top`) and every other species summed (the next
+ * series, when there are any), each with a count per bucket; null when there is nothing to draw. The label, the SVG's
+ * aria-label, is the caption, the span ("Oct 25 to Oct 31", or the words given) and each series' total.
+ * @param {any} counts GET /api/public/species/counts, or a species page's chart in its shape
+ * @param {{ caption?: string, top?: number, span?: string }} [options]
+ */
+const chartSeries = (counts, { caption = SIGHTINGS_PER_DAY, top = 5, span } = {}) => {
+  const buckets = counts && Array.isArray(counts.buckets) ? counts.buckets.map(String) : [];
+  const n = buckets.length;
+  const clean = (/** @type {unknown} */ list) =>
+    Array.isArray(list) && list.length === n ? list.map((v) => (typeof v === 'number' && v > 0 ? v : 0)) : buckets.map(() => 0);
+  const series = (Array.isArray(counts?.series) ? counts.series : []).slice(0, top).map((/** @type {any} */ s, /** @type {number} */ i) => ({
+    series: String(i + 1),
+    label: String(s.common || s.latin || s.species_id),
+    counts: clean(s.counts),
+  }));
+  const other = clean(counts?.other);
+  if (other.some((v) => v > 0)) series.push({ series: String(series.length + 1), label: OTHER, counts: other });
+  const totals = buckets.map((_, d) => series.reduce((sum, s) => sum + s.counts[d], 0));
+  const max = Math.max(0, ...totals);
+  if (n === 0 || max === 0) return null;
+  const legend = series.map(({ series: id, label }) => ({ series: id, label }));
+  const words = series.map((s) => `${s.label} ${s.counts.reduce((a, b) => a + b, 0).toLocaleString('en-US')}`).join(', ');
+  const label = span ? `${caption} ${span}: ${words}` : `${caption}, ${bucketLabel(buckets[0])} to ${bucketLabel(buckets[n - 1])}: ${words}`;
+  return { buckets, series, legend, max, label };
+};
 
 /**
  * The live page's species chart drawn at its measured size, in CSS pixels (a viewBox of the same size, so the axis
@@ -351,7 +371,8 @@ export const chartModel = (counts, { width, height }) => {
   const ys = yScale([0, step * steps], plotH, PAD.top);
   const xs = xScale([0, n], plotW, PAD.left);
   const slot = plotW / n;
-  const every = Math.max(1, Math.ceil(LABEL_ROOM / slot));
+  // Days too narrow for a label each are labelled every other day (or every third …), ending on today.
+  const every = Math.max(1, Math.ceil(DAY_ROOM / slot));
   return {
     empty: /** @type {const} */ (false),
     viewBox: `0 0 ${width} ${height}`,
@@ -377,10 +398,10 @@ export const chartModel = (counts, { width, height }) => {
  */
 export const stackModel = (counts, { width, height }, { granularity = 'day', top = 6 } = {}) => {
   const data = chartSeries(counts, { top });
-  const domain = data && niceDomain([0, data.max], { zero: true });
+  const domain = data && niceDomain([0, data.max], { zero: true, floor: 0 });
   if (!data || !domain) return /** @type {const} */ ({ empty: true });
   const values = ticks(domain).filter(Number.isInteger);
-  const labels = values.map((v) => formatTick(v));
+  const labels = values.map((v) => formatTick(v, '', stepOf(values)));
   const left = Math.ceil(Math.max(...labels.map(textWidth))) + 8;
   const n = data.buckets.length;
   const last = granularity === 'day' ? textWidth(bucketLabel(data.buckets[n - 1], 'day')) / 2 - EDGE : 0;
@@ -409,18 +430,18 @@ export const stackModel = (counts, { width, height }, { granularity = 'day', top
 
 /**
  * A line chart at its measured size: the points as one path (with its gaps) across the span, round ticks on the left
- * (four where there is room, else two; the unit on the top one), the left margin as wide as the longest label, the
- * dates under the axis (timeTicks). `empty` when no point has a value.
- * @param {{ points: Point[], domain: [number, number], unit?: string, zero?: boolean }} line `domain` is the span
- *   of time the chart covers, epoch milliseconds
+ * (four where there is room, else two; the unit on the top one) on the measure's scale (niceDomain), the left margin
+ * as wide as the longest label, the dates under the axis (timeTicks). `empty` when no point has a value.
+ * @param {{ points: Point[], domain: [number, number], unit?: string } & Scale} line `domain` is the span of time the
+ *   chart covers, epoch milliseconds
  * @param {Size} size
  */
-export const lineModel = ({ points, domain, unit = '', zero = false }, { width, height }) => {
-  const range = niceDomain(points.map((p) => p.v), { zero });
+export const lineModel = ({ points, domain, unit = '', zero, minSpan, floor }, { width, height }) => {
+  const range = niceDomain(points.map((p) => p.v), { zero, minSpan, floor });
   if (!range) return /** @type {const} */ ({ empty: true });
   const plotH = height - PAD.top - PAD.bottom;
   const values = ticks(range, plotH >= 120 ? 4 : 2);
-  const labels = values.map((v, i) => formatTick(v, i === values.length - 1 ? unit : ''));
+  const labels = values.map((v, i) => formatTick(v, i === values.length - 1 ? unit : '', stepOf(values)));
   const left = Math.ceil(Math.max(...labels.map(textWidth))) + 8;
   const plotW = width - left - PAD.right;
   const xs = xScale(domain, plotW, left);
@@ -459,6 +480,10 @@ const axisNode = (/** @type {Axes} */ model, /** @type {{ x: number, label: stri
     dates.map((d, i) => d.label && h('text', { key: `x${i}`, x: d.x, y: model.baseline + 16, textAnchor: 'middle' }, d.label)),
   );
 
+/** A bar chart's stacked bars, each the design's bar in its series' colour. */
+const barsNode = (/** @type {ReturnType<typeof barRects>} */ bars) =>
+  bars.map((b) => h('rect', { key: `${b.bucket}-${b.series}`, className: 'wb-chart__bar', 'data-series': b.series, x: b.x, y: b.y, width: b.width, height: b.height }));
+
 /** A bar chart's legend: a square key per series. */
 const legendNode = (/** @type {{ series: string, label: string }[]} */ legend) =>
   h('ul', { className: 'wb-chart__legend', role: 'list' }, legend.map((l) => h('li', { key: l.series, 'data-series': l.series, 'data-kind': 'bar' }, l.label)));
@@ -490,11 +515,7 @@ export const chartNode = (data) => {
   const model = data.chartSize && plottable(data.chartSize) ? chartModel(data.counts, data.chartSize) : null;
   const drawing =
     model && !model.empty
-      ? [
-          gridNode(model),
-          model.bars.map((b) => h('rect', { key: `${b.day}-${b.series}`, className: 'wb-chart__bar', 'data-series': b.series, x: b.x, y: b.y, width: b.width, height: b.height })),
-          axisNode(model, model.days),
-        ]
+      ? [gridNode(model), barsNode(model.bars), axisNode(model, model.days)]
       : [];
   return frameNode(
     caption,
@@ -520,11 +541,7 @@ export const stackNode = (data) => {
   const model = data.size && plottable(data.size) ? stackModel(data.counts, data.size, { granularity: data.granularity }) : null;
   const drawing =
     model && !model.empty
-      ? [
-          gridNode(model),
-          model.bars.map((b) => h('rect', { key: `${b.bucket}-${b.series}`, className: 'wb-chart__bar', 'data-series': b.series, x: b.x, y: b.y, width: b.width, height: b.height })),
-          axisNode(model, model.days),
-        ]
+      ? [gridNode(model), barsNode(model.bars), axisNode(model, model.days)]
       : [];
   return frameNode(
     caption,
@@ -539,7 +556,7 @@ export const stackNode = (data) => {
  * A trends line chart in the tall frame: before its answer has arrived (`points` undefined) the SVG to measure,
  * labelled `label`; with no value to draw, the empty sentence; else the line as a path of series 1 over the grid and
  * axis (lineModel, once measured), labelled with the lowest and highest values. `after` follows the drawing.
- * @param {{ points?: Point[], domain: [number, number], unit?: string, zero?: boolean, caption: string, label: string, size?: Size | null, chartRef?: any, after?: any }} data
+ * @param {{ points?: Point[], domain: [number, number], unit?: string, caption: string, label: string, size?: Size | null, chartRef?: any, after?: any } & Scale} data
  * @returns {VNode}
  */
 export const lineNode = (data) => {

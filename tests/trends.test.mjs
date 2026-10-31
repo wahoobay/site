@@ -76,7 +76,9 @@ const loaded = (range = THIRTY, answers = { counts: COUNTS, history: HISTORY, la
   );
 const SIZES = Object.fromEntries(CHART_KEYS.map((key) => [key, key === 'species' ? { width: 900, height: 450 } : { width: 440, height: 220 }]));
 
-const CAPTIONS = ['Species seen per day', 'Water temperature', 'pH', 'Oxygen', 'Turbidity', 'Air temperature', 'Wind speed', 'Rainfall'];
+const CAPTIONS = ['Species seen per day', 'Water temperature', 'pH', 'Oxygen', 'Turbidity', 'Air temperature', 'Wind speed', 'Rain gauge, accumulated (mm)'];
+/** The class of each of the island's own parts, in order (Ruling 46: the switch under the tiles, above the charts). */
+const parts = (tree) => tree.children.map((c) => c.props.className);
 
 // --- the ranges and the API's paths ---------------------------------------------------------------------------------
 
@@ -221,6 +223,34 @@ test('renderState loaded: stacked bars as series 1 to 7 with a square legend, a 
   const age = classed(tree, 'site-trends__age')[0];
   assert.equal(text(age), 'Water measured 5 days ago. Weather measured 3 min ago.');
   assert.equal(classed(tree, 'wb-notice').length, 0);
+  // Ruling 46: the latest readings first, then the switch, directly above the charts it changes.
+  assert.deepEqual(parts(tree), ['site-trends__now', 'wb-seg site-trends__range', 'site-trends__section', 'site-trends__section', 'site-trends__section']);
+});
+
+// Fix round 1, Important 1: each measure's axis has a minimum span (pH 0.5, turbidity 1 FNU, temperatures 2 °C,
+// oxygen 10 %, wind 2 m/s, rain 5 mm) and the measures that cannot be negative never go below zero.
+test('renderState: a near-flat pH is a nearly flat line on distinct labels; flat zeros never put the axis below zero', () => {
+  const flat = {
+    days: 30,
+    water: [0, 1, 2, 3].map((i) => water(i, 27.1 + i * 0.01, { ph: 8.11 + (i % 2) * 0.01, do_pct: 0, turbidity_fnu: 0 })),
+    weather: [0, 1, 2].map((i) => weather(i, 26, 0, 0)),
+  };
+  const tree = renderState({ range: '30d', ...loaded(THIRTY, { counts: COUNTS, history: flat, latest: LATEST_ANSWER }), sizes: SIZES });
+  const figures = Object.fromEntries(nodes(tree).filter((n) => n.type === 'figure').map((f) => [text(f.children[0]), f]));
+  const yLabels = (f) => nodes(f).filter((n) => n.type === 'text' && n.props.textAnchor === 'end').map(text);
+  const tickValues = (f) => yLabels(f).map((l) => Number(l.replace(/[^\d.-]/g, '')));
+  for (const [caption, span] of [['pH', 0.5], ['Water temperature', 3.6], ['Oxygen', 10], ['Turbidity', 1], ['Air temperature', 3.6], ['Wind speed', 4.47], ['Rain gauge, accumulated (mm)', 5]]) {
+    const labels = yLabels(figures[caption]);
+    assert.equal(new Set(labels).size, labels.length, `${caption}: ${labels.join(', ')}`);
+    const values = tickValues(figures[caption]);
+    assert.ok(Math.max(...values) - Math.min(...values) >= span - 1e-9, `${caption}: the axis spans ${values.join(', ')}`);
+  }
+  const path = nodes(figures.pH).find((n) => n.type === 'path').props.d;
+  const ys = [...path.matchAll(/[ML][\d.]+ ([\d.]+)/g)].map((m) => Number(m[1]));
+  assert.ok(Math.max(...ys) - Math.min(...ys) < 0.05 * 220, `pH's 0.01 is ${Math.max(...ys) - Math.min(...ys)}px, not the chart's height`);
+  for (const caption of ['Oxygen', 'Turbidity', 'Wind speed', 'Rain gauge, accumulated (mm)']) {
+    assert.ok(tickValues(figures[caption]).every((v) => v >= 0), `${caption}: ${yLabels(figures[caption]).join(', ')}`);
+  }
 });
 
 test('renderState by week: the 1-year and All charts count species per week', () => {
@@ -234,7 +264,7 @@ test('renderState by week: the 1-year and All charts count species per week', ()
     const csv = nodes(tree).filter((n) => n.type === 'a').map((a) => a.props.href);
     assert.ok(csv.every((href) => href.endsWith('.csv?days=365')), csv.join());
   }
-  assert.match(nodes(renderState({ range: 'all' })).find((n) => n.type === 'svg').props['aria-label'], /^Species seen per week over the whole record$/);
+  assert.match(nodes(renderState({ range: 'all' })).find((n) => n.type === 'svg').props['aria-label'], /^Species seen per week as far back as the record goes, up to about two years$/);
 });
 
 test('renderState empty: every chart says "No data for this period" in its frame; no tile reading says so too', () => {
@@ -262,6 +292,7 @@ test('renderState failed: the design\'s notice once, and the charts already draw
   assert.ok(classed(tree, 'wb-chart__bar').length > 20, 'the bars stay');
   assert.equal(nodes(tree).filter((n) => n.type === 'path').length, 7, 'the lines stay');
   assert.equal(classed(tree, 'wb-tile').length, 6, 'the tiles stay');
+  assert.deepEqual(parts(tree), ['wb-notice', 'site-trends__now', 'wb-seg site-trends__range', 'site-trends__section', 'site-trends__section', 'site-trends__section'], 'the notice above all');
   // A first round that failed: the notice, and the frames as built, never "No data".
   const first = renderState({ ...mergeRound(null, pathsOf(THIRTY).map((p) => [p, { status: 'rejected', reason: new Error('x') }]), NOW) });
   assert.equal(classed(first, 'wb-notice').length, 1);
@@ -279,7 +310,7 @@ test('renderState: a range button tells the island which range was chosen; the m
 
 test('the new words are marked for Katie, and the trends render sets no style', () => {
   const lib = readFileSync('src/lib/trends.mjs', 'utf8');
-  for (const words of ["'Species seen per day'", "'Species seen per week'", "'Water temperature'", "'Air temperature'", "'Wind speed'", "'Rainfall'", "'Chart range'", "'Air'", "'Wind'", "'Water measured '", "'Weather measured '", "'Species'", "'Weather'"]) {
+  for (const words of ["'Species seen per day'", "'Species seen per week'", "'Water temperature'", "'Air temperature'", "'Wind speed'", "'Rain gauge, accumulated (mm)'", "'Chart range'", "'Air'", "'Wind'", "'Water measured '", "'Weather measured '", "'Species'", "'Weather'"]) {
     const at = lib.indexOf(words);
     assert.ok(at > 0, words);
     assert.match(lib.slice(lib.lastIndexOf('\n', lib.lastIndexOf('\n', at) - 1), at), /katie: review/, `${words} is marked`);
@@ -333,6 +364,8 @@ test('/live/trends/: the island as built has the range switch, the figures in or
   const island = html.match(/<astro-island\b[^>]*TrendsCharts[\s\S]*?<\/astro-island>/)?.[0] ?? '';
   assert.match(island, /<div class="wb-seg site-trends__range" role="group" aria-label="Chart range">/);
   assert.match(island, /<button class="wb-seg__btn" type="button" aria-pressed="true">30 days<\/button>/);
+  // As built (no reading yet, so no tiles), the switch is the island's first part and right above the first chart's section.
+  assert.match(island, /<div class="site-trends"><div class="wb-seg site-trends__range"[^>]*>(?:<button\b[^>]*>[^<]*<\/button>){4}<\/div><section class="site-trends__section" aria-labelledby="trends-species">/);
   const captions = [...island.matchAll(/<figure class="wb-chart wb-chart--tall"><figcaption>([^<]+)<\/figcaption>/g)].map((m) => decode(m[1]));
   assert.deepEqual(captions, CAPTIONS);
   const csv = [...island.matchAll(/<a href="([^"]+)">CSV/g)].map((m) => m[1]);

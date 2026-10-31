@@ -165,6 +165,44 @@ test('niceDomain: the values\' extent rounded out to a nice step; from zero when
   assert.equal(niceDomain([null, Number.NaN]), null);
 });
 
+// Fix round 1, Important 1: a near-flat series filled the chart's height and repeated its axis labels.
+test('niceDomain: at least `minSpan` wide around the values; never below `floor`', () => {
+  assert.deepEqual(niceDomain([8.11, 8.12], { minSpan: 0.5 }), [7.8, 8.4], 'a 0.01 change in pH no longer fills the chart');
+  for (const [values, options] of [[[8.11, 8.12], { minSpan: 0.5 }], [[95, 98], { minSpan: 10, floor: 0 }], [[81.2, 81.3], { minSpan: 3.6 }]]) {
+    const [lo, hi] = niceDomain(values, options);
+    assert.ok(hi - lo >= options.minSpan, `${values}: ${lo}..${hi}`);
+    assert.ok(lo <= Math.min(...values) && hi >= Math.max(...values), `${values}: ${lo}..${hi} holds them`);
+  }
+  assert.deepEqual(niceDomain([26.1, 27.9], { minSpan: 0.5 }), [26, 28], 'a wider series is as it was');
+  // Oxygen, turbidity, wind, rain and counts cannot be negative.
+  assert.equal(niceDomain([0, 0], { floor: 0 })[0], 0, 'not [-1, 1]');
+  assert.deepEqual(niceDomain([0.2, 0.4], { minSpan: 1, floor: 0 }), [0, 1], 'the span moves up off the floor');
+  assert.ok(niceDomain([0.4, 0.5], { floor: 0 })[0] >= 0);
+});
+
+test('formatTick with the axis\' step: as many places as the step has, so no two labels are the same', () => {
+  assert.equal(formatTick(8.112, '', 0.002), '8.112');
+  assert.equal(formatTick(8.11, '', 0.002), '8.11');
+  assert.equal(formatTick(26.5, '°F', 0.5), '26.5°F');
+  assert.equal(formatTick(80, '°F', 1), '80°F');
+  assert.equal(formatTick(1500, '', 500), '1,500');
+  assert.equal(formatTick(0.0004, '', 0.0001), '0.0004');
+  // A near-flat pH without a minimum span: every tick has a label of its own.
+  const flat = lineModel({ points: [{ t: NOW - 2 * DAY, v: 8.11 }, { t: NOW - DAY, v: 8.12 }], domain: [NOW - 7 * DAY, NOW] }, { width: 600, height: 300 });
+  const labels = flat.ticks.map((t) => t.label);
+  assert.ok(labels.length >= 3, labels.join());
+  assert.equal(new Set(labels).size, labels.length, `no repeated label: ${labels.join(', ')}`);
+});
+
+test('lineModel with a minimum span: a 0.01 change in pH is a nearly flat line, on ticks a tenth or more apart', () => {
+  const ph = lineModel({ points: [{ t: NOW - 2 * DAY, v: 8.11 }, { t: NOW - DAY, v: 8.12 }], domain: [NOW - 7 * DAY, NOW], minSpan: 0.5 }, { width: 600, height: 300 });
+  const ys = [...ph.d.matchAll(/[ML][\d.]+ ([\d.]+)/g)].map((m) => Number(m[1]));
+  assert.ok(Math.max(...ys) - Math.min(...ys) < 0.05 * 270, `the line rises ${Math.max(...ys) - Math.min(...ys)}px`);
+  assert.ok(ph.ticks.slice(1).every((t, i) => t.value - ph.ticks[i].value >= 0.1 - 1e-9), ph.ticks.map((t) => t.value).join());
+  const empty = lineModel({ points: [{ t: NOW - DAY, v: 0 }, { t: NOW, v: 0 }], domain: [NOW - 7 * DAY, NOW], floor: 0 }, { width: 600, height: 300 });
+  assert.ok(empty.ticks.every((t) => t.value >= 0), empty.ticks.map((t) => t.value).join());
+});
+
 test('ticks: evenly spaced round values from the domain\'s low end to its high end', () => {
   assert.deepEqual(ticks([26, 28], 4), [26, 26.5, 27, 27.5, 28]);
   assert.deepEqual(ticks([0, 100]), [0, 20, 40, 60, 80, 100]);
@@ -238,9 +276,9 @@ test('formatTick: the number as the axis shows it, with its unit', () => {
   assert.equal(formatTick(-0), '0');
 });
 
-test('bucketLabel with a granularity: a day as "Oct 3", a week by its first day, a month with its year', () => {
+// Fix round 1: "Week of Oct 3" never reached the page (week axes are labelled by month), so it went.
+test('bucketLabel with a granularity: a day as "Oct 3", a month with its year', () => {
   assert.equal(bucketLabel('2026-10-03', 'day'), 'Oct 3');
-  assert.equal(bucketLabel('2026-10-03', 'week'), 'Week of Oct 3');
   assert.equal(bucketLabel('2026-10-03', 'month'), 'Oct 2026');
   assert.equal(bucketLabel('2025-12', 'month'), 'Dec 2025');
   assert.equal(bucketLabel('2026-09'), 'Sep', 'without one, as Task 8\'s species page reads it');
@@ -393,6 +431,7 @@ test('stackNode: the tall frame, its caption, the bars and axes, a square legend
 test('the chart module sets no style, and draws only with the design\'s chart classes', () => {
   const source = readFileSync('src/lib/chart.mjs', 'utf8');
   assert.doesNotMatch(source, /\bstyle\b\s*:/);
+  assert.doesNotMatch(source, /Week of|LABEL_ROOM/, 'no words no visitor sees; one label-room rule');
   const classes = [...source.matchAll(/className: '([^']+)'/g)].flatMap((m) => m[1].split(' '));
   assert.ok(classes.every((c) => c.startsWith('wb-chart')), classes.join());
 });

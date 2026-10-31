@@ -497,17 +497,17 @@ main { flex: 1 0 auto; }
 .site-species-page__clip-list img { aspect-ratio: 4 / 3; }
 .site-species-page__back { margin-top: var(--wb-space-7); }
 
-/* Trends (/live/trends/): the range switch as wide as its buttons (the design's .wb-seg stretches to its container;
-   it wraps on a narrow screen), the six tiles two, three, then six a row, and each section's charts one column, then
-   two from 48rem, every chart in the tall frame. As wide as the other live pages' panels. Without script the charts
-   cannot be drawn and the switch cannot switch: both are left out, and each frame keeps its caption and CSV link. */
+/* Trends (/live/trends/): the notice, the six tiles two, three, then six a row, then the range switch above the
+   charts, as wide as its buttons (the design's .wb-seg stretches to its container; it wraps on a narrow screen), and
+   each section's charts one column, then two from 48rem, every chart in the tall frame. As wide as the other live
+   pages' panels. Without script the charts cannot be drawn and the switch cannot switch: both are left out, and each
+   frame keeps its caption and CSV link. */
 .site-trends {
   max-width: 60rem;
   margin-top: var(--wb-space-6);
 }
 .site-trends > * + * { margin-top: var(--wb-space-6); }
 .site-trends__range { width: fit-content; }
-.site-trends > .wb-notice { margin-top: var(--wb-space-4); }
 .site-trends__tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -6,9 +6,9 @@
 // week (the others: GET /api/public/species/counts, the six species most seen and the rest), the sensors' history
 // (GET /api/public/environment/history, bucket-averaged) and their latest reading (GET /api/public/environment/latest),
 // again every ten minutes while the page shows. renderState is its render, a small VDOM (h in src/lib/vdom.mjs) with
-// React's prop names: the switch; the design's notice when the last round of fetches did not all answer (what was
-// drawn stays); the tiles with the readings' age; "Species", the stacked bars; "Water" and "Weather", a line chart a
-// measure. Each chart is a figure in the design's tall frame (src/lib/chart.mjs) with its caption, an SVG whose
+// React's prop names: the design's notice when the last round of fetches did not all answer (what was drawn stays);
+// the tiles with the readings' age; the switch, right above the charts (Ruling 46); "Species", the stacked bars;
+// "Water" and "Weather", a line chart a measure. Each chart is a figure in the design's tall frame (src/lib/chart.mjs) with its caption, an SVG whose
 // aria-label states the range (before its answer arrives too), and a "CSV" link to the matching public export, over
 // the export's nearest window (the exports allow 7, 30, 90 and 365 days).
 import { lineNode, stackNode } from './chart.mjs';
@@ -24,7 +24,7 @@ import { h } from './vdom.mjs';
 // katie: review: the range switch's name, for a screen reader
 const CHART_RANGE = 'Chart range';
 // katie: review: the four ranges (the 1-year and All charts count species per week)
-const RANGE_WORDS = { '7d': ['7 days', 'over the last 7 days'], '30d': ['30 days', 'over the last 30 days'], '1y': ['1 year', 'over the last year'], all: ['All', 'over the whole record'] };
+const RANGE_WORDS = { '7d': ['7 days', 'over the last 7 days'], '30d': ['30 days', 'over the last 30 days'], '1y': ['1 year', 'over the last year'], all: ['All', 'as far back as the record goes, up to about two years'] };
 // katie: review: the three headings
 const SPECIES = 'Species';
 // katie: review
@@ -43,8 +43,8 @@ const WATER_TEMPERATURE = 'Water temperature';
 const AIR_TEMPERATURE = 'Air temperature';
 // katie: review
 const WIND_SPEED = 'Wind speed';
-// katie: review: the weather station's rain accumulation, in mm
-const RAINFALL = 'Rainfall';
+// katie: review: the weather station's rain gauge reports a running total that resets (Ruling 46), so the chart says so
+const RAIN_GAUGE = 'Rain gauge, accumulated (mm)';
 // katie: review: the weather tiles' labels, beside the live page's water tiles
 const AIR = 'Air';
 // katie: review
@@ -101,21 +101,26 @@ const toMph = (/** @type {number} */ ms) => ms * 2.236936;
 
 /**
  * A line chart of the page: its key (the island measures each chart's SVG by it), caption, the history's list and
- * field, the unit the chart shows it in (and the conversion to it), whether its axis starts at zero, and its export.
- * @typedef {{ key: string, caption: string, list: 'water' | 'weather', field: string, unit: string, convert?: (v: number) => number, zero?: boolean, file: string }} Measure
+ * field, the unit the chart shows it in (and the conversion to it), its axis (src/lib/chart.mjs's Scale: from zero,
+ * at least `minSpan` wide in the chart's unit, never below `floor`), and its export. The minimum spans keep a change
+ * within a sensor's noise a nearly flat line: pH 0.5, turbidity 1 FNU, temperatures 2 °C, oxygen 10 %, wind 2 m/s,
+ * rain 5 mm. Oxygen, turbidity, wind and rain are never below zero.
+ * @typedef {{ key: string, caption: string, list: 'water' | 'weather', field: string, unit: string, convert?: (v: number) => number, file: string } & import('./chart.mjs').Scale} Measure
  */
+/** 2 °C as a span of °F. */
+const TWO_DEGREES_C = (2 * 9) / 5;
 /** @type {Measure[]} */
 const WATER_CHARTS = [
-  { key: 'water-temp', caption: WATER_TEMPERATURE, list: 'water', field: 'water_temp_c', unit: '°F', convert: toF, file: 'water_quality' },
-  { key: 'ph', caption: PH, list: 'water', field: 'ph', unit: '', file: 'water_quality' },
-  { key: 'oxygen', caption: OXYGEN, list: 'water', field: 'do_pct', unit: '%', file: 'water_quality' },
-  { key: 'turbidity', caption: TURBIDITY, list: 'water', field: 'turbidity_fnu', unit: 'FNU', file: 'water_quality' },
+  { key: 'water-temp', caption: WATER_TEMPERATURE, list: 'water', field: 'water_temp_c', unit: '°F', convert: toF, minSpan: TWO_DEGREES_C, file: 'water_quality' },
+  { key: 'ph', caption: PH, list: 'water', field: 'ph', unit: '', minSpan: 0.5, file: 'water_quality' },
+  { key: 'oxygen', caption: OXYGEN, list: 'water', field: 'do_pct', unit: '%', minSpan: 10, floor: 0, file: 'water_quality' },
+  { key: 'turbidity', caption: TURBIDITY, list: 'water', field: 'turbidity_fnu', unit: 'FNU', minSpan: 1, floor: 0, file: 'water_quality' },
 ];
 /** @type {Measure[]} */
 const WEATHER_CHARTS = [
-  { key: 'air-temp', caption: AIR_TEMPERATURE, list: 'weather', field: 'air_temp_c', unit: '°F', convert: toF, file: 'weather' },
-  { key: 'wind', caption: WIND_SPEED, list: 'weather', field: 'wind_speed_avg_ms', unit: 'mph', convert: toMph, zero: true, file: 'weather' },
-  { key: 'rain', caption: RAINFALL, list: 'weather', field: 'rain_accum_mm', unit: 'mm', zero: true, file: 'weather' },
+  { key: 'air-temp', caption: AIR_TEMPERATURE, list: 'weather', field: 'air_temp_c', unit: '°F', convert: toF, minSpan: TWO_DEGREES_C, file: 'weather' },
+  { key: 'wind', caption: WIND_SPEED, list: 'weather', field: 'wind_speed_avg_ms', unit: 'mph', convert: toMph, zero: true, minSpan: toMph(2), floor: 0, file: 'weather' },
+  { key: 'rain', caption: RAIN_GAUGE, list: 'weather', field: 'rain_accum_mm', unit: 'mm', zero: true, minSpan: 5, floor: 0, file: 'weather' },
 ];
 /** The species chart's export: the sightings, one row per fish followed, which is what the chart counts. */
 const SPECIES_FILE = 'sightings';
@@ -251,7 +256,7 @@ const nowNode = (/** @type {any} */ latest, /** @type {number | undefined} */ no
 };
 
 /**
- * The island's render: the switch, the notice when a fetch failed, the latest readings, and the three sections of
+ * The island's render: the notice when a fetch failed, the latest readings, the switch, and the three sections of
  * charts for the chosen range.
  * @param {RenderData} [data]
  * @returns {VNode}
@@ -279,6 +284,8 @@ export const renderState = (data = {}) => {
       domain,
       unit: m.unit,
       zero: m.zero,
+      minSpan: m.minSpan,
+      floor: m.floor,
       caption: m.caption,
       label: `${m.caption} ${range.span}`,
       size: sizes[m.key],
@@ -288,13 +295,14 @@ export const renderState = (data = {}) => {
   const section = (/** @type {string} */ id, /** @type {string} */ heading, /** @type {any} */ body) =>
     h('section', { key: id, className: 'site-trends__section', 'aria-labelledby': id }, h('h2', { id }, heading), body);
 
-  // Keyed, so the notice and the tiles coming and going never make React redraw the charts after them.
+  // The notice above all; the latest readings, which no range changes; then the switch, right above the charts it
+  // changes (Ruling 46). Keyed, so the notice and the tiles coming and going never make React redraw what follows.
   return h(
     'div',
     { className: 'site-trends' },
-    rangeNode(range, data.onRange),
     data.failed && h('div', { key: 'notice', className: 'wb-notice', role: 'status' }, h('p', null, NOT_LOADED)),
     nowNode(answers[LATEST], at[LATEST]),
+    rangeNode(range, data.onRange),
     section(
       'trends-species',
       SPECIES,
