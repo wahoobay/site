@@ -284,6 +284,28 @@ test('each card: a lazy thumbnail over the names, or the names alone; the status
   }
 });
 
+// The fix wave's capture: a card of words only beside photographs left a hole under it in every mixed row. In each
+// category the species with a photograph come first, then those without, each in the snapshot's name order, so the
+// cards of words only make compact rows of their own.
+test('in each category the cards with a photograph come first, then the cards of words only, each in name order', () => {
+  const html = read('dist/live/species/index.html');
+  const sections = [...html.matchAll(/<section class="site-species__group" aria-labelledby="([^"]+)">([\s\S]*?)<\/section>/g)];
+  assert.ok(sections.length > 0);
+  for (const [, id, body] of sections) {
+    const kinds = [...body.matchAll(/<li class="wb-card site-species__card( site-species__card--text)?">/g)].map((m) => (m[1] ? 'text' : 'photo'));
+    assert.deepEqual(kinds, [...kinds].sort((a, b) => (a === b ? 0 : a === 'photo' ? -1 : 1)), `${id}: photographs first`);
+    const names = [...body.matchAll(/<h3>(?:<i>)?([^<]+)/g)].map((m) => m[1]);
+    const order = new Map(species.map((s, i) => [s.common_name ?? s.scientific_name, i]));
+    const decode = (t) => t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+    const at = names.map((n) => order.get(decode(n)));
+    const split = kinds.indexOf('text') < 0 ? at.length : kinds.indexOf('text');
+    for (const part of [at.slice(0, split), at.slice(split)]) assert.deepEqual(part, [...part].sort((a, b) => a - b), `${id}: name order`);
+  }
+  // The first card of words only starts a row of its own.
+  const css = read('src/styles/site.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.site-species__card:not\(\.site-species__card--text\) \+ \.site-species__card--text\s*\{\s*grid-column-start:\s*1;\s*\}/);
+});
+
 test('the new words on the page are marked for Katie', () => {
   const source = read('src/pages/live/species/index.astro');
   for (const words of ['<h1', 'wb-lead', '<h2', 'KIND_LABEL']) {

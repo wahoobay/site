@@ -323,6 +323,8 @@ main { flex: 1 0 auto; }
   align-content: start;
 }
 .site-species__card--text { align-self: start; }
+/* The cards of words only follow a category's photographs (the page orders them so) and start a row of their own. */
+.site-species__card:not(.site-species__card--text) + .site-species__card--text { grid-column-start: 1; }
 .site-species__media {
   width: 100%;
   aspect-ratio: 1;

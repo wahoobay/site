@@ -35,10 +35,12 @@ const card = (s: (typeof species)[number]) => {
 };
 
 // A category with no species has no heading: an empty "Shark & Ray" would say none were seen, and the API files the
-// sharks and rays it has under Fish.
+// sharks and rays it has under Fish. In a category, the species with a photograph come first and those without after
+// them, each in the snapshot's name order: a card of words only beside photographs would leave a hole under it.
+const photosFirst = (cards: ReturnType<typeof card>[]) => [...cards.filter((c) => c.thumb), ...cards.filter((c) => !c.thumb)];
 const groups = [...groupByCategory(species)]
   .filter(([, list]) => list.length > 0)
-  .map(([title, list]) => ({ title, id: categoryId(title), cards: list.map(card) }));
+  .map(([title, list]) => ({ title, id: categoryId(title), cards: photosFirst(list.map(card)) }));
 const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
 ---
 <Base title="Species" description={description}>
