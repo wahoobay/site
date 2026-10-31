@@ -166,7 +166,9 @@ test('every species page with clips: one link per clip but the picture\'s, in or
     const links = clipLinks(main);
     const { pictureClip, clips } = galleryOf(s);
     assert.deepEqual(links.map((l) => l.href), clips.map((m) => attr(m.url)), `${s.slug}: a link per clip`);
-    const figure = main.match(/<figure class="site-species-page__picture">([\s\S]*?)<\/figure>/)?.[1] ?? '';
+    const figure = main.match(/<figure class="site-species-page__picture(?: site-species-page__picture--whole)?">([\s\S]*?)<\/figure>/)?.[1] ?? '';
+    // Ruling 61: a video's thumbnail is shown whole, never cropped to 3:2 over its burned-in overlay or time.
+    assert.equal(/site-species-page__picture--whole/.test(main), pictureClip?.kind === 'video', `${s.slug}: a video's thumbnail whole`);
     if (pictureClip) {
       heroes += 1;
       assert.ok(figure.startsWith(`<a href="${attr(pictureClip.url)}" target="_blank" rel="noopener"><img class="wb-media" src="${attr(pictureClip.thumb)}"`), `${s.slug}: the picture links to its clip`);
@@ -189,7 +191,7 @@ test('every species page with clips: one link per clip but the picture\'s, in or
   }
   // Most species have one clip (some listed twice), which is their picture: few pages have a gallery left.
   assert.ok(pages >= 1, `${pages} pages with other clips`);
-  assert.ok(heroes > 100, `${heroes} pages whose picture is a volunteer photo`);
+  assert.ok(heroes > 50, `${heroes} pages whose picture is a volunteer's clip`);
   // Every clip is reachable: in the gallery, or as the picture's link.
   for (const s of list) {
     const main = mainOf(read(pageOf(s.slug)));
@@ -264,7 +266,7 @@ test('a page\'s picture: the same as its card\'s; a species without one has none
     const html = read(pageOf(s.slug));
     const main = mainOf(html);
     const picture = pictureOf(s);
-    const figure = main.match(/<figure class="site-species-page__picture">([\s\S]*?)<\/figure>/)?.[1];
+    const figure = main.match(/<figure class="site-species-page__picture(?: site-species-page__picture--whole)?">([\s\S]*?)<\/figure>/)?.[1];
     if (picture) {
       assert.ok(figure?.includes(`src="${attr(picture.src)}"`), `${s.slug}: its picture`);
       assert.equal(/\bonerror=/.test(figure), picture.sameOrigin, s.slug);
@@ -310,6 +312,15 @@ test('no species page carries Mapbox or a chip; every one has the Live nav above
 
 // The attribution line: no photo has one on staging yet (Ruling 17), so the snapshot cannot show it; the card and the
 // page render pictureOf's credit, whose own test is in tests/explorer.test.mjs.
+test('a video\'s thumbnail as a page\'s picture keeps its own shape: site.css lifts the 3:2 for it alone', () => {
+  const css = read('src/styles/site.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.site-species-page__picture img\s*\{\s*aspect-ratio:\s*3 \/ 2;\s*\}/);
+  assert.match(css, /\.site-species-page__picture--whole img\s*\{\s*aspect-ratio:\s*auto;\s*\}/);
+  const chelonia = bySlug.get('chelonia-mydas');
+  assert.ok(chelonia.latest_crop && chelonia.media.every((m) => m.kind === 'video'), 'the fixture: a crop and only videos');
+  assert.equal(pictureOf(chelonia).src, chelonia.latest_crop, 'its crop, not a Drive frame of empty water');
+});
+
 test('the card and the page print a reference photo\'s credit under it, as a caption', () => {
   for (const file of ['src/components/SpeciesCard.astro', 'src/pages/live/species/[slug].astro']) {
     const source = read(file);
@@ -326,7 +337,7 @@ test('the card and the page print a reference photo\'s credit under it, as a cap
 
 test('the new words on the explorer\'s pages are marked for Katie', () => {
   const lib = read('src/lib/explorer.mjs');
-  for (const words of ["'Seen once'", 'times`']) {
+  for (const words of ["'Seen once'", 'times`', "'Volunteer photo'", "'Volunteer video'"]) {
     const at = lib.indexOf(words);
     assert.ok(at > 0, words);
     assert.match(lib.slice(Math.max(0, at - 300), at), /katie: review/, `${words} is marked`);

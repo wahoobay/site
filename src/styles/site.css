@@ -509,6 +509,8 @@ main { flex: 1 0 auto; }
   gap: var(--wb-space-2);
 }
 .site-species-page__picture img { aspect-ratio: 3 / 2; }
+/* A video's thumbnail as the picture keeps its own shape (Ruling 61): a 3:2 crop would cut its overlay and time. */
+.site-species-page__picture--whole img { aspect-ratio: auto; }
 .site-species-live {
   max-width: 60rem;
   margin-top: var(--wb-space-6);

@@ -161,7 +161,8 @@ export const unionSpecies = (fish, javaSpecies, media) => {
       conservation_status: j?.conservation_status ?? null,
       photo: f?.photo ?? null,
       latest_crop: f?.latest_crop ?? null,
-      media: j ? mediaFor(j.id, media) : [],
+      // The Java list has some clips twice (another id, the same file): each file once, its first entry.
+      media: j ? mediaFor(j.id, media).filter((m, i, all) => all.findIndex((x) => x.url === m.url) === i) : [],
       species_id: f?.species_id ?? null,
       java_id: j?.id ?? null,
       sightings_total: f?.sightings_total ?? 0,
@@ -188,33 +189,36 @@ export const byCategory = (list) => groupByCategory(list);
 /** @typedef {{ src: string, credit: string | null, sameOrigin: boolean }} Picture */
 
 /**
- * A species' picture, on its card and its page (Rulings 13, 17, AE and 48): the fish-ID catalogue's reference photo
- * with its attribution as the credit line, else the first volunteer photo (its first clip with a thumbnail, as the 2a
- * gallery's card had it), else the camera's latest crop (the last resort: a crop is small and often blurred), else
- * null, a card of words only. `sameOrigin` is a picture on the site's own origin, the fish-ID app's /api/public/
- * path, which the page hides when it does not load (the app can be down, or have no such picture).
+ * A species' picture, on its card and its page (Rulings 13, 17, AE, 48 and 61): the fish-ID catalogue's reference
+ * photo with its attribution as the credit line, else the first volunteer photo (its first clip of kind image with a
+ * thumbnail), else the camera's latest crop (small and often blurred), else the first video's thumbnail (often a
+ * frame of empty water, with the camera's overlay burned in), else null, a card of words only. `sameOrigin` is a
+ * picture on the site's own origin, the fish-ID app's /api/public/ path, which the page hides when it does not load
+ * (the app can be down, or have no such picture).
  * @param {Pick<Species, 'photo' | 'latest_crop' | 'media'>} species
  * @returns {Picture | null}
  */
 export const pictureOf = ({ photo, latest_crop, media }) => {
   const pick = (/** @type {string} */ src, /** @type {string | null} */ credit) => ({ src, credit, sameOrigin: src.startsWith('/api/public/') });
   if (photo?.url) return pick(photo.url, photo.attribution ?? null);
-  const thumb = media.find((m) => m.thumb)?.thumb;
-  if (thumb) return pick(thumb, null);
-  return latest_crop ? pick(latest_crop, null) : null;
+  const image = media.find((m) => m.kind === 'image' && m.thumb)?.thumb;
+  if (image) return pick(image, null);
+  if (latest_crop) return pick(latest_crop, null);
+  const video = media.find((m) => m.kind === 'video' && m.thumb)?.thumb;
+  return video ? pick(video, null) : null;
 };
 
 /**
  * A species page's gallery of the volunteers' clips (Ruling 48): every clip but the one the page's picture is (its
- * first volunteer photo, when that is the picture, and any other entry of the Java list with the same thumbnail: the
- * list has some clips twice), in the snapshot's order, and that clip (`pictureClip`), which the page's picture links
- * to instead.
+ * first volunteer photo, or a video's thumbnail, when that is the picture, and any other entry with the same
+ * thumbnail), in the snapshot's order, and that clip (`pictureClip`), which the page's picture links to instead; the
+ * page shows a video's thumbnail whole (Ruling 61).
  * @param {Pick<Species, 'photo' | 'latest_crop' | 'media'>} species
  * @returns {{ pictureClip: Media | null, clips: Media[] }}
  */
 export const galleryOf = (species) => {
   const picture = pictureOf(species);
-  const pictureClip = (picture && !species.photo?.url && species.media.find((m) => m.thumb === picture.src)) || null;
+  const pictureClip = (picture && !picture.sameOrigin && !species.photo?.url && species.media.find((m) => m.thumb === picture.src)) || null;
   return { pictureClip, clips: species.media.filter((m) => !pictureClip || m.thumb !== pictureClip.thumb) };
 };
 

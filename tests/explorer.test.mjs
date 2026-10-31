@@ -96,6 +96,14 @@ test('unionSpecies: every species of both lists exactly once, merged on the norm
   assert.deepEqual(major.media.map((m) => m.id), [2], 'its Java clips come with it');
 });
 
+// The Java list has some clips twice (another id, the same file): a species' clips are each file once, the first entry.
+test('unionSpecies: a species\' clips are one entry a file, the first of two entries that share a URL', () => {
+  const twin = { ...media[1], id: 20, date: null };
+  const other = { id: 21, species_id: 11, kind: 'image', url: 'https://api.wahoobay.net/api/uploads/21.jpg', thumb: 'https://api.wahoobay.net/api/uploads/21.jpg', title: null, date: null };
+  const major = unionSpecies(fish, java, [...media, twin, other]).find((s) => s.slug === 'abudefduf-saxatilis');
+  assert.deepEqual(major.media.map((m) => m.id), [2, 21]);
+});
+
 test('unionSpecies keeps a Java-only species (the manatee) with its category, status and clips', () => {
   const manatee = unionSpecies(fish, java, media).find((s) => s.java_id === 12);
   assert.deepEqual(manatee, {
@@ -339,22 +347,31 @@ test('unionSpecies reads a DOUBTFUL fish-ID species as if the app did not list i
 // attribution line, else the first volunteer photo (the first clip with a thumbnail, as the 2a card had it), else the
 // camera's latest crop (the last resort: a crop is small and often blurred), else none (a card of words only). A
 // picture on the site's own origin (/api/public/...) can be missing when the fish-ID app is; the page hides it then.
-test('pictureOf: the reference photo with its credit, else the first volunteer photo, else the latest crop, else none', () => {
+// Ruling 61: a volunteer photo is a clip of kind image; a video's thumbnail (often a Drive frame of empty water) comes
+// only after the crop: reference photo, first volunteer photo, latest crop, first video's thumbnail, words only.
+test('pictureOf: the reference photo with its credit, else the first volunteer photo, else the latest crop, else a video\'s thumbnail, else none', () => {
   const list = unionSpecies(fish, java, media);
   const major = list.find((s) => s.slug === 'abudefduf-saxatilis');
   assert.ok(major.media.some((m) => m.thumb) && major.latest_crop, 'the fixture has a volunteer photo and a crop');
   assert.deepEqual(pictureOf(major), { src: '/api/public/species/abudefduf-saxatilis/photo.jpg', credit: '(c) A. Diver, some rights reserved (CC BY)', sameOrigin: true });
   assert.deepEqual(pictureOf({ ...major, photo: { url: 'https://static.inaturalist.org/photos/1/medium.jpg', attribution: null } }), { src: 'https://static.inaturalist.org/photos/1/medium.jpg', credit: null, sameOrigin: false }, 'a photo with no attribution has no credit line');
   assert.deepEqual(pictureOf({ ...major, photo: null }), { src: 'https://api.wahoobay.net/api/uploads/2.jpg', credit: null, sameOrigin: false }, 'the first volunteer photo before the crop');
-  assert.deepEqual(pictureOf({ ...major, photo: null, media: [] }), { src: '/api/public/detections/987/crop.jpg', credit: null, sameOrigin: true }, 'the latest crop, last');
+  assert.deepEqual(pictureOf({ ...major, photo: null, media: [] }), { src: '/api/public/detections/987/crop.jpg', credit: null, sameOrigin: true }, 'the latest crop');
   assert.deepEqual(pictureOf({ ...major, photo: null, media: major.media.map((m) => ({ ...m, thumb: null })) }).src, '/api/public/detections/987/crop.jpg', 'clips without a thumbnail are no picture');
+  // A video's thumbnail is no volunteer photo: the crop comes before it, and it comes before words only.
+  const video = { id: 9, species_id: 11, kind: 'video', url: 'https://drive.google.com/file/d/v/view', thumb: 'https://api.wahoobay.net/api/v1/thumb?u=v', title: null, date: null };
+  assert.equal(pictureOf({ ...major, photo: null, media: [video, ...major.media] }).src, 'https://api.wahoobay.net/api/uploads/2.jpg', 'the first image, not the first clip');
+  assert.equal(pictureOf({ ...major, photo: null, media: [video] }).src, '/api/public/detections/987/crop.jpg', 'a crop before a video\'s thumbnail');
+  assert.deepEqual(pictureOf({ ...major, photo: null, latest_crop: null, media: [video] }), { src: video.thumb, credit: null, sameOrigin: false }, 'a video\'s thumbnail before words only');
   const manatee = list.find((s) => s.slug === 'trichechus-manatus');
-  assert.equal(pictureOf(manatee)?.src, 'https://img.youtube.com/vi/abcdefghijk/hqdefault.jpg', 'the first clip with a thumbnail');
+  assert.equal(manatee.media.find((m) => m.kind === 'image' && m.thumb), undefined, 'the fixture: the manatee\'s only clip with a thumbnail is a video');
+  assert.equal(pictureOf(manatee)?.src, 'https://img.youtube.com/vi/abcdefghijk/hqdefault.jpg', 'its only media is a video: the video\'s thumbnail');
   assert.equal(pictureOf(list.find((s) => s.slug === 'ophiothrix-sp')), null, 'no picture: words only');
   assert.equal(pictureOf(list.find((s) => s.slug === 'haemulon-sciurus')), null);
 });
 
 // Ruling 48: the page's picture is not repeated in its gallery, and every gallery item says when it is from.
+// Ruling 61: a video's thumbnail as the picture is shown whole, not cropped (the page reads pictureClip's kind).
 test('galleryOf: the volunteers\' clips but the one the page\'s picture is, in order; the picture\'s own clip', () => {
   const list = unionSpecies(fish, java, media);
   const major = list.find((s) => s.slug === 'abudefduf-saxatilis');
@@ -365,8 +382,11 @@ test('galleryOf: the volunteers\' clips but the one the page\'s picture is, in o
   const first = major.media.find((m) => m.thumb);
   assert.deepEqual(galleryOf(noPhoto), { pictureClip: first, clips: major.media.filter((m) => m !== first) });
   const manatee = list.find((s) => s.slug === 'trichechus-manatus');
-  assert.equal(galleryOf(manatee).pictureClip?.kind, 'video', 'a video\'s thumbnail can be the picture');
+  assert.equal(galleryOf(manatee).pictureClip?.kind, 'video', 'a video\'s thumbnail can be the picture, when nothing else is');
   assert.equal(galleryOf(manatee).clips.length, manatee.media.length - 1);
+  // With a crop and only a video, the crop is the picture and the video stays in the gallery.
+  const video = { id: 9, species_id: 11, kind: 'video', url: 'https://drive.google.com/file/d/v/view', thumb: 'https://api.wahoobay.net/api/v1/thumb?u=v', title: null, date: null };
+  assert.deepEqual(galleryOf({ ...noPhoto, media: [video] }), { pictureClip: null, clips: [video] });
   assert.deepEqual(galleryOf({ photo: null, latest_crop: null, media: [] }), { pictureClip: null, clips: [] });
   // The Java list has some clips twice (another id, the same file): the picture's twin leaves the gallery too.
   const twin = { ...first, id: 999 };

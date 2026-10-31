@@ -2,7 +2,8 @@
 // /live/species/<slug>/: one species of the explorer (src/lib/explorer.mjs, unionSpecies over the committed snapshots),
 // a page each, built from the snapshot. Its names, family and order, the name the volunteers' list gives it when that
 // is not the accepted one, its conservation status when the Java list has one; its picture (pictureOf, as on its card:
-// the reference photo, else the first volunteer photo, which then links to its clip, else the latest crop); for a
+// the reference photo, else the first volunteer photo, which then links to its clip, else the latest crop, else a
+// video's thumbnail, linked too and shown whole, its overlay and time uncropped: Ruling 61); for a
 // species with a fish-ID id, its numbers (SpeciesLive, src/islands/SpeciesLive.tsx: the snapshot's until the island
 // has the profile, then the live ones, with "When we see it" and the recent crops; a failed fetch keeps the
 // snapshot's); then the volunteers' photographs and clips (the 2a gallery's links, each with its thumbnail and its
@@ -73,7 +74,7 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
         )}
       </div>
       {picture && (
-        <figure class="site-species-page__picture">
+        <figure class:list={['site-species-page__picture', { 'site-species-page__picture--whole': pictureClip?.kind === 'video' }]}>
           {pictureClip ? (
             <a href={pictureClip.url} target="_blank" rel="noopener"><img class="wb-media" src={picture.src} alt={name} decoding="async"><span class="wb-sr-only"> ({KIND_LABEL[pictureClip.kind as Kind]}, opens in a new tab)</span></a>
           ) : (
