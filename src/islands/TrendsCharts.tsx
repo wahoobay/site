@@ -65,7 +65,7 @@ export default function TrendsCharts() {
         const settled = await Promise.allSettled(paths.map((path) => fetchJson(path, { signal })));
         // A range chosen meanwhile (or the island going away) aborts the round: nothing to say then.
         if (signal.aborted) return;
-        setStore((was) => mergeRound(was, paths.map((path, i): [string, PromiseSettledResult<unknown>] => [path, settled[i]]), Date.now()));
+        setStore((was) => mergeRound(was, paths.map((path, i): [string, PromiseSettledResult<unknown>] => [path, settled[i]]), Date.now(), rangeOf(range)));
       }, REFRESH_MS),
     [range],
   );

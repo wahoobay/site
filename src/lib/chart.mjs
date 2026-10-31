@@ -566,14 +566,15 @@ const emptyNode = () => h('p', { className: 'wb-chart__empty' }, emptyText('char
 /**
  * The frame: the caption, the drawing (or the empty sentence), then what follows it (a legend, a link). The caption
  * can carry a class: wb-sr-only in a panel whose title already says what the chart is (it stays the figure's name for
- * a screen reader), wb-as-is for a caption that keeps its case ("pH").
- * @param {string | { text: string, className?: string }} caption
+ * a screen reader), wb-as-is for a caption that keeps its case ("pH"); and `content`, nodes shown in place of its
+ * text (a unit that keeps its case).
+ * @param {string | { text: string, className?: string, content?: any[] }} caption
  * @param {boolean} tall the trends page's 2:1 frame
  * @param {...any} children
  */
 const frameNode = (caption, tall, ...children) => {
-  const { text, className } = typeof caption === 'string' ? { text: caption, className: undefined } : caption;
-  return h('figure', { className: tall ? 'wb-chart wb-chart--tall' : 'wb-chart' }, h('figcaption', className ? { className } : null, text), ...children);
+  const { text, className, content } = typeof caption === 'string' ? { text: caption, className: undefined, content: undefined } : caption;
+  return h('figure', { className: tall ? 'wb-chart wb-chart--tall' : 'wb-chart' }, h('figcaption', className ? { className } : null, ...(content ?? [text])), ...children);
 };
 
 /**
@@ -635,13 +636,14 @@ export const stackNode = (data) => {
  * A trends line chart in the tall frame: before its answer has arrived (`points` undefined) the SVG to measure,
  * labelled `label`; with no value to draw, the empty sentence; else the line as a path of series 1 over the grid and
  * axis (lineModel, once measured), labelled with the lowest and highest values. `after` follows the drawing.
- * @param {{ points?: Point[], domain: [number, number], unit?: string, caption: string, asIs?: boolean, label: string, size?: Size | null, chartRef?: any, after?: any } & Scale} data
- *   `asIs`: the caption keeps its case ("pH"; the design's .wb-as-is)
+ * @param {{ points?: Point[], domain: [number, number], unit?: string, caption: string, captionContent?: any[], asIs?: boolean, label: string, size?: Size | null, chartRef?: any, after?: any } & Scale} data
+ *   `asIs`: the caption keeps its case ("pH"; the design's .wb-as-is); `captionContent`: what the caption shows, when a
+ *   part of it keeps its case (a unit in a .wb-as-is span); `caption` is its words
  * @returns {VNode}
  */
 export const lineNode = (data) => {
   const { label, points, unit = '' } = data;
-  const caption = data.asIs ? { text: data.caption, className: 'wb-as-is' } : data.caption;
+  const caption = { text: data.caption, className: data.asIs ? 'wb-as-is' : undefined, content: data.captionContent };
   if (points === undefined) return frameNode(caption, true, h('svg', { ref: data.chartRef, role: 'img', 'aria-label': label }), data.after);
   const values = /** @type {number[]} */ (points.map((p) => p.v).filter(isValue));
   if (values.length === 0) return frameNode(caption, true, emptyNode(), data.after);

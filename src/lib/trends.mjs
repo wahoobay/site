@@ -48,6 +48,9 @@ const AIR_TEMPERATURE = 'Air temperature';
 const WIND_SPEED = 'Wind speed';
 // katie: review: the rain chart's caption, the rain in each bucket from the station gauge's running total (Ruling 53)
 const RAIN = 'Rain (mm, from the station\'s gauge)';
+// The caption as shown (Ruling 62): the design sets captions in capitals, so the unit keeps its case (.wb-as-is), or it
+// would read "MM". The same words as RAIN, which names the chart for a screen reader.
+const RAIN_CAPTION = ['Rain (', h('span', { className: 'wb-as-is' }, 'mm'), ', from the station\'s gauge)'];
 // katie: review: the weather tiles' labels, beside the live page's water tiles
 const AIR = 'Air';
 // katie: review
@@ -122,7 +125,7 @@ const toMph = (/** @type {number} */ ms) => ms * 2.236936;
  * at least `minSpan` wide in the chart's unit, never below `floor`), and its export. The minimum spans keep a change
  * within a sensor's noise a nearly flat line: pH 0.5, turbidity 1 FNU, temperatures 2 °C, oxygen 10 %, wind 2 m/s,
  * rain 5 mm. Oxygen, turbidity, wind and rain are never below zero.
- * @typedef {{ key: string, caption: string, asIs?: boolean, list: 'water' | 'weather', field: string, unit: string, convert?: (v: number) => number, derive?: (points: Point[]) => Point[], file: string } & import('./chart.mjs').Scale} Measure
+ * @typedef {{ key: string, caption: string, captionContent?: any[], asIs?: boolean, list: 'water' | 'weather', field: string, unit: string, convert?: (v: number) => number, derive?: (points: Point[]) => Point[], file: string } & import('./chart.mjs').Scale} Measure
  */
 
 /**
@@ -158,7 +161,7 @@ const WATER_CHARTS = [
 const WEATHER_CHARTS = [
   { key: 'air-temp', caption: AIR_TEMPERATURE, list: 'weather', field: 'air_temp_c', unit: '°F', convert: toF, minSpan: TWO_DEGREES_C, file: 'weather' },
   { key: 'wind', caption: WIND_SPEED, list: 'weather', field: 'wind_speed_avg_ms', unit: 'mph', convert: toMph, zero: true, minSpan: toMph(2), floor: 0, file: 'weather' },
-  { key: 'rain', caption: RAIN, list: 'weather', field: 'rain_accum_mm', unit: 'mm', derive: rainFromGauge, zero: true, minSpan: 5, floor: 0, file: 'weather' },
+  { key: 'rain', caption: RAIN, captionContent: RAIN_CAPTION, list: 'weather', field: 'rain_accum_mm', unit: 'mm', derive: rainFromGauge, zero: true, minSpan: 5, floor: 0, file: 'weather' },
 ];
 /** The species chart's export: the sightings, one row per fish followed, which is what the chart counts. */
 const SPECIES_FILE = 'sightings';
@@ -209,23 +212,26 @@ export const trendsTiles = (latest) => {
 
 /**
  * The island's store after a round of fetches: each answer by its path and when it came, the last one kept when its
- * fetch fails; `failed` while the latest round did not all answer; and the page's species ranking (Ruling 50): the
- * 30-day counts' order once that answer has come, then grown at its end by each counts answer's new species, never
- * reordered.
+ * fetch fails; `failed` while the latest round's fetches for the shown range did not all answer (the 30-day counts
+ * asked for only to seed the colours are not the shown range's: their failure is no notice, and the chart keeps its
+ * answer's own order); and the page's species ranking (Ruling 50): the 30-day counts' order once that answer has come,
+ * then grown by each counts answer's new species (extendRanking), never reordered.
  * @param {Store | null} was
  * @param {Array<[string, PromiseSettledResult<any>]>} round
  * @param {number} now epoch milliseconds
+ * @param {Range} [shown] the range the round was asked for (the default range)
  * @returns {Store}
  */
-export const mergeRound = (was, round, now) => {
+export const mergeRound = (was, round, now, shown = rangeOf(DEFAULT_RANGE)) => {
   const answers = { ...(was?.answers ?? {}) };
   const at = { ...(was?.at ?? {}) };
+  const own = new Set(pathsOf(shown, { ranked: true }));
   let failed = false;
   for (const [path, settled] of round) {
     if (settled.status === 'fulfilled') {
       answers[path] = settled.value;
       at[path] = now;
-    } else failed = true;
+    } else if (own.has(path)) failed = true;
   }
   const anchor = answers[countsPath(rangeOf(RANKING_RANGE))];
   let ranking = was?.ranking ?? (anchor === undefined ? undefined : rankingOf(anchor));
@@ -337,6 +343,7 @@ export const renderState = (data = {}) => {
       minSpan: m.minSpan,
       floor: m.floor,
       caption: m.caption,
+      captionContent: m.captionContent,
       asIs: m.asIs,
       label: `${m.caption} ${range.span}`,
       size: sizes[m.key],

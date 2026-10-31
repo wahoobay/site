@@ -240,6 +240,27 @@ test('mergeRound and renderState: the species chart\'s colours follow the 30-day
   assert.deepEqual(legendOf(renderState({ range: '7d', ...early, sizes: SIZES })).map(([series]) => series), ['1', '2', '3', 'other']);
 });
 
+// Fix round 1: the 30-day counts asked for only to seed the colours are not the shown range's; their failure is no
+// notice, and the chart keeps the shown answer's own order.
+test('mergeRound: a failed colour-seeding fetch shows no notice; the shown range\'s failure does', () => {
+  const seven = rangeOf('7d');
+  const round = (seed, counts = { status: 'fulfilled', value: COUNTS }) => [
+    [countsPath(seven), counts],
+    [historyPath(seven), { status: 'fulfilled', value: HISTORY }],
+    [LATEST, { status: 'fulfilled', value: LATEST_ANSWER }],
+    [countsPath(THIRTY), seed],
+  ];
+  const seedFailed = mergeRound(null, round({ status: 'rejected', reason: new Error('HTTP 503') }), NOW, seven);
+  assert.equal(seedFailed.failed, false, 'no notice for the seeding fetch');
+  assert.equal(seedFailed.ranking, undefined);
+  const tree = renderState({ range: '7d', ...seedFailed, sizes: SIZES });
+  assert.equal(classed(tree, 'wb-notice').length, 0);
+  assert.deepEqual(classed(tree, 'wb-chart__legend')[0].children.map((li) => li.props['data-series']), ['1', '2', '3', '4', '5', '6', 'other'], 'the shown answer\'s order');
+  assert.equal(mergeRound(null, round({ status: 'fulfilled', value: COUNTS }, { status: 'rejected', reason: new Error('x') }), NOW, seven).failed, true, 'the shown range\'s own counts failing: the notice');
+  // On the 30-day range the 30-day counts are the shown ones.
+  assert.equal(mergeRound(null, [[countsPath(THIRTY), { status: 'rejected', reason: new Error('x') }]], NOW, THIRTY).failed, true);
+});
+
 test('renderState loaded: stacked bars as series 1 to 6 and "other" with a square legend, a line per measure, the tiles and their readings\' age', () => {
   const store = loaded();
   const tree = renderState({ range: '30d', ...store, sizes: SIZES });
@@ -271,6 +292,11 @@ test('renderState loaded: stacked bars as series 1 to 6 and "other" with a squar
   assert.deepEqual(lines.map((f) => f.children[0].props.className ?? null), [null, 'wb-as-is', null, null, null, null, null]);
   // Ruling 53: the rain chart draws each bucket's rain, the gauge's rise (0, 0.4, 1.6 mm: 0.4 then 1.2).
   assert.match(lines[6].children[1].props['aria-label'], /^Rain \(mm, from the station's gauge\) over the last 30 days: from 0\.4 mm to 1\.2 mm$/);
+  // Ruling 62: the caption's capitals would make the unit "MM": "mm" keeps its case (.wb-as-is), the rest is the design's.
+  const rain = lines[6].children[0];
+  assert.equal(text(rain), RAIN);
+  assert.equal(rain.props.className, undefined);
+  assert.deepEqual(classed(rain, 'wb-as-is').map((n) => [n.type, text(n)]), [['span', 'mm']]);
   assert.equal(text(classed(tiles[5], 'wb-tile__v')[0]), '13mph5.7 m/s');
   const age = classed(tree, 'site-trends__age')[0];
   assert.equal(text(age), 'Water measured 5 days ago. Weather measured 3 min ago.');
@@ -421,8 +447,9 @@ test('/live/trends/: the island as built has the range switch, the figures in or
   assert.match(island, /<button class="wb-seg__btn" type="button" aria-pressed="true">30 days<\/button>/);
   // As built (no reading yet, so no tiles), the switch is the island's first part and right above the first chart's section.
   assert.match(island, /<div class="site-trends"><div class="wb-seg site-trends__range"[^>]*>(?:<button\b[^>]*>[^<]*<\/button>){4}<\/div><section class="site-trends__section" aria-labelledby="trends-species">/);
-  const captions = [...island.matchAll(/<figure class="wb-chart wb-chart--tall"><figcaption(?: class="wb-as-is")?>([^<]+)<\/figcaption>/g)].map((m) => decode(m[1]));
+  const captions = [...island.matchAll(/<figure class="wb-chart wb-chart--tall"><figcaption(?: class="wb-as-is")?>([\s\S]*?)<\/figcaption>/g)].map((m) => decode(m[1].replace(/<[^>]+>/g, '')));
   assert.match(island, /<figcaption class="wb-as-is">pH<\/figcaption>/);
+  assert.match(island, /<figcaption>Rain \(<span class="wb-as-is">mm<\/span>, from the station(&#x27;|')s gauge\)<\/figcaption>/);
   assert.deepEqual(captions, CAPTIONS);
   const csv = [...island.matchAll(/<a href="([^"]+)">CSV/g)].map((m) => m[1]);
   assert.equal(csv.length, 8);
