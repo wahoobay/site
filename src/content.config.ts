@@ -147,15 +147,22 @@ const live = defineCollection({
 });
 
 // The home page's four impact figures (src/components/Figures.astro), the same four as the Support page's "Our Impact at
-// a Glance" list, which stays there for Katie; tests/home.test.mjs holds the two to the same numbers.
-// <!-- katie: review: figures copied by hand from the old dashboard; check before launch. -->
+// a Glance" list, which stays there for Katie; tests/home.test.mjs holds the two to the same numbers, but for species.
+// A figure is its `value`, or, `from: explorer`, the species explorer's count at build time (Ruling 51): the species
+// documented is the number of species on /live/species/ (unionSpecies over the committed snapshots, src/lib/explorer.mjs;
+// 211 on 2026-10-31, where the old dashboard said 184), so the home page and the explorer never disagree.
+// <!-- katie: review: figures copied by hand from the old dashboard; check before launch. The species figure's label
+// is the old one; its number is now the explorer's count. -->
 const figures = defineCollection({
   loader: file('src/content/figures.json'),
-  schema: z.object({
-    id: z.string(),
-    value: z.number(),
-    label: z.string(),
-  }),
+  schema: z
+    .object({
+      id: z.string(),
+      value: z.number().optional(),
+      from: z.enum(['explorer']).optional(),
+      label: z.string(),
+    })
+    .refine((f) => (f.value === undefined) !== (f.from === undefined), { message: 'a figure has a value or a source, not both' }),
 });
 
 export const collections = { pages, news, board, partners, grades, lessons, live, figures };

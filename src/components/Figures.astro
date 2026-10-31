@@ -2,14 +2,23 @@
 // The four impact figures (src/content/figures.json), large in brand blue: the design's .wb-figures. Brand blue on white
 // is large text here (3:1, as the design's tile numbers), which the detector cannot tell from its clamp() size, so each
 // number carries the low-contrast waiver, as in the design's docs (Ruling A).
+// A figure `from: explorer` (species documented) is the explorer's species count at build time (Ruling 51; the source
+// is src/content.config.ts's note): the species /live/species/ lists.
 import { getCollection } from 'astro:content';
+import fish from '../data/fish.json';
+import species from '../data/species.json';
+import media from '../data/media.json';
+import { unionSpecies } from '../lib/explorer.mjs';
 
 const order = ['community', 'students', 'educators', 'species'];
-const figures = (await getCollection('figures')).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+const sources = { explorer: () => unionSpecies(fish, species, media).length };
+const figures = (await getCollection('figures'))
+  .sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
+  .map(({ data }) => ({ label: data.label, value: data.from ? sources[data.from]() : (data.value as number) }));
 const fmt = new Intl.NumberFormat('en-US');
 ---
 <div class="wb-figures">
-  {figures.map(({ data }) => (
-    <div class="wb-figure"><b class="wb-figure__value" data-impeccable-ignore="low-contrast">{fmt.format(data.value)}</b><span class="wb-figure__label">{data.label}</span></div>
+  {figures.map(({ label, value }) => (
+    <div class="wb-figure"><b class="wb-figure__value" data-impeccable-ignore="low-contrast">{fmt.format(value)}</b><span class="wb-figure__label">{label}</span></div>
   ))}
 </div>

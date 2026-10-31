@@ -2,5 +2,5 @@
   { "id": "community", "value": 14910, "label": "Community Members" },
   { "id": "students", "value": 3000, "label": "Students" },
   { "id": "educators", "value": 201, "label": "Educators" },
-  { "id": "species", "value": 184, "label": "Species Documented" }
+  { "id": "species", "from": "explorer", "label": "Species Documented" }
 ]

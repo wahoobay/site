@@ -506,5 +506,7 @@ test('the figures are a collection read from src/content/figures.json, with Kati
   assert.match(config, /export const collections = \{[^}]*\bfigures\b[^}]*\}/);
   const data = JSON.parse(readFileSync('src/content/figures.json', 'utf8'));
   assert.deepEqual(data.map(({ id }) => id), ['community', 'students', 'educators', 'species']);
-  for (const f of data) assert.ok(Number.isInteger(f.value) && f.value > 0, f.id);
+  // Ruling 51: species documented is the explorer's count at build time (tests/home.test.mjs), the others a number.
+  for (const f of data) assert.ok(f.id === 'species' ? f.from === 'explorer' && !('value' in f) : Number.isInteger(f.value) && f.value > 0, f.id);
+  assert.match(figures, /from: z\.enum\(\['explorer'\]\)/);
 });

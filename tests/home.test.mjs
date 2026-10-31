@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { unionSpecies } from '../src/lib/explorer.mjs';
 
 const html = readFileSync('dist/index.html', 'utf8');
 // The Instagram strip's script; Astro's island loader for the live band's islands is the page's other inline script.
@@ -138,16 +139,29 @@ test('the live band is the one dark surface and links to the camera, Fish ID and
   assert.doesNotMatch(home(), /<html\b[^>]*data-theme=/);
 });
 
-test('the four figures come from figures.json and match the Support page', () => {
+// Ruling 51: "Species Documented" is the explorer's count at build time (the species /live/species/ lists), not the
+// old dashboard's 184; the other three are the old figures, as the Support page has them.
+test('the four figures come from figures.json; species documented is the explorer\'s count; the rest match the Support page', () => {
   const figures = JSON.parse(readFileSync('src/content/figures.json', 'utf8'));
   assert.equal(figures.length, 4);
+  const json = (file) => JSON.parse(readFileSync(file, 'utf8'));
+  const union = unionSpecies(json('src/data/fish.json'), json('src/data/species.json'), json('src/data/media.json')).length;
+  assert.ok(union >= 200, `${union} species`);
+  const species = figures.find((f) => f.id === 'species');
+  assert.deepEqual(species, { id: 'species', from: 'explorer', label: 'Species Documented' });
+  const values = figures.map((f) => (f.from === 'explorer' ? union : f.value));
   const support = readFileSync('src/content/pages/get-involved/support.md', 'utf8');
-  for (const f of figures) assert.match(support, new RegExp(`\\*\\*${f.value.toLocaleString('en-US')}\\*\\* ${f.label}`));
+  for (const f of figures.filter((x) => x.from === undefined)) assert.match(support, new RegExp(`\\*\\*${f.value.toLocaleString('en-US')}\\*\\* ${f.label}`));
   const html = home();
-  for (const f of figures) assert.match(html, new RegExp(`<b class="wb-figure__value"[^>]*>${f.value.toLocaleString('en-US')}</b>`));
   const block = html.match(/<div class="wb-figures">[\s\S]*?<\/div>\s*<\/section>/)?.[0] ?? '';
   const pairs = [...block.matchAll(/<div class="wb-figure"><b class="wb-figure__value"[^>]*>([^<]+)<\/b><span class="wb-figure__label">([^<]+)<\/span><\/div>/g)];
-  assert.deepEqual(pairs.map((m) => [m[1], m[2]]), figures.map((f) => [f.value.toLocaleString('en-US'), f.label]));
+  assert.deepEqual(pairs.map((m) => [m[1], m[2]]), figures.map((f, i) => [values[i].toLocaleString('en-US'), f.label]));
+  // The explorer's index shows as many cards.
+  assert.equal((readFileSync('dist/live/species/index.html', 'utf8').match(/<a class="wb-card site-species__card"/g) ?? []).length, union);
+  // The source is said where the figures are defined, and the label stays marked for Katie.
+  const config = readFileSync('src/content.config.ts', 'utf8');
+  assert.match(config, /Ruling 51/);
+  assert.match(config, /katie: review: figures copied by hand[\s\S]*?species figure/);
 });
 
 test('three photo doorways, three news items, the map teaser on the manatee photograph, a dark footer', () => {
