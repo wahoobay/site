@@ -1,7 +1,8 @@
 ---
 // A Live reef page (src/content/live/*.md), on the dark ground: the Live reef navigation, the h1 (with the live badge
-// when the video is the stream), the video, the lead, a link to the other live page, then the Markdown body. The
-// navigation is above the h1, where Page.astro has its section's (Ruling Z).
+// when the video is the stream), the lead and a link to the other live page, the video, then the Markdown body. The
+// navigation is above the h1, where Page.astro has its section's (Ruling Z), and the lead under the h1, as Page.astro
+// has it (fix round 1 of plan 7's Task 7: on /live/ it had fallen below the cards).
 // The badge is the LiveBadge island: it follows the camera's stream ("Live", "Offline"), and carries
 // data-impeccable-ignore="pulsing-dot" while live, as in the design's docs (spec §4.3 has it breathe;
 // .impeccable/config.json records that ruling).
@@ -35,15 +36,15 @@ const hasBody = (entry.body ?? '').replace(/<!--[\s\S]*?-->/g, '').trim() !== ''
       <h1>{title}</h1>
       {live && <LiveBadge client:load camera={REEF_CAMERA} />}
     </div>
+    <p class="wb-lead">{description}</p>
+    <div class="site-actions">
+      <a class="wb-btn wb-btn--ghost wb-btn--wrap" href={link.href}>{link.label}</a>
+    </div>
     {Astro.slots.has('player') ? (
       <slot name="player" />
     ) : (
       <YouTube id={video} title={live ? `${title}, live stream` : `${title}, YouTube playlist`} playlist={playlist} />
     )}
-    <p class="wb-lead">{description}</p>
-    <div class="site-actions">
-      <a class="wb-btn wb-btn--ghost wb-btn--wrap" href={link.href}>{link.label}</a>
-    </div>
     {hasBody && <div class="wb-prose site-article__body"><slot /></div>}
   </div>
 </Base>

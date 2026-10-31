@@ -244,7 +244,8 @@ main { flex: 1 0 auto; }
   list-style: none;
 }
 
-/* Live reef: the heading with its live badge, then the video (the design's 16:9 frame) at most 60rem wide. */
+/* Live reef: the heading with its live badge, the lead and its button, then the video (the design's 16:9 frame) at
+   most 60rem wide. */
 .site-live__title {
   display: flex;
   flex-wrap: wrap;

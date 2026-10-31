@@ -4,11 +4,14 @@
 // on /live/ the week's sightings (GET /api/public/species/counts?days=7&top=5) as its bar chart, drawn at the size the
 // chart is shown (a ResizeObserver on its SVG), so the axis text keeps its token size. Compact is the chips and three
 // tiles. Hydrated when it scrolls into view (client:visible); it refreshes every 60 s, and waits while the page is
-// hidden. While the camera is not live it renders nothing; until its first answers it is an empty box. A panel whose
-// answer fails keeps what it showed. The markup is renderState's (src/lib/live.mjs).
+// hidden. While the camera is not live it renders nothing, and forgets its answers; until one answer has arrived it is
+// an empty box, so a failed first fetch never says "Nothing seen"; a panel whose answer has not arrived yet is left
+// out, and one whose refresh fails keeps what it showed (mergeAnswers, src/lib/live-status.mjs). The markup is
+// renderState's (src/lib/live.mjs).
 import { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '../lib/public-api.mjs';
 import { panelsInterval, renderState, type Size } from '../lib/live.mjs';
+import { mergeAnswers } from '../lib/live-status.mjs';
 import { poll, toReact, useCameraState } from './live-shared';
 
 interface Props {
@@ -18,14 +21,14 @@ interface Props {
   compact?: boolean;
 }
 
+/** The panels' answers (mergeAnswers): each one that has arrived, those not arrived yet, and when. */
 interface Answers {
-  summary: unknown;
-  latest: unknown;
-  counts: unknown;
+  summary?: unknown;
+  latest?: unknown;
+  counts?: unknown;
+  pending: string[];
   now: number;
 }
-
-const valueOf = (result: PromiseSettledResult<unknown>) => (result.status === 'fulfilled' ? result.value : undefined);
 
 export default function LiveNow({ camera, compact = false }: Props) {
   const { status } = useCameraState(camera);
@@ -45,24 +48,23 @@ export default function LiveNow({ camera, compact = false }: Props) {
   }, []);
 
   useEffect(() => {
-    if (status !== 'live') return;
+    if (status !== 'live') {
+      setAnswers(null);
+      return;
+    }
     return poll(async (signal) => {
-      const [summary, latest, counts] = await Promise.allSettled([
+      const asked = [
         fetchJson('/detections/summary?hours=1', { signal }),
         fetchJson('/environment/latest', { signal }),
-        compact ? Promise.resolve(null) : fetchJson('/species/counts?days=7&top=5', { signal }),
-      ]);
+        ...(compact ? [] : [fetchJson('/species/counts?days=7&top=5', { signal })]),
+      ];
+      const [summary, latest, counts] = await Promise.allSettled(asked);
       if (signal.aborted) return;
-      setAnswers((was) => ({
-        summary: valueOf(summary) ?? was?.summary ?? null,
-        latest: valueOf(latest) ?? was?.latest ?? null,
-        counts: valueOf(counts) ?? was?.counts ?? null,
-        now: Date.now(),
-      }));
+      setAnswers((was: Answers | null) => mergeAnswers(was, compact ? { summary, latest } : { summary, latest, counts }, Date.now()) as Answers | null);
     }, panelsInterval);
   }, [status, compact]);
 
-  // Live but not answered yet: still the empty box, so the panels never say "nothing seen" before they know.
+  // Live but nothing answered yet: still the empty box.
   const showing = status === 'live' && answers === null ? null : status;
   return toReact(renderState(showing, { compact, ...answers, chartSize, chartRef }).panels);
 }

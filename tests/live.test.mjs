@@ -10,7 +10,6 @@ import {
   REEF_STILL,
   boxKey,
   boxesFor,
-  chartModel,
   isStale,
   labelFor,
   pollInterval,
@@ -141,7 +140,7 @@ test('tiles: water in °F with °C under it, pH, oxygen and turbidity; a missing
   }
 });
 
-// --- the species chart ----------------------------------------------------------------------------------------------
+// --- the species chart (src/lib/live-chart.mjs; its own tests are tests/live-chart.test.mjs) -----------------------
 
 const COUNTS = {
   granularity: 'day',
@@ -156,47 +155,6 @@ const COUNTS = {
   ],
   other: [22, 329, 182, 258, 534, 351, 0],
 };
-
-test('chartModel: stacked bars per day, the five species as series 1 to 5 and the rest as 6, drawn at the measured size', () => {
-  const chart = chartModel(COUNTS, { width: 600, height: 120 });
-  assert.equal(chart.empty, false);
-  assert.equal(chart.viewBox, '0 0 600 120', 'one unit is one CSS pixel, so the axis text keeps its token size');
-  assert.deepEqual(chart.legend, [
-    { series: '1', label: 'Silver Porgy' },
-    { series: '2', label: 'Yellowtail Snapper' },
-    { series: '3', label: 'Harengula humeralis' },
-    { series: '4', label: 'Striped Mullet' },
-    { series: '5', label: 'Green Sea Turtle' },
-    { series: '6', label: 'Other species' },
-  ]);
-  assert.deepEqual(chart.days.map((d) => d.label), ['Oct 25', 'Oct 26', 'Oct 27', 'Oct 28', 'Oct 29', 'Oct 30', 'Oct 31']);
-  // No bar for a zero count; each day's bars stack from the axis up, series 1 at the bottom.
-  const bars = chart.bars;
-  assert.ok(bars.every((b) => b.height > 0));
-  assert.deepEqual(bars.filter((b) => b.day === 0).map((b) => b.series), ['6']);
-  const oct29 = bars.filter((b) => b.day === 4);
-  assert.deepEqual(oct29.map((b) => b.series), ['1', '2', '3', '4', '5', '6']);
-  for (let i = 1; i < oct29.length; i++) assert.ok(Math.abs(oct29[i].y + oct29[i].height - oct29[i - 1].y) < 1e-6, 'stacked');
-  assert.ok(Math.abs(oct29[0].y + oct29[0].height - chart.baseline) < 1e-6, 'from the axis');
-  // The tallest day (Oct 29, 1,296) fits under the top tick, and the ticks are round numbers.
-  const top = chart.ticks.at(-1);
-  assert.ok(top.value >= 1296);
-  assert.deepEqual(chart.ticks.map((t) => t.value), [0, top.value / 2, top.value]);
-  assert.ok(oct29.at(-1).y >= top.y - 1e-6);
-  assert.ok(bars.every((b) => b.x >= chart.left && b.x + b.width <= 600));
-});
-
-test('chartModel: a narrow chart labels every other day, ending on today; all zero, or nothing, is the empty chart', () => {
-  const narrow = chartModel(COUNTS, { width: 260, height: 64 });
-  assert.deepEqual(narrow.days.map((d) => d.label), ['Oct 25', null, 'Oct 27', null, 'Oct 29', null, 'Oct 31']);
-  const zero = { ...COUNTS, series: COUNTS.series.map((s) => ({ ...s, counts: s.counts.map(() => 0) })), other: COUNTS.other.map(() => 0) };
-  assert.equal(chartModel(zero, { width: 600, height: 120 }).empty, true);
-  assert.equal(chartModel(null, { width: 600, height: 120 }).empty, true);
-  assert.equal(chartModel({ ...COUNTS, buckets: [], series: [], other: [] }, { width: 600, height: 120 }).empty, true);
-  // No "Other species" when the rest is nothing.
-  const fewer = chartModel({ ...COUNTS, series: COUNTS.series.slice(0, 2), other: COUNTS.other.map(() => 0) }, { width: 600, height: 120 });
-  assert.deepEqual(fewer.legend.map((l) => l.series), ['1', '2']);
-});
 
 // --- renderState: the islands' render, branch by branch ------------------------------------------------------------
 
@@ -324,16 +282,15 @@ test('renderState live: empty panels say so; the chart before it is measured has
   assert.deepEqual(svg.children, []);
 });
 
-// The browser check (blocked stream, 1440): a ResizeObserver once reported the SVG at 0 wide, and the chart drew bars of
-// negative width. A size with no room to plot in is a chart not measured yet.
-test('renderState live: a chart measured too small to plot in is drawn as not measured yet, never with negative sizes', () => {
-  for (const chartSize of [{ width: 0, height: 0 }, { width: 40, height: 64 }, { width: 300, height: 20 }]) {
-    const svg = nodes(renderState('live', { counts: COUNTS, chartSize }).panels).find((n) => n.type === 'svg');
-    assert.deepEqual(svg.children, [], JSON.stringify(chartSize));
-    assert.equal(svg.props.viewBox, undefined);
-  }
-  const drawn = nodes(renderState('live', { counts: COUNTS, chartSize: { width: 120, height: 64 } }).panels).filter((n) => n.type === 'rect');
-  assert.ok(drawn.length > 0 && drawn.every((r) => r.props.width > 0 && r.props.height > 0));
+// Fix round 1 (Ruling 40): a panel whose answer has not arrived yet is left out, so a failed fetch never says
+// "Nothing seen" (src/lib/live-status.mjs, mergeAnswers, says which are pending).
+test('renderState live: a panel whose answer has not arrived yet is left out, not shown as empty', () => {
+  const { panels } = renderState('live', { latest: LATEST, counts: COUNTS, pending: ['summary'], chartSize: { width: 600, height: 120 } });
+  assert.deepEqual(nodes(panels).filter((n) => n.type === 'h2').map(text), ['Water right now', 'Species this week']);
+  assert.ok(!text(panels).includes(emptyText('hour')), 'no "Nothing seen" before the hour\'s answer');
+  const later = renderState('live', { summary: { species: [] }, pending: ['latest', 'counts'] }).panels;
+  assert.deepEqual(nodes(later).filter((n) => n.type === 'h2').map(text), ['Seen in the last hour']);
+  assert.ok(!text(later).includes(emptyText('water')) && !text(later).includes(emptyText('chart')));
 });
 
 test('renderState compact (the home band): the chips and three tiles, h3 headings, no chart', () => {
@@ -367,7 +324,7 @@ test('only the detection boxes carry a style, and only their geometry (the desig
 
 test('the new words are marked for Katie', () => {
   const lib = readFileSync('src/lib/live.mjs', 'utf8');
-  for (const words of ["'Seen in the last hour'", "'Water right now'", "'Species this week'", "'Offline'", "'Sightings per day'", "'Other species'", "'Water'", "'Oxygen'", "'Turbidity'", "'pH'", 'Measured ']) {
+  for (const words of ["'Seen in the last hour'", "'Water right now'", "'Species this week'", "'Offline'", "'Water'", "'Oxygen'", "'Turbidity'", "'pH'", 'Measured ']) {
     const at = lib.indexOf(words);
     assert.ok(at > 0, words);
     assert.match(lib.slice(lib.lastIndexOf('\n', lib.lastIndexOf('\n', at) - 1), at), /katie: review/, `${words} is marked`);
@@ -402,7 +359,7 @@ const islandsOf = (html) =>
 const live = () => read('dist/live/index.html');
 const home = () => read('dist/index.html');
 
-test('/live/: the Live reef nav, the h1 with the badge, the player, the panels, the two cards, then the Markdown body', () => {
+test('/live/: the Live reef nav, the h1 with the badge, the lead and its button, the player, the panels, the two cards, the body', () => {
   const html = live();
   const main = html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
   const at = (needle) => main.indexOf(needle);
@@ -423,9 +380,23 @@ test('/live/: the Live reef nav, the h1 with the badge, the player, the panels, 
   assert.equal(now.client, 'visible');
   assert.equal(now.props.camera, 'seahivecam');
   assert.equal(now.props.compact, undefined);
-  const order = [at('aria-label="Live reef"'), at('<h1'), badge.at, player.at, now.at, at('<a class="wb-card" href="/live/species/"'), at('<a class="wb-card" href="/visit/"'), at('<div class="wb-prose site-article__body">')];
-  for (const [i, p] of order.entries()) assert.ok(p >= 0, `item ${i}`);
-  assert.deepEqual([...order].sort((a, b) => a - b), order);
+  // Fix round 1: the lead and its button above the player, where the layout has them, as Page.astro has its lead.
+  const order = {
+    nav: at('aria-label="Live reef"'),
+    h1: at('<h1'),
+    badge: badge.at,
+    lead: at('<p class="wb-lead">'),
+    button: at('<div class="site-actions">'),
+    player: player.at,
+    panels: now.at,
+    species: at('<a class="wb-card" href="/live/species/"'),
+    visit: at('<a class="wb-card" href="/visit/"'),
+    body: at('<div class="wb-prose site-article__body">'),
+  };
+  for (const [name, p] of Object.entries(order)) assert.ok(p >= 0, name);
+  const names = Object.keys(order);
+  assert.deepEqual([...names].sort((a, b) => order[a] - order[b]), names);
+  assert.match(main.slice(order.button), /^<div class="site-actions"><a class="wb-btn wb-btn--ghost wb-btn--wrap" href="\/live\/highlights\/">Reef highlights<\/a><\/div>/);
   // The badge is beside the h1, in the title row.
   // Astro puts its island loader (an inline style and scripts) before the page's first island, here the badge.
   assert.match(main, /<div class="site-live__title">\s*<h1>[^<]+<\/h1>\s*(?:<(script|style)>[\s\S]*?<\/\1>)*<astro-island\b[^>]*LiveBadge/);
