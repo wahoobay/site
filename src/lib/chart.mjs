@@ -2,7 +2,7 @@
 // (GET /api/public/species/counts?days=7&top=5) as the design's bar chart, the five species most seen as series 1 to 5
 // and every other species as 6, the days' bars stacked from the axis. It is drawn in CSS pixels at the size the chart
 // is shown (the island measures its SVG), so the axis text keeps its token size. Part of renderState's VDOM
-// (src/lib/live.mjs); a plain module, so the tests read it without a browser (tests/live-chart.test.mjs).
+// (src/lib/live.mjs); a plain module, so the tests read it without a browser (tests/chart.test.mjs).
 // A species page's two charts are drawn with it too (src/lib/species-live.mjs): their buckets are the day's hours
 // ("07:00") and the last twelve months ("2026-09"), and each has a caption of its own.
 import { emptyText } from './public-api.mjs';

@@ -1,10 +1,10 @@
-// The species chart of the live camera page (src/lib/live-chart.mjs): the week's sightings as stacked bars, drawn at
+// The species chart of the live camera page (src/lib/chart.mjs): the week's sightings as stacked bars, drawn at
 // the size the chart is shown. Moved out of src/lib/live.mjs in fix round 1; the behaviour is unchanged, and
 // tests/live.test.mjs still checks the chart as renderState draws it in the panels.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { bucketLabel, chartModel, chartNode } from '../src/lib/live-chart.mjs';
+import { bucketLabel, chartModel, chartNode } from '../src/lib/chart.mjs';
 import { emptyText } from '../src/lib/public-api.mjs';
 
 /** Every node of a VDOM tree, depth first. */
@@ -92,7 +92,7 @@ test('chartNode: the figure with its caption, the SVG to measure, and the legend
 });
 
 test('the chart\'s new words are marked for Katie, and it sets no style', () => {
-  const source = readFileSync('src/lib/live-chart.mjs', 'utf8');
+  const source = readFileSync('src/lib/chart.mjs', 'utf8');
   for (const words of ["'Sightings per day'", "'Other species'"]) {
     const at = source.indexOf(words);
     assert.ok(at > 0, words);

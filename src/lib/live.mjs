@@ -3,14 +3,14 @@
 // build or a browser (tests/live.test.mjs).
 // renderState is the islands' render: a small VDOM ({ type, props, children }, h in src/lib/vdom.mjs) with React's prop
 // names, which each island hands to React (toReact, src/islands/live-shared.ts); the species chart in it is
-// src/lib/live-chart.mjs's. Its branches (live, embed, offline, and not known yet) are the page's states:
+// src/lib/chart.mjs's. Its branches (live, embed, offline, and not known yet) are the page's states:
 // - not known yet (the build, and the first fetch): the still in the video frame, no badge, and the right-now panels an
 //   empty box (LiveNow hydrates when it is on screen, client:visible, so the box must be there to be seen);
 // - live: the camera's MJPEG stream in the frame with the detection boxes over it, the Live badge, the three panels;
 // - embed or offline: the YouTube embed from youtube-nocookie.com, the Offline badge, the panels hidden.
 // Colour and type are the design's classes. The one style is a detection box's geometry, left/top/width/height in
 // percent of the frame: the design's .wb-detect contract (@wahoobay/design 0.3.1, its docs page).
-import { chartNode } from './live-chart.mjs';
+import { chartNode } from './chart.mjs';
 import { emptyText, fahrenheit, relativeTime } from './public-api.mjs';
 import { EMBED_ALLOW, embedUrl } from './video.mjs';
 import { h } from './vdom.mjs';

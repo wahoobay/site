@@ -1,4 +1,4 @@
-// The live islands' VDOM: renderState (src/lib/live.mjs) and the species chart (src/lib/live-chart.mjs) describe what
+// The live islands' VDOM: renderState (src/lib/live.mjs) and the species chart (src/lib/chart.mjs) describe what
 // the islands draw as { type, props, children } nodes with React's prop names, which the islands hand to React
 // (toReact, src/islands/live-shared.ts). A plain module, so the tests read the trees without React.
 

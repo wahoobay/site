@@ -7,12 +7,12 @@
 // - not loaded yet (the build, and until the profile arrives): the three tiles with the snapshot's numbers, the page's
 //   own (src/data/fish.json), and "Last seen" as a date, since the build cannot know how long ago it will be read;
 // - loaded ('ok'): the tiles with the profile's numbers and "Last seen" as how long ago; "When we see it", the day's
-//   hours and the last twelve months as the design's bar charts (src/lib/live-chart.mjs); the twelve most recent crops;
+//   hours and the last twelve months as the design's bar charts (src/lib/chart.mjs); the twelve most recent crops;
 // - failed ('error', any ApiError: a 404, a 5xx, no answer): the snapshot's numbers stay, and the design's notice says
 //   so, once (Review Focus 3).
 // Colour and type are the design's classes; nothing here sets a style. The one detector waiver is the design's own,
 // on the tiles' numbers (tileNode).
-import { chartNode } from './live-chart.mjs';
+import { chartNode } from './chart.mjs';
 import { relativeTime } from './public-api.mjs';
 import { h } from './vdom.mjs';
 
@@ -89,7 +89,7 @@ const numbersOf = (profile, snapshot) => ({
 const HOURS = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
 
 /**
- * A chart of the species alone, in the shape of the live page's species counts (src/lib/live-chart.mjs): its buckets
+ * A chart of the species alone, in the shape of the live page's species counts (src/lib/chart.mjs): its buckets
  * and one series, named as the page names the species.
  * @param {any} profile
  * @param {string} name

@@ -140,7 +140,7 @@ test('tiles: water in °F with °C under it, pH, oxygen and turbidity; a missing
   }
 });
 
-// --- the species chart (src/lib/live-chart.mjs; its own tests are tests/live-chart.test.mjs) -----------------------
+// --- the species chart (src/lib/chart.mjs; its own tests are tests/chart.test.mjs) -----------------------
 
 const COUNTS = {
   granularity: 'day',
