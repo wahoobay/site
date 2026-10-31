@@ -1,10 +1,10 @@
-// The live dashboards: the Power BI report and the Grafana water and air dashboards. The page embeds only those
-// not flagged `offline` (see onlineDashboards below). All are public addresses (Power BI "Publish to web", Grafana
-// kiosk); none carries a secret. The page says the same line under every title (Ruling AA), so a dashboard has no
-// sentence of its own.
+// The live dashboards: the Power BI report (a public "Publish to web" address; no secret). The page embeds only those
+// not flagged `offline` (see onlineDashboards below) and says the same line under every title (Ruling AA), so a
+// dashboard has no sentence of its own.
+// The old site's two Grafana dashboards (water, air, at grafana.wahoobay.net) were retired on 2026-10-31 on Dan's
+// word: the host had not resolved since before 2026-10-24, its certificates had expired and were removed, and nothing
+// in the account runs Grafana. The trends page (step 2b) charts the same sensor data from the fish-ID system.
 const POWERBI = 'https://app.powerbi.com/view?r=eyJrIjoiODc0MmQ3OWYtZjFjZC00YmI3LTgzMTgtOTA0ZTRhOTFhNGQxIiwidCI6IjI3MWMwMGZlLTUxODItNGM5OS1hOWU2LTJkYzNlMWFmMGExZSJ9&pageName=f006761480e7e73d969e';
-const WATER = 'https://grafana.wahoobay.net/d/fdruz46pp5jpce/water-dashboard?orgId=1&refresh=1h&theme=light';
-const AIR = 'https://grafana.wahoobay.net/d/fdrlbyd6ay1vkf/air-dashboard?orgId=1&refresh=1h&theme=light';
 
 export const DASHBOARDS = [
   {
@@ -12,22 +12,6 @@ export const DASHBOARDS = [
     title: 'Wahoo Bay dashboard',
     src: POWERBI,
     open: POWERBI,
-  },
-  {
-    id: 'water',
-    // grafana.wahoobay.net did not resolve on public DNS on 2026-10-30 (scripts/check-embeds.mjs); flip to false when the host is back
-    offline: true,
-    title: 'Water dashboard',
-    src: `${WATER}&kiosk`,
-    open: WATER,
-  },
-  {
-    id: 'air',
-    // grafana.wahoobay.net did not resolve on public DNS on 2026-10-30 (scripts/check-embeds.mjs); flip to false when the host is back
-    offline: true,
-    title: 'Air dashboard',
-    src: `${AIR}&kiosk`,
-    open: AIR,
   },
 ];
 

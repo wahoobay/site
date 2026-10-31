@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 import { DASHBOARDS, onlineDashboards } from '../src/lib/dashboards.mjs';
 
 test('three dashboards, https only, on the two known hosts', () => {
-  assert.equal(DASHBOARDS.length, 3);
+  assert.equal(DASHBOARDS.length, 1, 'Power BI alone: the Grafana dashboards were retired on 2026-10-31');
   for (const d of DASHBOARDS) {
-    assert.match(d.src, /^https:\/\/(app\.powerbi\.com|grafana\.wahoobay\.net)\//);
+    assert.match(d.src, /^https:\/\/app\.powerbi\.com\//);
     assert.ok(d.open.startsWith('https://'));
   }
 });
@@ -44,9 +44,10 @@ test('each dashboard: its heading, the one line, the full-size action, then the 
   assert.match(source.slice(source.lastIndexOf('\n', source.lastIndexOf('\n', at) - 1), at), /katie: review/, 'the new line is marked for Katie');
 });
 
-test('no offline dashboard is rendered: no grafana.wahoobay.net URL in the page while those entries are offline', () => {
+test('no offline dashboard is rendered, and the retired Grafana host (2026-10-31) is named nowhere on the page', () => {
   const html = readFileSync('dist/live/data/index.html', 'utf8');
   for (const d of DASHBOARDS.filter((x) => x.offline)) assert.ok(!html.includes(new URL(d.src).host), `${d.id} is offline`);
+  assert.ok(!html.includes('grafana.wahoobay.net'));
   assert.ok(onlineDashboards().length >= 1);
 });
 
