@@ -296,6 +296,11 @@ test('renderState live: the three panels, their headings, chips with counts, fou
   const later = { ...COUNTS, series: [COUNTS.series[3], COUNTS.series[0], COUNTS.series[1], COUNTS.series[2], COUNTS.series[4]] };
   const again = classed(renderState('live', { counts: later, ranking, chartSize: { width: 600, height: 120 } }).panels, 'wb-chart__legend')[0];
   assert.deepEqual(again.children.map((li) => li.props['data-series']), ['4', '1', '2', '3', '5', 'other']);
+  // Ruling 63: a lobby screen open for days has ranked eight; a ninth species in the week's top five keeps its name.
+  const eight = [...ranking, 'Pterois volitans', 'Sparisoma viride', 'Scarus guacamaia'];
+  const ninth = { ...COUNTS, series: [...COUNTS.series.slice(0, 4), { species_id: 'Caranx ruber', latin: 'Caranx ruber', common: 'Bar Jack', counts: [0, 9, 9, 9, 9, 9, 0] }] };
+  const lobby = classed(renderState('live', { counts: ninth, ranking: eight, chartSize: { width: 600, height: 120 } }).panels, 'wb-chart__legend')[0];
+  assert.deepEqual(lobby.children.map((li) => [li.props['data-series'], text(li)]).slice(4), [['8', 'Bar Jack'], ['other', 'Other species']]);
 });
 
 test('renderState live: empty panels say so; the chart before it is measured has its SVG to measure and nothing in it', () => {

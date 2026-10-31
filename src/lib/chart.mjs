@@ -12,8 +12,9 @@
 //   (the six most seen, and the rest as "Other species") and the sensors' history as lines, both in the tall frame,
 //   on round ticks (niceDomain, ticks) and dates at Wahoo Bay's midnight (timeTicks).
 // A species' colour is its own on a page (Ruling 50): seriesFor gives it its place in the page's ranking (the trends
-// page's 30-day species order, the live page's 7-day order, taken once and grown at its end by extendRanking), so a
-// species keeps its colour from range to range and refresh to refresh; "Other species" is data-series="other".
+// page's 30-day species order, the live page's 7-day order, taken once and grown by extendRanking: at its end, and
+// past eight in the place of a species the answer does not show, Ruling 63), so a species keeps its colour from range
+// to range and refresh to refresh; "Other species" is data-series="other".
 import { emptyText } from './public-api.mjs';
 import { h } from './vdom.mjs';
 
@@ -68,17 +69,33 @@ const speciesOf = (/** @type {any} */ s) => (s && (s.species_id ?? s.latin)) || 
 export const rankingOf = (counts) => (Array.isArray(counts?.series) ? counts.series.map(speciesOf).filter((id) => id !== null).map(String) : []);
 
 /**
- * A page's ranking with the species of `counts` it does not have yet added at its end, in the answer's order: a
- * species already placed keeps its place, so its colour, for the rest of the page's life. No ranking yet is the
- * answer's own.
+ * A page's ranking with the species of `counts` it does not have yet, in the answer's order: a species already placed
+ * keeps its place, so its colour, for the rest of the page's life. Each new one goes at the end while the ranking has
+ * fewer than eight; past eight (a page open for days, Ruling 63) it takes the place, and so the colour, of the
+ * lowest-ranked species the answer does not show, and when the answer shows every ranked species the ranking starts
+ * again from the answer. No ranking yet is the answer's own.
  * @param {string[] | null | undefined} ranking
  * @param {any} counts
  * @returns {string[]}
  */
 export const extendRanking = (ranking, counts) => {
   const known = Array.isArray(ranking) ? ranking : [];
-  const added = rankingOf(counts).filter((id, i, all) => !known.includes(id) && all.indexOf(id) === i);
-  return added.length > 0 ? [...known, ...added] : known;
+  const shown = rankingOf(counts).filter((id, i, all) => all.indexOf(id) === i);
+  const added = shown.filter((id) => !known.includes(id));
+  if (added.length === 0) return known;
+  const next = [...known];
+  for (const id of added) {
+    if (next.length < SERIES_COLOURS) {
+      next.push(id);
+      continue;
+    }
+    // The lowest-ranked place among the eight whose species the answer does not show.
+    let at = -1;
+    for (let i = SERIES_COLOURS - 1; i >= 0 && at < 0; i -= 1) if (!shown.includes(next[i])) at = i;
+    if (at < 0) return shown;
+    next[at] = id;
+  }
+  return next;
 };
 
 /**

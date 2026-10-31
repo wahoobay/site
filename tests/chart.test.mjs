@@ -111,6 +111,23 @@ test('rankingOf and extendRanking: a counts answer\'s species in its order; a pa
   assert.deepEqual(extendRanking(null, COUNTS), rankingOf(COUNTS));
 });
 
+// Ruling 63: a page open for days (a lobby screen) ranks more than eight species. A new one takes the place, and so
+// the colour, of the lowest-ranked species the current answer does not show; when every ranked species is shown, the
+// ranking starts again from the answer.
+test('extendRanking past eight: a ninth species takes the colour of the lowest-ranked one not shown; none absent, a new ranking', () => {
+  const eight = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+  const answer = (...ids) => ({ series: ids.map((species_id) => ({ species_id })) });
+  assert.deepEqual(extendRanking(eight, answer('p2', 'n9', 'p8')), ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'n9', 'p8'], 'p7 is the lowest-ranked absent');
+  assert.equal(seriesFor('n9', extendRanking(eight, answer('p2', 'n9', 'p8'))), '7');
+  // Two new species take the two lowest-ranked absent places, in the answer's order.
+  assert.deepEqual(extendRanking(eight, answer('n9', 'p1', 'n10')), ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'n10', 'n9']);
+  // Every ranked species shown and a new one besides: the answer's order is the new ranking.
+  const all = answer('p8', 'p7', 'p6', 'p5', 'p4', 'p3', 'p2', 'p1', 'n9');
+  assert.deepEqual(extendRanking(eight, all), ['p8', 'p7', 'p6', 'p5', 'p4', 'p3', 'p2', 'p1', 'n9']);
+  // A ranking under eight still grows at its end.
+  assert.deepEqual(extendRanking(['p1'], answer('n9')), ['p1', 'n9']);
+});
+
 test('chartModel with a page\'s ranking: the colours follow the species, not the order; one the ranking cannot colour joins "other"', () => {
   // The same species in another order: each keeps the series its place in the ranking gives it.
   const swapped = { ...COUNTS, series: [COUNTS.series[3], COUNTS.series[0]], other: COUNTS.other };
@@ -119,13 +136,14 @@ test('chartModel with a page\'s ranking: the colours follow the species, not the
   assert.deepEqual(m.legend, [{ series: '4', label: 'Striped Mullet' }, { series: '1', label: 'Silver Porgy' }, { series: 'other', label: 'Other species' }]);
   // Mullet at the bottom of each stack, as the answer orders them: the order is the answer's, the colour the species'.
   assert.deepEqual(m.bars.filter((b) => b.day === 4).map((b) => b.series), ['4', '1', 'other']);
-  // Eight species placed already: a ninth is folded into "other", its counts added to it.
+  // Eight species placed already (Ruling 63): a ninth keeps its name, in the colour of the lowest-ranked species the
+  // answer does not show (p8 here), and "Other species" is the answer's own rest.
   const full = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
   const ninth = { buckets: ['2026-10-30', '2026-10-31'], series: [{ species_id: 'p2', common: 'Two', counts: [1, 2] }, { species_id: 'n9', common: 'Nine', counts: [3, 4] }], other: [5, 0] };
-  const folded = chartModel(ninth, { width: 600, height: 120 }, { ranking: full });
-  assert.deepEqual(folded.legend, [{ series: '2', label: 'Two' }, { series: 'other', label: 'Other species' }]);
-  const other = folded.bars.filter((b) => b.series === 'other');
-  assert.equal(other.length, 2);
+  const named = chartModel(ninth, { width: 600, height: 120 }, { ranking: full });
+  assert.deepEqual(named.legend, [{ series: '2', label: 'Two' }, { series: '8', label: 'Nine' }, { series: 'other', label: 'Other species' }]);
+  assert.equal(named.bars.filter((b) => b.series === 'other').length, 1, 'the answer\'s rest alone');
+  assert.match(chartNode({ counts: ninth, ranking: full }).children[1].props['aria-label'], /Nine 7/, 'named in the label too');
   // Without a ranking a chart ranks its own answer: positions, as before, and "other" for the rest.
   assert.deepEqual(chartModel(swapped, { width: 600, height: 120 }).legend.map((l) => l.series), ['1', '2', 'other']);
 });
