@@ -10,11 +10,16 @@
 // route), or an https address on one of PHOTO_HOSTS; a photo anywhere else is left out, and the latest crop must be a
 // path under /api/public/detections/. Before writing, assertNoLeak refuses the whole file, and nothing is written, if
 // any key is off the whitelist or any value holds a `key=` parameter, a user in a link's authority or an e-mail address
-// (the step-2a pattern). It also refuses two species of one scientific name, which would share a page. It prints
-// counts and sizes only, never a response body, a name or a link.
+// (the step-2a pattern). It prints counts and sizes only, never a response body, a name or a link.
+//
+// One entry a species (Ruling 32): the fish-ID app can list one species under two ids, its classifier's current label
+// ("Sparisoma viride") and an older one ("sparisoma_viride"), and the explorer gives a species one page. Entries whose
+// scientific names match once normalised become one (mergeSameSpecies, src/lib/fish-sync.mjs): the id seen most
+// recently (its profile is the live one), the sightings in total and this week summed, the earliest first seen and the
+// latest last seen, and the newest id's photo and latest crop, else the other's. The API keeps both ids.
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { binomial } from '../src/lib/names.mjs';
+import { mergeSameSpecies } from '../src/lib/fish-sync.mjs';
 
 const SYNC_API = process.env.SYNC_API ?? 'https://staging-ai.wahoobay.net';
 const TIMEOUT_MS = 20_000;
@@ -77,23 +82,21 @@ export const toFish = (row) => {
 };
 
 /**
- * The species the snapshot keeps, by scientific name, and how many rows were left out. Refuses two of one name once
- * normalised (they would share a page); the message names the species, a public name, never anything else.
+ * The species the snapshot keeps, one entry a species (the header), by scientific name; how many rows were left out
+ * (no id or name), and how many were merged into another id of their species.
  */
 export const selectFish = (rows) => {
-  const fish = rows.map(toFish).filter((f) => f !== null);
-  const names = new Map();
-  for (const f of fish) names.set(binomial(f.latin), (names.get(binomial(f.latin)) ?? 0) + 1);
-  for (const [name, n] of names) if (n > 1) throw new Error(`${n} species named ${name} would share a page; nothing written`);
-  fish.sort((a, b) => a.latin.localeCompare(b.latin, 'en') || a.species_id.localeCompare(b.species_id, 'en'));
-  return { fish, dropped: rows.length - fish.length };
+  const kept = rows.map(toFish).filter((f) => f !== null);
+  const fish = mergeSameSpecies(kept).sort((a, b) => a.latin.localeCompare(b.latin, 'en') || a.species_id.localeCompare(b.species_id, 'en'));
+  return { fish, dropped: rows.length - kept.length, merged: kept.length - fish.length };
 };
 
 // A key in a query (?key=, &api_key=), and a user in a link's authority (https://user@host, //user:pw@host).
 const KEY_PARAM = /[?&][\w-]*key=/i;
 const USER_IN_LINK = /\/\/[^\s/?#]*@/;
 const EMAIL = /[^\s@/]+@[^\s@/]+\.[a-z]{2,}/i;
-const ID = /^[\w-]+$/;
+// A species id the message may name: the classifier's labels ("Sparisoma viride", "sparisoma_viride"), nothing more.
+const ID = /^[\w .-]+$/;
 
 /**
  * Throws, and nothing is written, if a species carries a key off the whitelist (FISH_KEYS; url and attribution of a
@@ -133,15 +136,16 @@ export async function main({ api = SYNC_API, out = new URL('../src/data/fish.jso
     throw new Error('/api/public/species: not JSON; nothing written');
   }
   if (!Array.isArray(rows)) throw new Error('/api/public/species: not a list; nothing written');
-  const { fish, dropped } = selectFish(rows);
+  const { fish, dropped, merged } = selectFish(rows);
   if (fish.length === 0) throw new Error('no species in the list; nothing written');
   assertNoLeak(fish);
   const body = json(fish);
   writeFileSync(out, body);
+  // Photos by row, before the merge: a photo off the allow-list is the only one left out.
   const offered = rows.filter((r) => toFish(r) !== null && r.photo).length;
-  const photos = fish.filter((f) => f.photo !== null).length;
-  console.log(`species: ${rows.length} from the API, ${fish.length} kept, ${dropped} left out (no id or name); ${Buffer.byteLength(body)} bytes`);
-  console.log(`photos: ${photos} kept, ${offered - photos} left out (not on the allow-list); latest crops: ${fish.filter((f) => f.latest_crop !== null).length}`);
+  const photos = rows.filter((r) => toFish(r)?.photo).length;
+  console.log(`species: ${rows.length} from the API, ${fish.length} kept, ${dropped} left out (no id or name), ${merged} merged (one species under two ids); ${Buffer.byteLength(body)} bytes`);
+  console.log(`photos: ${photos} kept, ${offered - photos} left out (not on the allow-list); species with a photo: ${fish.filter((f) => f.photo !== null).length}, with a latest crop: ${fish.filter((f) => f.latest_crop !== null).length}`);
   console.log(`sightings: ${fish.filter((f) => (f.sightings_total ?? 0) > 0).length} species seen, ${fish.filter((f) => (f.sightings_7d ?? 0) > 0).length} this week`);
 }
 

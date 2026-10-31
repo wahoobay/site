@@ -102,6 +102,8 @@ test('the sync refuses to write a key off the whitelist, ?key=, a user in a link
     [{ ...ok[0], latest_crop: '/api/public/detections/1/crop.jpg?KEY=x' }, /"latest_crop"/],
     [{ ...ok[0], photo: { ...ok[0].photo, url: 'https://ai.wahoobay.net/p.jpg?w=1&api_key=abc123' } }, /"photo\.url"/],
     [{ ...ok[0], photo: { ...ok[0].photo, url: '//diver:pw@static.inaturalist.org/p.jpg' } }, /"photo\.url"/],
+    [{ ...ok[0], species_id: 'Abudefduf saxatilis', common: 'a.diver@example.org' }, /species Abudefduf saxatilis: "common"/],
+    [{ ...ok[0], species_id: 'a.diver@example.org' }, /species #1: "species_id"/],
   ];
   for (const [bad, message] of leaks) {
     assert.throws(() => assertNoLeak([bad]), (err) => {
@@ -113,17 +115,26 @@ test('the sync refuses to write a key off the whitelist, ?key=, a user in a link
   }
 });
 
-test('the snapshot is sorted by scientific name, and refuses two species of one name (they would share a page)', () => {
+test('the snapshot is sorted by scientific name, one entry a species: two ids of one name are merged (Ruling 32)', () => {
   const rows = [
     row({ species_id: 'b', latin: 'Haemulon sciurus' }),
     row({ species_id: 'a', latin: 'Abudefduf saxatilis' }),
     { species_id: 'nameless' },
     row({ species_id: 'c', latin: 'Acanthurus chirurgus' }),
   ];
-  const { fish, dropped } = selectFish(rows);
+  const { fish, dropped, merged } = selectFish(rows);
   assert.deepEqual(fish.map((f) => f.latin), ['Abudefduf saxatilis', 'Acanthurus chirurgus', 'Haemulon sciurus']);
-  assert.equal(dropped, 1);
-  assert.throws(() => selectFish([row({ species_id: 'a' }), row({ species_id: 'old-uuid', latin: 'Abudefduf Saxatilis' })]), /2 species named Abudefduf saxatilis.*nothing written/);
+  assert.deepEqual([dropped, merged], [1, 0]);
+  const two = selectFish([
+    row({ species_id: 'Abudefduf saxatilis', sightings_total: 2, sightings_7d: 2, last_seen: '2026-10-29T22:13:59.297526+00:00' }),
+    row({ species_id: 'abudefduf_saxatilis', latin: 'Abudefduf Saxatilis', sightings_total: 8, sightings_7d: 8, last_seen: '2026-10-25T15:44:01.364629+00:00' }),
+  ]);
+  assert.deepEqual(two.fish.map((f) => [f.species_id, f.sightings_total, f.sightings_7d]), [['Abudefduf saxatilis', 10, 10]]);
+  assert.equal(two.merged, 1);
+  // The header and the README say so.
+  const header = read('scripts/sync-fish.mjs').slice(0, 3000).replace(/\n\/\/ ?/g, ' ');
+  assert.match(header, /two ids[\s\S]*seen most recently[\s\S]*summed/);
+  assert.match(read('README.md'), /sync:fish[\s\S]*two ids[\s\S]*seen most recently/);
 });
 
 const answer = (body, status = 200) => async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
@@ -147,7 +158,7 @@ test('main writes src/data/fish.json from the API and prints counts only', async
   assert.equal(written[1].photo, null);
   assert.ok(read(out).endsWith('}\n]\n'));
   const log = logged.join('\n');
-  assert.match(log, /species: 2 from the API, 2 kept/);
+  assert.match(log, /species: 2 from the API, 2 kept, 0 left out \(no id or name\), 0 merged \(one species under two ids\)/);
   assert.match(log, /photos: 1 kept, 1 left out/);
   assert.doesNotMatch(log, /Abudefduf|Sergeant|Haemulon|inaturalist|example\.org|Diver/, 'no names, links or values');
 });

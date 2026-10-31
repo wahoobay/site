@@ -19,7 +19,7 @@ npm run sync:datasources # by hand only, never in CI: re-read the Java API's lis
 npm run sync:fish   # by hand only, never in CI: re-read the fish-ID app's public species list (SYNC_API, default https://staging-ai.wahoobay.net) into src/data/fish.json for the species explorer at /live/species/; commit the file
 ```
 
-The live pages' islands read the fish-ID app's public API at `/api/public/` on the site's own origin: the deployed site's distribution sends that path to the environment's fish-ID app, and `npm run dev` sends it to staging's, `https://staging-ai.wahoobay.net` (the dev server's proxy in `astro.config.mjs`; the built site is static and has none).
+The live pages' islands read the fish-ID app's public API at `/api/public/` on the site's own origin: the deployed site's distribution sends that path to the environment's fish-ID app, and `npm run dev` sends it to staging's, `https://staging-ai.wahoobay.net` (the dev server's proxy in `astro.config.mjs`; the built site is static and has none). `npm run sync:fish` writes one entry a species: where the fish-ID app lists a species under two ids (its classifier's current label and an older one), the snapshot keeps the id seen most recently, sums the two ids' sightings, and keeps the earliest first sighting and the latest last one.
 
 CI runs `npm ci`, `npm run build`, `npm test`, `npm run check` and `npm run check:links` on every pull request and on every push to `main`; all five must pass. Deploys (`deploy:staging`, `deploy:prod`) go through GitHub Actions only, never from a laptop.
 

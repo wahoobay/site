@@ -168,10 +168,28 @@ test('in npm run dev the proxy answers before Astro\'s trailing-slash 404', asyn
   assert.equal(plugin.enforce, 'post', 'after Astro\'s own plugin');
   const layer = (name) => ({ route: '', handle: { [name]: () => {} }[name] });
   const stack = [layer('viteTimeMiddleware'), layer('viteProxyMiddleware'), layer('viteBaseMiddleware')];
-  const server = { middlewares: { stack } };
+  const server = { middlewares: { stack }, config: { logger: { warn: () => assert.fail('no warning when the proxy is found') } } };
   const post = plugin.configureServer(server);
   // Astro's post hook runs first and puts its own middleware at the front.
   stack.unshift(layer('devSecFetch'), layer('devTrailingSlash'));
   post();
   assert.deepEqual(stack.map((l) => l.handle.name), ['viteProxyMiddleware', 'devSecFetch', 'devTrailingSlash', 'viteTimeMiddleware', 'viteBaseMiddleware']);
+});
+
+// Ruling 33: never silent. If Vite renames its proxy middleware, the dev server says the proxy is not active.
+test('in npm run dev, a proxy the plugin cannot find is a warning, never silence', async () => {
+  const { default: config } = await import('../astro.config.mjs');
+  const plugin = config.vite?.plugins?.flat().find((p) => p && typeof p === 'object' && 'name' in p && p.name === 'wahoobay:dev-proxy-first');
+  const warnings = [];
+  const layer = (name) => ({ route: '', handle: { [name]: () => {} }[name] });
+  const stack = [layer('viteTimeMiddleware'), layer('viteRenamedProxy')];
+  plugin.configureServer({ middlewares: { stack }, config: { logger: { warn: (message) => warnings.push(message) } } })();
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /wahoobay:dev-proxy-first/);
+  assert.match(warnings[0], /\/api\/public proxy is not active/);
+  assert.match(warnings[0], /viteProxyMiddleware/, 'it names what to look for');
+  assert.deepEqual(stack.map((l) => l.handle.name), ['viteTimeMiddleware', 'viteRenamedProxy'], 'the stack is left as it was');
+  const source = readFileSync('astro.config.mjs', 'utf8');
+  assert.match(source, /trailing-slash/i, 'the comment says why the plugin exists');
+  assert.match(source, /renames/, 'and what to check if Vite renames the middleware');
 });
