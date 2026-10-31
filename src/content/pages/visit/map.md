@@ -1,8 +1,8 @@
 ---
 # The old site's map (src/pages/other/MapBox.js). The map itself is src/components/ParkMapSection.astro, between the
 # lead and this text: with the build's PUBLIC_MAPBOX_TOKEN, an interactive map of the API's list of sites
-# (/api/v1/datasource/AllActive, kept in src/data/datasources.json by `npm run sync:datasources`); without it, the old
-# map as a picture, the map part of the old home page's src/assets/images/map.png, cropped out of its background.
+# (/api/v1/datasource/AllActive, kept in src/data/datasources.json by `npm run sync:datasources`); without it, a still
+# of that map (public/images/map.jpg, exported from the island at its opening view).
 title: Map
 description: The cameras and sensors on Wahoo Bay's map.
 section: visit

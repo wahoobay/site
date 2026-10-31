@@ -2,9 +2,9 @@
 // The park map on /visit/map/, between the page's lead and its text, where the page's picture was. With the build-time
 // PUBLIC_MAPBOX_TOKEN (a public token, restricted to the site's hostnames; the deploy workflow reads it from the
 // MAPBOX_TOKEN repository variable) it is the Mapbox island, with the picture for readers without script. Without one
-// (local builds, CI, until the variable exists) it is the picture alone: the old site's map, src/assets/images/map.png
-// of the old home page, with a caption saying the interactive map is to come: the caption is the picture's, so a build
-// with the token never says it.
+// (local builds, CI) it is the picture alone: a still of this map, public/images/map.jpg, exported from the island at
+// its opening view with the Mapbox attribution in frame (2026-10-31, when the token arrived; Ruling AC), with a caption
+// saying the interactive map is to come: the caption is the picture's, so a build with the token never says it.
 import { getEntry } from 'astro:content';
 import ParkMap from '../islands/ParkMap';
 import datasources from '../data/datasources.json';
@@ -19,10 +19,10 @@ const camera = await getEntry('live', 'camera');
 if (!camera) throw new Error('src/content/live/camera.md is missing');
 const markers = markersFrom(datasources, camera.data.video);
 
-const STILL = '/images/map.png';
+const STILL = '/images/map.jpg';
 const { width, height } = await publicImageSize(STILL);
-// The picture's description, word for word as the page's text gave it before the picture moved here.
-const ALT = 'The old site’s map: an aerial view of the Hillsboro Inlet, with markers for the Wahoo Bay weather station, water quality sensor and camera';
+// The picture's description: the one the page's text gave the old site's picture, which showed the same three sites.
+const ALT = 'An aerial view of the Hillsboro Inlet, with markers for the Wahoo Bay weather station, water quality sensor and camera';
 ---
 {token ? (
   <>

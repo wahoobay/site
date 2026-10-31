@@ -182,7 +182,7 @@ test('the map teaser is the map page\'s title and description on a raised panel,
   const links = [...teaser.matchAll(/<a class="([^"]+)" href="([^"]+)">([^<]+)<\/a>/g)].map((m) => [m[1], m[2], m[3]]);
   assert.deepEqual(links, [['wb-btn wb-btn--action', '/visit/map/', 'Open the map'], ['wb-btn wb-btn--ghost', '/live/log-a-sighting/', 'Log a sighting']]);
   assert.match(teaser, /<div class="site-page__actions">\s*<a class="wb-btn wb-btn--action" href="\/visit\/map\/">Open the map<\/a>\s*<a class="wb-btn wb-btn--ghost" href="\/live\/log-a-sighting\/">Log a sighting<\/a>\s*<\/div>/);
-  assert.match(teaser, /<img class="wb-media[^"]*" src="\/images\/map\.png"[^>]*\balt="Map of Wahoo Bay"/);
+  assert.match(teaser, /<img class="wb-media[^"]*" src="\/images\/map\.jpg"[^>]*\balt="Map of Wahoo Bay"/);
 });
 
 // Ruling AB b (finish review, fix 5): "News" was an underlined blue link where "From Instagram" is an ink heading. It is

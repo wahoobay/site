@@ -6,6 +6,7 @@
 // The photo is /images/get-involved/wb-3.jpg at 1600px (manatee-wide.jpg; Ruling J). Its photographer's signature sits
 // at the bottom right, so the band keeps the top of the frame (wb-media--top): the band is shorter than the scaled
 // photo at every width, and on phones the sides are cropped too.
+// The map's still is the map itself: public/images/map.jpg, exported from the island at its opening view (Ruling AC).
 import { getEntry } from 'astro:content';
 
 const map = await getEntry('pages', 'visit/map');
@@ -23,6 +24,6 @@ const { title, description } = map.data;
         <a class="wb-btn wb-btn--ghost" href="/live/log-a-sighting/">Log a sighting</a>
       </div>
     </div>
-    <img class="wb-media site-map-teaser__still" src="/images/map.png" width="616" height="504" alt="Map of Wahoo Bay" loading="lazy">
+    <img class="wb-media site-map-teaser__still" src="/images/map.jpg" width="1316" height="1076" alt="Map of Wahoo Bay" loading="lazy">
   </div>
 </section>

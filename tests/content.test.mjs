@@ -458,7 +458,7 @@ test('/sign-in/ has its heading and prints no review address', () => {
 
 test('/visit/map/ is a page of the Visit section, with the map image and the sites as text', () => {
   const html = readFileSync('dist/visit/map/index.html', 'utf8');
-  assert.match(mainOf(html), /<img\b[^>]*\bsrc="\/images\/map\.png"[^>]*\balt="[^"]{20,}"/);
+  assert.match(mainOf(html), /<img\b[^>]*\bsrc="\/images\/map\.jpg"[^>]*\balt="[^"]{20,}"/);
   const text = decode(mainOf(html));
   for (const site of ['Wahoo Bay Camera', 'Pompano Pier Camera', 'Wahoo Bay Weather Station', 'Wahoo Bay Water Quality']) {
     assert.ok(text.includes(site), `the map page names ${site}`);

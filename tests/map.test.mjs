@@ -13,8 +13,9 @@ const read = (file) => readFileSync(file, 'utf8');
 const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const datasources = JSON.parse(read('src/data/datasources.json'));
 const liveVideo = read('src/content/live/camera.md').match(/^video:\s*(\S+)\s*$/m)?.[1];
-// The picture's description: the one the page's text gave it (tests/content.test.mjs asks for a real description).
-const ALT = 'The old site’s map: an aerial view of the Hillsboro Inlet, with markers for the Wahoo Bay weather station, water quality sensor and camera';
+// The picture's description: the one the page's text gave the old site's picture, which showed the same three sites
+// (tests/content.test.mjs asks for a real description). The picture is a still of the island (public/images/map.jpg).
+const ALT = 'An aerial view of the Hillsboro Inlet, with markers for the Wahoo Bay weather station, water quality sensor and camera';
 
 test('markersFrom keeps cameras and sensors with the right links', () => {
   const rows = [{ id: 1, name: 'Weather station', type: 1, lat: 26.26, lon: -80.08 }, { id: 8, name: 'SeaHIVE', type: 8, lat: 26.27, lon: -80.09, video: 'oBTGY6Ax870' }, { id: 9, name: 'Pier', type: 8, lat: 26.28, lon: -80.1, video: 'mV8zVsX_o_0' }];
@@ -31,7 +32,7 @@ test('the datasource snapshot holds only id, name, type, lat, lon and a camera v
 
 test('without a token the map page shows the static image and no island', () => {
   const html = readFileSync('dist/visit/map/index.html', 'utf8');
-  if (!process.env.PUBLIC_MAPBOX_TOKEN) { assert.match(html, /\/images\/map\.png/); assert.doesNotMatch(html, /<astro-island/); }
+  if (!process.env.PUBLIC_MAPBOX_TOKEN) { assert.match(html, /\/images\/map\.jpg/); assert.doesNotMatch(html, /<astro-island/); }
   else assert.match(html, /<astro-island[^>]+component-export="default"/);
 });
 
@@ -107,11 +108,11 @@ test('the page without a token: the still where the page\'s picture was, the pag
   const main = html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
   // Final review, Important 1: the sentence that says the interactive map is to come is the picture's caption, so it
   // is on the page only while the page shows the picture.
-  const still = `<img class="wb-media site-map__still" src="/images/map.png" width="616" height="504" alt="${ALT}" loading="lazy" decoding="async">`;
+  const still = `<img class="wb-media site-map__still" src="/images/map.jpg" width="1316" height="1076" alt="${ALT}" loading="lazy" decoding="async">`;
   const caption = '<p class="wb-caption site-map__caption">The interactive map returns in a later update of this site.</p>';
   assert.match(main, new RegExp(`</p>${escapeRe(still)}(<!--[^>]*-->)?${escapeRe(caption)}<div class="wb-prose site-article__body">`), 'the still and its caption, after the lead and before the text');
   assert.match(main, /<p class="wb-lead">[^<]*<\/p><img class="wb-media site-map__still"/);
-  assert.equal((main.match(/\/images\/map\.png/g) || []).length, 1, 'the picture once');
+  assert.equal((main.match(/\/images\/map\.jpg/g) || []).length, 1, 'the picture once');
   for (const site of ['Wahoo Bay Camera', 'Pompano Pier Camera', 'Wahoo Bay Weather Station', 'Wahoo Bay Water Quality']) assert.ok(main.includes(`<li>${site}</li>`), site);
   assert.equal((main.match(/returns in a later update/g) || []).length, 1, 'the sentence once, as the caption');
   assert.doesNotMatch(html, /mapbox/i, 'no Mapbox script, stylesheet or token on the page');
@@ -124,7 +125,7 @@ test('the page with a token: the island on view, its still for readers without s
   assert.match(island, /\bclient="visible"/);
   assert.match(island, /<div class="wb-map site-map" role="region" aria-label="Map of Wahoo Bay">/);
   assert.match(island, /<p class="site-map__status" role="status">Loading the map…<\/p>/);
-  assert.ok(html.includes(`</astro-island><noscript><img class="wb-media site-map__still" src="/images/map.png" width="616" height="504" alt="${ALT}"></noscript><div class="wb-prose site-article__body">`), 'the still in a noscript, before the text');
+  assert.ok(html.includes(`</astro-island><noscript><img class="wb-media site-map__still" src="/images/map.jpg" width="1316" height="1076" alt="${ALT}"></noscript><div class="wb-prose site-article__body">`), 'the still in a noscript, before the text');
   // One prop per marker of the snapshot (Astro serialises the props into the island's attribute).
   const props = island.match(/\bprops="([^"]*)"/)?.[1].replaceAll('&quot;', '"') ?? '';
   for (const r of datasources) assert.ok(props.includes(`"name":[0,"${r.name}"]`), r.name);
@@ -193,7 +194,7 @@ test('the section shows the island only with a public token, and the map page ta
   const slug = read('src/pages/[...slug].astro');
   assert.match(slug, /'visit\/map': ParkMapSection/);
   const md = read('src/content/pages/visit/map.md');
-  assert.doesNotMatch(md, /\(\/images\/map\.png\)/, 'the picture is the section\'s now, not the body\'s');
+  assert.doesNotMatch(md, /\(\/images\/map\.jpg\)/, 'the picture is the section\'s now, not the body\'s');
   assert.doesNotMatch(md, /returns in a later update/, 'the sentence is the still\'s caption, in the section');
   // The caption is new words, marked for Katie where it is written.
   const at = section.indexOf('The interactive map returns in a later update of this site.');
