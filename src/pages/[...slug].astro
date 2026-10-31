@@ -6,8 +6,10 @@ import People from '../components/People.astro';
 import LogoGrid from '../components/LogoGrid.astro';
 import ParkMapSection from '../components/ParkMapSection.astro';
 
+// The Live reef pages are not built here: each has a page of its own under src/pages/live/ (the Live reef navigation,
+// its islands), and its Markdown is that page's copy (src/content/pages/live/trends.md).
 export async function getStaticPaths() {
-  const pages = await getCollection('pages');
+  const pages = await getCollection('pages', (entry) => entry.data.section !== 'live');
   return pages.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
 }
 

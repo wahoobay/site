@@ -445,6 +445,12 @@ test('the home page has one script of its own, the Instagram strip\'s; the other
       for (const [, code] of page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) assert.match(code, ISLAND_LOADER, `${file}: only the island loader`);
       continue;
     }
+    // The trends page's charts (tests/trends.test.mjs).
+    if (file === 'dist/live/trends/index.html') {
+      assert.match(page, /<astro-island\b[^>]*\bclient="visible"/, `${file}: the trends charts`);
+      for (const [, code] of page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) assert.match(code, ISLAND_LOADER, `${file}: only the island loader`);
+      continue;
+    }
     assert.doesNotMatch(page, /<script\b/, `${file}: no client script in this step`);
   }
 });

@@ -299,8 +299,9 @@ main { flex: 1 0 auto; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--wb-space-3);
 }
-/* The water's °C, under its °F. */
-.wb-tile__v .site-live-now__sub {
+/* The water's °C, under its °F (and on the trends page the air's, and the wind's m/s under its mph). */
+.wb-tile__v .site-live-now__sub,
+.wb-tile__v .site-trends__sub {
   display: block;
   margin: var(--wb-space-1) 0 0;
 }
@@ -491,6 +492,45 @@ main { flex: 1 0 auto; }
 }
 .site-species-page__clip-list img { aspect-ratio: 4 / 3; }
 .site-species-page__back { margin-top: var(--wb-space-7); }
+
+/* Trends (/live/trends/): the range switch as wide as its buttons (the design's .wb-seg stretches to its container;
+   it wraps on a narrow screen), the six tiles two, three, then six a row, and each section's charts one column, then
+   two from 48rem, every chart in the tall frame. As wide as the other live pages' panels. Without script the charts
+   cannot be drawn and the switch cannot switch: both are left out, and each frame keeps its caption and CSV link. */
+.site-trends {
+  max-width: 60rem;
+  margin-top: var(--wb-space-6);
+}
+.site-trends > * + * { margin-top: var(--wb-space-6); }
+.site-trends__range { width: fit-content; }
+.site-trends > .wb-notice { margin-top: var(--wb-space-4); }
+.site-trends__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--wb-space-3);
+}
+@media (min-width: 36rem) {
+  .site-trends__tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 60rem) {
+  .site-trends__tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+.site-trends__age { margin-top: var(--wb-space-2); }
+.site-trends__section > .wb-chart,
+.site-trends__charts { margin-top: var(--wb-space-4); }
+.site-trends__charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wb-space-4);
+}
+@media (min-width: 48rem) {
+  .site-trends__charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.site-trends__csv { margin-top: var(--wb-space-2); }
+@media (scripting: none) {
+  .site-trends__range,
+  .site-trends .wb-chart svg { display: none; }
+}
 
 /* Visit: the park map, between the lead and the page's text, where the page's picture was. The map is the design's
    map frame (.wb-map), filled by Mapbox GL (.site-map__canvas), with its loading and failed words over its middle.

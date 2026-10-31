@@ -1,5 +1,6 @@
 ---
-// /live/data/: the dashboards whose host answers (onlineDashboards(); today the Power BI report), framed. Light page.
+// /live/data/: the dashboards whose host answers (onlineDashboards(); today the Power BI report), framed, under a line
+// leading to the trends page (/live/trends/), which charts the same sensors. Light page.
 // Scripts are not sandboxed away: Power BI needs scripts and same-origin inside its own frame. Each panel (Ruling AA):
 // its heading, one line saying the report reads best at full size, the full-size link as the primary action, then the
 // frame, in that order at every width: on a phone the framed report is too small to read.
@@ -18,6 +19,8 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
     <SectionNav section="live" here={'/live/data/'} items={liveNav(ai)} label="Live reef" />
     <!-- katie: review (new heading: the old pages had none) -->
     <h1>Data dashboards</h1>
+    <!-- katie: review (a new sentence: the trends page draws on the same sensors as the Power BI report) -->
+    <p class="wb-lead">The <a href="/live/trends/">trends page</a> charts the same sensor history from the reef's own instruments.</p>
     {shown.map((d) => (
       <section class="wb-panel site-dashboard" aria-labelledby={`dash-${d.id}`}>
         <!-- katie: review (new title for this dashboard) -->
