@@ -425,6 +425,8 @@ main { flex: 1 0 auto; }
   padding: 0;
   list-style: none;
 }
+/* A window's link is a short number: a step of room either side keeps neighbouring targets 24px apart (WCAG 2.5.8). */
+.site-downloads__windows a { padding-inline: var(--wb-space-1); }
 
 /* Species, the explorer's index: the category row under the lead, then each category's heading over its cards and,
    after them, the way back up to the row; the cards two a row on phones, three from 36rem, four from 48rem, five from
