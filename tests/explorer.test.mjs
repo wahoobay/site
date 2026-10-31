@@ -165,3 +165,23 @@ test('byCategory groups the union in the gallery\'s categories: the manatee unde
   const other = byCategory(unionSpecies([], [{ ...java[2], category: null }], []));
   assert.deepEqual(other.get('Other').map((s) => s.java_id), [13]);
 });
+
+// The committed snapshots (src/data/fish.json, species.json, media.json) make one union.
+test('the committed snapshots: every species of both lists once, a slug each; the fish-ID species with no Java category are Fish', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = (file) => JSON.parse(readFileSync(file, 'utf8'));
+  const [fishList, javaList, mediaList] = [read('src/data/fish.json'), read('src/data/species.json'), read('src/data/media.json')];
+  const list = unionSpecies(fishList, javaList, mediaList);
+  assert.equal(new Set(list.map((s) => s.slug)).size, list.length, 'a slug each');
+  for (const s of list) assert.match(s.slug, /^[a-z0-9]+(-[a-z0-9]+)*$/, s.slug);
+  assert.deepEqual(list.filter((s) => s.species_id !== null).map((s) => s.species_id).sort(), fishList.map((f) => f.species_id).sort());
+  assert.deepEqual(list.filter((s) => s.java_id !== null).map((s) => s.java_id).sort((a, b) => a - b), javaList.map((j) => j.id).sort((a, b) => a - b));
+  const both = list.filter((s) => s.species_id !== null && s.java_id !== null).length;
+  assert.equal(list.length, fishList.length + javaList.length - both);
+  assert.ok(both > 0, 'the two lists share species');
+  const manatee = list.find((s) => s.latin === 'Trichechus manatus');
+  assert.equal(manatee?.category, 'Mammal');
+  const javaCategory = new Map(javaList.map((j) => [j.id, j.category]));
+  for (const s of list.filter((x) => x.species_id !== null && (x.java_id === null || javaCategory.get(x.java_id) === null))) assert.equal(s.category, 'Fish', s.latin);
+  assert.equal([...byCategory(list).values()].flat().length, list.length, 'byCategory: each species once');
+});

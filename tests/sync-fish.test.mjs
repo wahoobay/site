@@ -184,3 +184,24 @@ test('the sync runs by hand, never in CI or at build; the README documents it', 
   for (const script of ['build', 'test', 'check', 'check:links']) assert.doesNotMatch(pkg.scripts[script], /sync/, script);
   assert.match(read('scripts/sync-fish.mjs'), /process\.env\.SYNC_API \?\? 'https:\/\/staging-ai\.wahoobay\.net'/);
 });
+
+// The committed snapshot (src/data/fish.json), as `npm run sync:fish` wrote it.
+test('the committed snapshot: the whitelist, no leak, one entry a species, sorted, pictures on the allow-list', async () => {
+  const { binomial } = await import('../src/lib/names.mjs');
+  const fish = JSON.parse(read('src/data/fish.json'));
+  assert.ok(fish.length >= 100, `${fish.length} species`);
+  for (const f of fish) assert.deepEqual(Object.keys(f), FISH_KEYS, f.species_id);
+  assert.doesNotThrow(() => assertNoLeak(fish));
+  // Ruling 32: one entry per normalised binomial, and one per id.
+  assert.equal(new Set(fish.map((f) => binomial(f.latin))).size, fish.length, 'one entry a species');
+  assert.equal(new Set(fish.map((f) => f.species_id)).size, fish.length);
+  for (let i = 1; i < fish.length; i += 1) assert.ok(fish[i - 1].latin.localeCompare(fish[i].latin, 'en') <= 0, `sorted at ${fish[i].latin}`);
+  for (const f of fish) {
+    if (f.photo !== null) {
+      assert.deepEqual(Object.keys(f.photo), ['url', 'attribution'], f.species_id);
+      assert.equal(cleanPhotoUrl(f.photo.url), f.photo.url, f.species_id);
+    }
+    if (f.latest_crop !== null) assert.match(f.latest_crop, /^\/api\/public\/detections\/[\w-]+\/crop\.jpg$/, f.species_id);
+  }
+  assert.deepEqual(selectFish(fish).fish, fish, 'the sync would write it as it is');
+});
