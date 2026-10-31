@@ -2,19 +2,15 @@
 // The four impact figures (src/content/figures.json), large in brand blue: the design's .wb-figures. Brand blue on white
 // is large text here (3:1, as the design's tile numbers), which the detector cannot tell from its clamp() size, so each
 // number carries the low-contrast waiver, as in the design's docs (Ruling A).
-// A figure `from: explorer` (species documented) is the explorer's species count at build time (Ruling 51; the source
-// is src/content.config.ts's note): the species /live/species/ lists.
+// A figure `from: explorer` (species documented) is the explorer's species count at build time (Ruling 51; the
+// sources are src/lib/figures.ts's, and the Support page's list takes the same one): the species /live/species/ lists.
 import { getCollection } from 'astro:content';
-import fish from '../data/fish.json';
-import species from '../data/species.json';
-import media from '../data/media.json';
-import { unionSpecies } from '../lib/explorer.mjs';
+import { FIGURE_SOURCES } from '../lib/figures';
 
 const order = ['community', 'students', 'educators', 'species'];
-const sources = { explorer: () => unionSpecies(fish, species, media).length };
 const figures = (await getCollection('figures'))
   .sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
-  .map(({ data }) => ({ label: data.label, value: data.from ? sources[data.from]() : (data.value as number) }));
+  .map(({ data }) => ({ label: data.label, value: data.from ? FIGURE_SOURCES[data.from]() : (data.value as number) }));
 const fmt = new Intl.NumberFormat('en-US');
 ---
 <div class="wb-figures">

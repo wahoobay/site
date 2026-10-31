@@ -19,11 +19,11 @@ actions:
 
 ## Our Impact at a Glance
 
-<!-- katie: review: these four figures were copied by hand from the Community Impact page of the Wahoo Bay dashboard (the old code says so); check them before launch. -->
+<!-- katie: review: these four figures were copied by hand from the Community Impact page of the Wahoo Bay dashboard (the old code says so); check them before launch. The species figure (the dashboard said 184) is filled in at build time with the species explorer's count, as on the home page (src/lib/figures.ts). -->
 - **14,910** Community Members
 - **3,000** Students
 - **201** Educators
-- **184** Species Documented
+- **{species-documented}** Species Documented
 
 ## What Your Support Makes Possible
 

@@ -432,7 +432,8 @@ test('/live/trends/: a light page with the Live reef nav, the h1, the lead, the 
   for (const [name, p] of Object.entries(order)) assert.ok(p >= 0, name);
   assert.deepEqual(Object.keys(order).sort((a, b) => order[a] - order[b]), Object.keys(order));
   const body = main.slice(order.body);
-  assert.match(body, /The <a href="\/live\/data\/">Wahoo Bay dashboard<\/a> shows the same history in Power BI, and the <a href="\/live\/downloads\/">open data<\/a> page has it as files to download\./);
+  // The link says the page's name, Downloads (Ruling 58).
+  assert.match(body, /The <a href="\/live\/data\/">Wahoo Bay dashboard<\/a> shows the same history in Power BI, and the <a href="\/live\/downloads\/">Downloads<\/a> page has it as files to download\./);
   assert.match(md, /katie: review[^\n]*\n[^\n]*\/live\/downloads\//, 'the sentence is marked');
   // The Live reef navigation marks Trends, this page, current.
   const nav = main.match(/<nav class="site-subnav" aria-label="Live reef">[\s\S]*?<\/nav>/)?.[0] ?? '';

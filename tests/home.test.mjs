@@ -164,6 +164,20 @@ test('the four figures come from figures.json; species documented is the explore
   assert.match(config, /katie: review: figures copied by hand[\s\S]*?species figure/);
 });
 
+// Ruling 58: the Support page's "Our Impact at a Glance" says the same species count, from the same source: its
+// Markdown names the figure ({species-documented}), which the page fills in at build time.
+test('the Support page\'s species documented is the explorer\'s count, filled in at build time, still marked for Katie', () => {
+  const md = readFileSync('src/content/pages/get-involved/support.md', 'utf8');
+  assert.match(md, /<!-- katie: review: these four figures[^\n]*-->\n(?:- \*\*[\d,]+\*\* [^\n]+\n){3}- \*\*\{species-documented\}\*\* Species Documented\n/);
+  assert.doesNotMatch(md, /\*\*184\*\*/, 'the old dashboard\'s figure is no longer the page\'s');
+  const json = (file) => JSON.parse(readFileSync(file, 'utf8'));
+  const union = unionSpecies(json('src/data/fish.json'), json('src/data/species.json'), json('src/data/media.json')).length;
+  const html = readFileSync('dist/get-involved/support/index.html', 'utf8');
+  assert.ok(html.includes(`<li><strong>${union.toLocaleString('en-US')}</strong> Species Documented</li>`), `${union} on the Support page`);
+  assert.ok(home().includes(`>${union.toLocaleString('en-US')}</b><span class="wb-figure__label">Species Documented</span>`), 'the same on the home page');
+  for (const file of ['dist/get-involved/support/index.html', 'dist/index.html']) assert.doesNotMatch(readFileSync(file, 'utf8'), /\{species-documented\}/);
+});
+
 test('three photo doorways, three news items, the map teaser on the manatee photograph, a dark footer', () => {
   const html = home();
   assert.equal((html.match(/<a class="wb-door"/g) || []).length, 3);
