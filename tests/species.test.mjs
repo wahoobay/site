@@ -1,10 +1,11 @@
-// The species gallery at /live/species/: the committed snapshot of the Java API's species and media lists
-// (src/data/, written by hand with `npm run sync:species`), the grouping in src/lib/species.mjs, and the built page.
-// The page tests read dist/ (run `npm run build` first).
+// The Java API's species and media lists (src/data/, written by hand with `npm run sync:species`), the grouping in
+// src/lib/species.mjs, and what of the step-2a gallery still holds on the explorer's index at /live/species/ (its
+// category list, its static page, its cards of words only after the pictures). The explorer's own page tests are in
+// tests/explorer-pages.test.mjs. The page tests read dist/ (run `npm run build` first).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { CATEGORIES, categoryId, groupByCategory, initials, mediaFor } from '../src/lib/species.mjs';
+import { CATEGORIES, categoryId, groupByCategory, mediaFor } from '../src/lib/species.mjs';
 import { assertLinks, binomial, checkMedia, cleanLink, selectMedia, selectSpecies, toMedia, toSpecies } from '../scripts/sync-species.mjs';
 
 const read = (file) => readFileSync(file, 'utf8');
@@ -196,32 +197,19 @@ test('groupByCategory covers every species once, unknown categories under Other'
   assert.deepEqual([...all.values()].flat().map((s) => s.id).sort((a, b) => a - b), species.map((s) => s.id).sort((a, b) => a - b));
 });
 
-test('mediaFor lists a species\' clips in the snapshot\'s order; initials come from the name', () => {
+test('mediaFor lists a species\' clips in the snapshot\'s order; a category\'s anchor is its name in lower case', () => {
   const list = [{ id: 9, species_id: 1 }, { id: 8, species_id: 2 }, { id: 7, species_id: 1 }];
   assert.deepEqual(mediaFor(1, list).map((m) => m.id), [9, 7]);
   assert.deepEqual(mediaFor(3, list), []);
-  assert.equal(initials('Bluehead wrasse'), 'BW');
-  assert.equal(initials('Spotted moray eel'), 'SE');
-  assert.equal(initials('Manatee'), 'M');
   assert.equal(categoryId('Shark & Ray'), 'shark-ray');
 });
 
-test('the species page renders every species as a card, grouped, with no island and no client logic', () => {
+// Ruling G, kept by the explorer: the index is static (the live numbers are on the species pages) and light.
+test('the index is static, with no island and no script of its own, and light', () => {
   const html = read('dist/live/species/index.html');
   const source = read('src/pages/live/species/index.astro');
-  assert.equal((html.match(/<li class="wb-card site-species__card[ "]/g) || []).length, species.length);
-  // A category with no species has no heading: an empty "Shark & Ray" would say none were seen, and the API files the
-  // sharks and rays it has under Fish.
-  const shown = [...groupByCategory(species)].filter(([, list]) => list.length).map(([c]) => categoryId(c));
-  for (const c of CATEGORIES) {
-    const heading = new RegExp(`<h2 id="${c.toLowerCase().replace(/[^a-z]+/g, '-')}"`);
-    if (shown.includes(categoryId(c))) assert.match(html, heading, c);
-    else assert.doesNotMatch(html, heading, c);
-  }
-  assert.deepEqual([...html.matchAll(/<h2 id="([^"]+)"/g)].map((m) => m[1]), shown, 'in CATEGORIES order');
-  // Ruling G: no island and no script of the page's own.
-  assert.doesNotMatch(html, /<astro-island\b/);
-  assert.doesNotMatch(source, /<script\b|\bclient:/);
+  assert.doesNotMatch(html, /<astro-island\b|<script\b/);
+  assert.doesNotMatch(source + read('src/components/SpeciesCard.astro'), /<script\b|\bclient:/);
   assert.doesNotMatch(html, /data-theme="dark"/, 'a light page');
 });
 
@@ -232,83 +220,17 @@ test('the category list jumps to each heading with plain anchors', () => {
   assert.deepEqual(hrefs, [...html.matchAll(/<h2 id="([^"]+)"/g)].map((m) => m[1]));
 });
 
-// Ruling AE (finish review, fix 8): a third of the cards showed an initials square instead of a photograph. A species
-// with a photograph has it over its names; one without is a compact card of words only: no picture slot, no initials.
-test('each card: a lazy thumbnail over the names, or the names alone; the status caption, and the clips in a new tab', () => {
-  const html = read('dist/live/species/index.html');
-  const cards = [...html.matchAll(/<li class="wb-card site-species__card( site-species__card--text)?">([\s\S]*?)<\/li>\s*(?=<li class="wb-card|<\/ul>)/g)].map((m) => ({ text: Boolean(m[1]), body: m[2] }));
-  assert.equal(cards.length, species.length);
-  assert.equal((html.match(/<li class="wb-card site-species__card/g) || []).length, species.length, 'a card per species');
-  const byName = new Map(species.map((s) => [s.common_name ?? s.scientific_name, s]));
-  let thumbs = 0;
-  let words = 0;
-  for (const { text, body } of cards) {
-    const img = body.match(/<img\b[^>]*>/)?.[0];
-    if (!text) {
-      thumbs += 1;
-      assert.match(img ?? '', /^<img class="wb-card__media site-species__media" src="https:\/\/[^"]+" alt="" loading="lazy"/);
-    } else {
-      words += 1;
-      assert.equal(img, undefined, 'a card without a photo has no picture');
-      assert.match(body, /^<div class="wb-card__body"><h3>/, 'its words come first, with no slot before them');
-    }
-    for (const a of body.match(/<a\b[^>]*>[\s\S]*?<\/a>/g) ?? []) {
-      assert.match(a, /^<a href="https:\/\/[^"]+" target="_blank" rel="noopener">(Photo|Video)( \d+)?<span class="wb-sr-only">/);
-    }
-  }
-  assert.doesNotMatch(html, /wb-initials/, 'no initials square on the page');
-  const withMedia = new Set(media.filter((m) => m.thumb).map((m) => m.species_id));
-  assert.equal(thumbs, withMedia.size);
-  assert.equal(words, species.length - withMedia.size);
-  // A species with no clip at all is one of the word cards.
-  const noClips = species.filter((s) => !media.some((m) => m.species_id === s.id));
-  assert.ok(noClips.length > 0);
-  for (const s of noClips) {
-    const name = s.common_name ?? s.scientific_name;
-    const decoded = (body) => body.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-    const card = cards.find((c) => decoded(c.body).includes(`<h3>${s.common_name ? name : `<i>${name}</i>`}</h3>`));
-    assert.ok(card?.text, `${s.id}: a card of words only`);
-  }
-  assert.equal((html.match(/target="_blank" rel="noopener">(Photo|Video)/g) || []).length, media.length, 'a link per clip');
-  // Ruling O: the status is caption text after the scientific name, not a chip (the accent is for "alive right now").
-  assert.doesNotMatch(html, /\bwb-chip\b/);
-  for (const s of species.filter((x) => x.conservation_status)) {
-    const card = cards.find((c) => c.body.includes(`<span class="wb-caption">${s.conservation_status}</span>`))?.body ?? '';
-    assert.ok(card, s.conservation_status);
-    const at = (needle) => card.indexOf(needle);
-    assert.ok(at(s.scientific_name) >= 0 && at(s.scientific_name) < at('class="wb-caption"'), `${s.id}: the status follows the scientific name`);
-  }
-  assert.ok(byName.size > 0);
-  for (const s of species.filter((x) => x.common_name && x.scientific_name).slice(0, 20)) {
-    assert.ok(html.includes(`<i>${s.scientific_name}</i>`), s.scientific_name);
-  }
-});
-
-// The fix wave's capture: a card of words only beside photographs left a hole under it in every mixed row. In each
-// category the species with a photograph come first, then those without, each in the snapshot's name order, so the
-// cards of words only make compact rows of their own.
-test('in each category the cards with a photograph come first, then the cards of words only, each in name order', () => {
-  const html = read('dist/live/species/index.html');
-  const sections = [...html.matchAll(/<section class="site-species__group" aria-labelledby="([^"]+)">([\s\S]*?)<\/section>/g)];
-  assert.ok(sections.length > 0);
-  for (const [, id, body] of sections) {
-    const kinds = [...body.matchAll(/<li class="wb-card site-species__card( site-species__card--text)?">/g)].map((m) => (m[1] ? 'text' : 'photo'));
-    assert.deepEqual(kinds, [...kinds].sort((a, b) => (a === b ? 0 : a === 'photo' ? -1 : 1)), `${id}: photographs first`);
-    const names = [...body.matchAll(/<h3>(?:<i>)?([^<]+)/g)].map((m) => m[1]);
-    const order = new Map(species.map((s, i) => [s.common_name ?? s.scientific_name, i]));
-    const decode = (t) => t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-    const at = names.map((n) => order.get(decode(n)));
-    const split = kinds.indexOf('text') < 0 ? at.length : kinds.indexOf('text');
-    for (const part of [at.slice(0, split), at.slice(split)]) assert.deepEqual(part, [...part].sort((a, b) => a - b), `${id}: name order`);
-  }
-  // The first card of words only starts a row of its own.
+// The fix wave's capture: a card of words only beside pictures left a hole under it in every mixed row. In each
+// category the species with a picture come first (tests/explorer-pages.test.mjs), and the first card of words only
+// starts a row of its own.
+test('the first card of words only in a category starts a row of its own', () => {
   const css = read('src/styles/site.css').replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.match(css, /\.site-species__card:not\(\.site-species__card--text\) \+ \.site-species__card--text\s*\{\s*grid-column-start:\s*1;\s*\}/);
+  assert.match(css, /\.site-species__item:not\(\.site-species__item--text\) \+ \.site-species__item--text\s*\{\s*grid-column-start:\s*1;\s*\}/);
 });
 
-test('the new words on the page are marked for Katie', () => {
+test('the new words on the index are marked for Katie', () => {
   const source = read('src/pages/live/species/index.astro');
-  for (const words of ['<h1', 'wb-lead', '<h2', 'KIND_LABEL']) {
+  for (const words of ['<h1', 'wb-lead', '<h2']) {
     const at = source.indexOf(words);
     assert.ok(at > 0, words);
     assert.match(source.slice(Math.max(0, at - 260), at), /katie: review/, `${words} is marked`);

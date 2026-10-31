@@ -362,11 +362,11 @@ main { flex: 1 0 auto; }
 .site-dashboard .wb-video,
 .site-dashboard .wb-btn { margin-top: var(--wb-space-4); }
 
-/* Species: the category list under the lead, then each category's heading over its cards, two a row on phones, three
-   from 36rem, four from 48rem, five from 64rem. A card is a grid, not the design's side-by-side flex, so its picture
-   is over its words at every width and the cards of a row line up. The picture, a thumbnail, is a square as wide as the
-   card, cropped to it, never stretched. A species without a photograph is a card of words only (--text), as tall as its
-   words, not its row's tallest. */
+/* Species, the explorer's index: the category list under the lead, then each category's heading over its cards, two a
+   row on phones, three from 36rem, four from 48rem, five from 64rem. A card (a link to the species' page) is a grid,
+   not the design's side-by-side flex, so its picture is over its words at every width and the cards of a row line up.
+   The picture is a square as wide as the card, cropped to it, never stretched, with its credit under it when it has
+   one. A species without a picture is a card of words only (--text), as tall as its words, not its row's tallest. */
 .site-species__jump { margin-top: var(--wb-space-5); }
 .site-species__group { margin-top: var(--wb-space-6); }
 .site-species {
@@ -386,27 +386,111 @@ main { flex: 1 0 auto; }
 @media (min-width: 64rem) {
   .site-species { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+.site-species__item { display: flex; }
+.site-species__item--text { align-self: start; }
+/* The cards of words only follow a category's pictures (the page orders them so) and start a row of their own. */
+.site-species__item:not(.site-species__item--text) + .site-species__item--text { grid-column-start: 1; }
 .site-species__card {
   display: grid;
+  flex: 1;
   align-content: start;
 }
-.site-species__card--text { align-self: start; }
-/* The cards of words only follow a category's photographs (the page orders them so) and start a row of their own. */
-.site-species__card:not(.site-species__card--text) + .site-species__card--text { grid-column-start: 1; }
+.site-species__picture { display: grid; gap: var(--wb-space-2); }
 .site-species__media {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
 }
-.site-species__status,
-.site-species__clips { margin-top: var(--wb-space-2); }
-.site-species__clips {
+
+/* A species' page: the h1 and its Latin, the other name and the facts, a line each, and the picture, 3:2 with its
+   credit under it, under them on phones and beside them from 48rem, at most 24rem wide (a camera crop is small, and
+   larger it only blurs); the numbers (three tiles side by side from 36rem, one above the other on
+   phones, where "yesterday" would not fit a third of the row), then "When we see it", the two charts one above the
+   other, side by side from 48rem, and the recent crops, three a row on phones, six from 48rem; the volunteers' clips,
+   two a row on phones, three from 36rem, four from 48rem, each its thumbnail over its label; and the way back. The
+   numbers and the charts are as wide as the camera page's panels. */
+.site-species-page__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wb-space-5);
+  max-width: 60rem;
+}
+@media (min-width: 48rem) {
+  .site-species-page__head { grid-template-columns: minmax(0, 1fr) minmax(0, 24rem); }
+}
+.site-species-page__names > .wb-lead { margin-top: var(--wb-space-4); }
+.site-species-page__also { margin-top: var(--wb-space-3); }
+.site-species-page__facts {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--wb-space-1) var(--wb-space-3);
+  gap: var(--wb-space-1) var(--wb-space-5);
+  margin: var(--wb-space-3) 0 0;
+}
+.site-species-page__facts div {
+  display: flex;
+  gap: var(--wb-space-2);
+}
+.site-species-page__facts dd { margin: 0; }
+.site-species-page__picture {
+  display: grid;
+  align-content: start;
+  gap: var(--wb-space-2);
+}
+.site-species-page__picture img { aspect-ratio: 3 / 2; }
+.site-species-live {
+  max-width: 60rem;
+  margin-top: var(--wb-space-6);
+}
+.site-species-live > * + * { margin-top: var(--wb-space-6); }
+.site-species-live__tiles {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wb-space-3);
+}
+@media (min-width: 36rem) {
+  .site-species-live__tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.site-species-live > .wb-notice { margin-top: var(--wb-space-4); }
+.site-species-live__charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wb-space-4);
+  margin-top: var(--wb-space-4);
+}
+@media (min-width: 48rem) {
+  .site-species-live__charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.site-species-live__crops,
+.site-species-page__clip-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--wb-space-3);
+  margin: var(--wb-space-4) 0 0;
   padding: 0;
   list-style: none;
 }
+@media (min-width: 48rem) {
+  .site-species-live__crops { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+.site-species-live__crops figure { display: grid; gap: var(--wb-space-1); }
+.site-species-live__crop { aspect-ratio: 1; }
+.site-species-page__clips {
+  max-width: 60rem;
+  margin-top: var(--wb-space-7);
+}
+.site-species-page__clip-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 36rem) {
+  .site-species-page__clip-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 48rem) {
+  .site-species-page__clip-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.site-species-page__clip-list a {
+  display: grid;
+  gap: var(--wb-space-1);
+}
+.site-species-page__clip-list img { aspect-ratio: 4 / 3; }
+.site-species-page__back { margin-top: var(--wb-space-7); }
 
 /* Visit: the park map, between the lead and the page's text, where the page's picture was. The map is the design's
    map frame (.wb-map), filled by Mapbox GL (.site-map__canvas), with its loading and failed words over its middle.

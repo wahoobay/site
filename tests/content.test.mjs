@@ -439,6 +439,12 @@ test('the home page has one script of its own, the Instagram strip\'s; the other
       for (const [, code] of page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) assert.match(code, ISLAND_LOADER, `${file}: only the island loader`);
       continue;
     }
+    // A species page whose species has a fish-ID id: its live numbers (tests/explorer-pages.test.mjs); the others none.
+    if (/^dist\/live\/species\/[^/]+\/index\.html$/.test(file) && /<astro-island\b/.test(page)) {
+      assert.match(page, /<astro-island\b[^>]*\bclient="visible"/, `${file}: the species' live numbers`);
+      for (const [, code] of page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) assert.match(code, ISLAND_LOADER, `${file}: only the island loader`);
+      continue;
+    }
     assert.doesNotMatch(page, /<script\b/, `${file}: no client script in this step`);
   }
 });

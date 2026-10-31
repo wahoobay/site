@@ -1,0 +1,31 @@
+---
+// One species on the explorer's index (/live/species/): a card that links to the species' page, with its picture
+// (pictureOf: the catalogue's reference photo with its credit, else the camera's latest crop, else the first volunteer
+// photo), its names, and how often the reef camera has seen it, from the snapshot the page was built with. A species
+// with no picture is a compact card of its words only: no picture slot, no initials (Ruling AE). A picture on the site's
+// own origin (the fish-ID app's /api/public/) takes itself and its credit away when it does not load.
+import { pictureOf, seenTimes, type Species } from '../lib/explorer.mjs';
+
+interface Props {
+  species: Species;
+}
+
+const { species: s } = Astro.props;
+const picture = pictureOf(s);
+const seen = seenTimes(s.sightings_total);
+---
+<li class:list={['site-species__item', { 'site-species__item--text': !picture }]}>
+  <a class="wb-card site-species__card" href={`/live/species/${s.slug}/`}>
+    {picture && (
+      <figure class="site-species__picture">
+        <img class="wb-card__media site-species__media" src={picture.src} alt="" loading="lazy" decoding="async" onerror={picture.sameOrigin ? 'this.parentElement.remove()' : undefined}>
+        {picture.credit && <figcaption class="wb-caption">{picture.credit}</figcaption>}
+      </figure>
+    )}
+    <div class="wb-card__body">
+      {s.common ? <h3>{s.common}</h3> : <h3><i>{s.latin}</i></h3>}
+      {s.common && s.latin && <p><i>{s.latin}</i></p>}
+      {seen && <p class="wb-caption">{seen}</p>}
+    </div>
+  </a>
+</li>

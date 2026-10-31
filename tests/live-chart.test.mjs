@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { chartModel, chartNode } from '../src/lib/live-chart.mjs';
+import { bucketLabel, chartModel, chartNode } from '../src/lib/live-chart.mjs';
 import { emptyText } from '../src/lib/public-api.mjs';
 
 /** Every node of a VDOM tree, depth first. */
@@ -99,4 +99,35 @@ test('the chart\'s new words are marked for Katie, and it sets no style', () => 
     assert.match(source.slice(source.lastIndexOf('\n', source.lastIndexOf('\n', at) - 1), at), /katie: review/, `${words} is marked`);
   }
   assert.doesNotMatch(source, /\bstyle\b\s*:/);
+});
+
+// Task 8: the species page draws its two charts with this module ("When we see it": the day's 24 hours and the last
+// twelve months, GET /api/public/species/{id}'s by_hour and by_month), so a bucket can be a day, a month or an hour, and
+// a chart can carry its own caption.
+test('bucketLabel: a day as "Oct 25", a month as "Sep", an hour as "7 am"', () => {
+  assert.equal(bucketLabel('2026-10-25'), 'Oct 25');
+  assert.equal(bucketLabel('2026-09'), 'Sep');
+  assert.equal(bucketLabel('2025-12'), 'Dec');
+  assert.equal(bucketLabel('00:00'), '12 am');
+  assert.equal(bucketLabel('07:00'), '7 am');
+  assert.equal(bucketLabel('12:00'), '12 pm');
+  assert.equal(bucketLabel('23:00'), '11 pm');
+  assert.equal(bucketLabel('soon'), 'soon', 'anything else as it is');
+});
+
+test('chartModel and chartNode: months and hours under the axis; a caption of the chart\'s own, in its aria-label too', () => {
+  const months = ['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'];
+  const one = (buckets, counts) => ({ buckets, series: [{ species_id: 'Ablennes hians', latin: 'Ablennes hians', common: 'Flat Needlefish', counts }] });
+  const byMonth = one(months, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 33]);
+  assert.deepEqual(chartModel(byMonth, { width: 800, height: 160 }).days.map((d) => d.label), ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']);
+  const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+  const byHour = one(hours, [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 8, 3, 9, 7, 3, 0, 0, 0, 0, 0, 0, 0]);
+  const labels = chartModel(byHour, { width: 600, height: 120 }).days.map((d) => d.label).filter(Boolean);
+  assert.equal(labels.at(-1), '11 pm', 'the last hour labelled, as the last day is');
+  assert.ok(labels.every((l) => /^\d{1,2} (am|pm)$/.test(l)), labels.join());
+  const figure = chartNode({ counts: byHour, caption: 'By hour of day' });
+  assert.equal(text(figure.children[0]), 'By hour of day');
+  assert.match(figure.children[1].props['aria-label'], /^By hour of day, 12 am to 11 pm: Flat Needlefish 33$/);
+  assert.equal(text(chartNode({ counts: null, caption: 'By month' }).children[0]), 'By month', 'the empty chart keeps its caption');
+  assert.equal(text(chartNode({ counts: COUNTS }).children[0]), 'Sightings per day', 'the live page\'s chart is unchanged');
 });

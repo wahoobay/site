@@ -8,11 +8,11 @@
 // an empty box, so a failed first fetch never says "Nothing seen"; a panel whose answer has not arrived yet is left
 // out, and one whose refresh fails keeps what it showed (mergeAnswers, src/lib/live-status.mjs). The markup is
 // renderState's (src/lib/live.mjs).
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchJson } from '../lib/public-api.mjs';
-import { panelsInterval, renderState, type Size } from '../lib/live.mjs';
+import { panelsInterval, renderState } from '../lib/live.mjs';
 import { mergeAnswers } from '../lib/live-status.mjs';
-import { poll, toReact, useCameraState } from './live-shared';
+import { poll, toReact, useCameraState, useMeasuredSize } from './live-shared';
 
 interface Props {
   /** The camera's id in the public API (REEF_CAMERA). */
@@ -33,19 +33,7 @@ interface Answers {
 export default function LiveNow({ camera, compact = false }: Props) {
   const { status } = useCameraState(camera);
   const [answers, setAnswers] = useState<Answers | null>(null);
-  const [chartSize, setChartSize] = useState<Size | null>(null);
-
-  const chartRef = useCallback((svg: SVGSVGElement | null) => {
-    if (!svg) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      // No size (the SVG between layouts) is not a measurement.
-      if (width <= 0 || height <= 0) return;
-      setChartSize((was) => (was && was.width === width && was.height === height ? was : { width, height }));
-    });
-    observer.observe(svg);
-    return () => observer.disconnect();
-  }, []);
+  const [chartSize, chartRef] = useMeasuredSize();
 
   useEffect(() => {
     if (status !== 'live') {

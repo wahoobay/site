@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Link checker for the built site in dist/.
-//  1. Every internal href/src/srcset target must resolve to a file in dist.
+//  1. Every internal href/src/srcset target must resolve to a file in dist, except a path under /api/public/: the
+//     site's distribution sends those to the fish-ID app (a species' latest crop, its reference photo).
 //  2. Every <img> has an alt attribute.
 // Exit code 1 if anything fails.
 import fs from "node:fs";
@@ -48,7 +49,7 @@ function resolveTarget(fromFile, target) {
   return false;
 }
 
-const isExternal = (u) => /^(https?:)?\/\//i.test(u) || /^(mailto|tel|data|javascript):/i.test(u);
+const isExternal = (u) => /^(https?:)?\/\//i.test(u) || /^(mailto|tel|data|javascript):/i.test(u) || u.startsWith("/api/public/");
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(file, "utf8");

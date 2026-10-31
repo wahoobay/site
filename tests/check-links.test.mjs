@@ -28,3 +28,13 @@ test('a broken internal link exits non-zero and names it', () => {
 test('an image without alt exits non-zero', () => {
   assert.equal(run({ '.': '<img src="/about/index.html">', about: '<p>hi</p>' }).status, 1);
 });
+
+// The site's distribution sends /api/public/ to the fish-ID app (spec §4.2): a picture there (a species' latest crop or
+// reference photo) is the app's to serve, never a file in dist/. Any other path under /api/ is still checked.
+test('a path under /api/public/ is the fish-ID app\'s, not a file in dist/; the rest of /api/ is still checked', () => {
+  assert.equal(run({ '.': '<img src="/api/public/detections/1/crop.jpg" alt=""><img src="/api/public/species/Ablennes%20hians/photo.jpg" alt="">' }).status, 0);
+  const res = run({ '.': '<img src="/api/private/x.jpg" alt=""><a href="/api/publicity/">p</a>' });
+  assert.equal(res.status, 1);
+  assert.match(res.stderr, /broken link "\/api\/private\/x\.jpg"/);
+  assert.match(res.stderr, /broken link "\/api\/publicity\/"/);
+});

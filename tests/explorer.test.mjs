@@ -3,7 +3,7 @@
 // scientific name as nomenclature writes it (src/lib/names.mjs), one entry and one page slug per species. Pure: no build.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { byCategory, categoryOf, slugify, unionSpecies } from '../src/lib/explorer.mjs';
+import { byCategory, categoryOf, pictureOf, seenTimes, slugify, unionSpecies } from '../src/lib/explorer.mjs';
 import { binomial } from '../src/lib/names.mjs';
 import { binomial as syncBinomial } from '../scripts/sync-species.mjs';
 import { CATEGORIES } from '../src/lib/species.mjs';
@@ -291,4 +291,29 @@ test('the committed snapshots: distinct species after the union, every species o
   }
   assert.equal(list.find((s) => s.latin === 'Trichechus manatus')?.category, 'Mammal');
   assert.equal([...byCategory(list).values()].flat().length, list.length, 'byCategory: each species once');
+});
+
+// Rulings 13, 17 and AE: a species' picture, on its card and its page, is the catalogue's reference photo with its
+// attribution line, else the camera's latest crop, else the first volunteer photo (the first clip with a thumbnail, as
+// the 2a card had it), else none (a card of words only). A picture on the site's own origin (/api/public/...) can be
+// missing when the fish-ID app is; the page hides it then.
+test('pictureOf: the reference photo with its credit, else the latest crop, else the first volunteer photo, else none', () => {
+  const list = unionSpecies(fish, java, media);
+  const major = list.find((s) => s.slug === 'abudefduf-saxatilis');
+  assert.deepEqual(pictureOf(major), { src: '/api/public/species/abudefduf-saxatilis/photo.jpg', credit: '(c) A. Diver, some rights reserved (CC BY)', sameOrigin: true });
+  assert.deepEqual(pictureOf({ ...major, photo: { url: 'https://static.inaturalist.org/photos/1/medium.jpg', attribution: null } }), { src: 'https://static.inaturalist.org/photos/1/medium.jpg', credit: null, sameOrigin: false }, 'a photo with no attribution has no credit line');
+  assert.deepEqual(pictureOf({ ...major, photo: null }), { src: '/api/public/detections/987/crop.jpg', credit: null, sameOrigin: true }, 'the latest crop');
+  assert.deepEqual(pictureOf({ ...major, photo: null, latest_crop: null }), { src: 'https://api.wahoobay.net/api/uploads/2.jpg', credit: null, sameOrigin: false }, 'the first volunteer photo');
+  const manatee = list.find((s) => s.slug === 'trichechus-manatus');
+  assert.equal(pictureOf(manatee)?.src, 'https://img.youtube.com/vi/abcdefghijk/hqdefault.jpg', 'the first clip with a thumbnail');
+  assert.equal(pictureOf(list.find((s) => s.slug === 'ophiothrix-sp')), null, 'no picture: words only');
+  assert.equal(pictureOf(list.find((s) => s.slug === 'haemulon-sciurus')), null);
+});
+
+test('seenTimes: "Seen once", "Seen 412 times", "Seen 1,204 times"; nothing for a species never seen', () => {
+  assert.equal(seenTimes(1), 'Seen once');
+  assert.equal(seenTimes(412), 'Seen 412 times');
+  assert.equal(seenTimes(1204), 'Seen 1,204 times');
+  assert.equal(seenTimes(0), null);
+  assert.equal(seenTimes(null), null);
 });

@@ -3,6 +3,8 @@
 // and every other species as 6, the days' bars stacked from the axis. It is drawn in CSS pixels at the size the chart
 // is shown (the island measures its SVG), so the axis text keeps its token size. Part of renderState's VDOM
 // (src/lib/live.mjs); a plain module, so the tests read it without a browser (tests/live-chart.test.mjs).
+// A species page's two charts are drawn with it too (src/lib/species-live.mjs): their buckets are the day's hours
+// ("07:00") and the last twelve months ("2026-09"), and each has a caption of its own.
 import { emptyText } from './public-api.mjs';
 import { h } from './vdom.mjs';
 
@@ -15,18 +17,28 @@ const SIGHTINGS_PER_DAY = 'Sightings per day';
 const OTHER = 'Other species';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-/** A bucket's date ("2026-10-25") as "Oct 25", read as a calendar date, with no time zone to shift it. */
-const dayLabel = (/** @type {string} */ iso) => {
-  const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(iso);
-  return m ? `${MONTHS[Number(m[1]) - 1]} ${Number(m[2])}` : iso;
+/**
+ * A bucket as the axis names it, read as written, with no time zone to shift it: a day ("2026-10-25") as "Oct 25", a
+ * month ("2026-09") as "Sep", an hour ("07:00") as "7 am"; anything else as it is.
+ * @param {string} bucket
+ */
+export const bucketLabel = (bucket) => {
+  const day = /^\d{4}-(\d{2})-(\d{2})$/.exec(bucket);
+  if (day) return `${MONTHS[Number(day[1]) - 1]} ${Number(day[2])}`;
+  const month = /^\d{4}-(\d{2})$/.exec(bucket);
+  if (month) return MONTHS[Number(month[1]) - 1];
+  const hour = /^(\d{2}):00$/.exec(bucket);
+  if (hour) return `${Number(hour[1]) % 12 || 12} ${Number(hour[1]) < 12 ? 'am' : 'pm'}`;
+  return bucket;
 };
 
 /**
  * The week's sightings as series: the five species most seen (series 1 to 5) and every other species summed (6, when
  * there are any), each with a count per day; null when there is nothing to draw.
- * @param {any} counts GET /api/public/species/counts?days=7&top=5
+ * @param {any} counts GET /api/public/species/counts?days=7&top=5, or a species page's chart in its shape
+ * @param {string} caption what the chart is, the first words of its aria-label
  */
-const chartSeries = (counts) => {
+const chartSeries = (counts, caption = SIGHTINGS_PER_DAY) => {
   const buckets = counts && Array.isArray(counts.buckets) ? counts.buckets.map(String) : [];
   const n = buckets.length;
   const clean = (/** @type {unknown} */ list) =>
@@ -43,7 +55,7 @@ const chartSeries = (counts) => {
   if (n === 0 || max === 0) return null;
   const legend = series.map(({ series: id, label }) => ({ series: id, label }));
   const words = series.map((s) => `${s.label} ${s.counts.reduce((a, b) => a + b, 0).toLocaleString('en-US')}`).join(', ');
-  return { buckets, series, legend, max, label: `${SIGHTINGS_PER_DAY}, ${dayLabel(buckets[0])} to ${dayLabel(buckets[n - 1])}: ${words}` };
+  return { buckets, series, legend, max, label: `${caption}, ${bucketLabel(buckets[0])} to ${bucketLabel(buckets[n - 1])}: ${words}` };
 };
 
 /** The smallest round step at least `v`: 1, 1.5, 2, 2.5, 3, 4, 5 … 10 times a power of ten, and never a fraction. */
@@ -101,7 +113,7 @@ export const chartModel = (counts, { width, height }) => {
     right: width - PAD.right,
     bars,
     ticks: Array.from({ length: steps + 1 }, (_, i) => ({ value: i * step, y: y(i * step) })),
-    days: data.buckets.map((iso, day) => ({ label: (n - 1 - day) % every === 0 ? dayLabel(iso) : null, x: PAD.left + day * slot + slot / 2 })),
+    days: data.buckets.map((iso, day) => ({ label: (n - 1 - day) % every === 0 ? bucketLabel(iso) : null, x: PAD.left + day * slot + slot / 2 })),
     legend: data.legend,
     label: data.label,
   };
@@ -109,13 +121,15 @@ export const chartModel = (counts, { width, height }) => {
 
 /**
  * The species panel's chart: the design's chart frame with its caption, the SVG (drawn once the island has measured
- * it), and the legend; the empty chart's sentence when there is nothing to draw.
- * @param {{ counts?: any, chartSize?: Size | null, chartRef?: any }} data
+ * it), and the legend; the empty chart's sentence when there is nothing to draw. `caption` is "Sightings per day"
+ * unless the chart has its own (a species page's).
+ * @param {{ counts?: any, chartSize?: Size | null, chartRef?: any, caption?: string }} data
  * @returns {VNode}
  */
 export const chartNode = (data) => {
-  const series = chartSeries(data.counts);
-  if (!series) return h('figure', { className: 'wb-chart' }, h('figcaption', null, SIGHTINGS_PER_DAY), h('p', { className: 'wb-chart__empty' }, emptyText('chart')));
+  const caption = data.caption ?? SIGHTINGS_PER_DAY;
+  const series = chartSeries(data.counts, caption);
+  if (!series) return h('figure', { className: 'wb-chart' }, h('figcaption', null, caption), h('p', { className: 'wb-chart__empty' }, emptyText('chart')));
   // The SVG is drawn once the island has measured it (data.chartSize, a ResizeObserver on data.chartRef).
   const model = data.chartSize && plottable(data.chartSize) ? chartModel(data.counts, data.chartSize) : null;
   const drawing =
@@ -135,7 +149,7 @@ export const chartNode = (data) => {
   return h(
     'figure',
     { className: 'wb-chart' },
-    h('figcaption', null, SIGHTINGS_PER_DAY),
+    h('figcaption', null, caption),
     h('svg', { ref: data.chartRef, viewBox: model && !model.empty ? model.viewBox : undefined, role: 'img', 'aria-label': series.label }, drawing),
     h('ul', { className: 'wb-chart__legend', role: 'list' }, series.legend.map((l) => h('li', { key: l.series, 'data-series': l.series, 'data-kind': 'bar' }, l.label))),
   );

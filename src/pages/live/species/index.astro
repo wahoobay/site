@@ -1,46 +1,30 @@
 ---
-// /live/species/: every species in the committed snapshot of the Java API's lists (src/data/, written by hand with
-// `npm run sync:species`), grouped by category, each with its clips. Static: no script, and the browser never asks the
-// API for the lists; the thumbnails load from the API's image proxy or YouTube. Light page. A species with a
-// photograph has it over its names; one without is a compact card of its words only, with no picture slot and no
-// initials (Ruling AE).
+// /live/species/: the species explorer's index. Every species of both lists, the fish-ID app's catalogue
+// (src/data/fish.json, `npm run sync:fish`) and the Java API's list with its clips (src/data/species.json and
+// media.json, `npm run sync:species`), merged by unionSpecies (src/lib/explorer.mjs) and grouped by category in the
+// 2a gallery's order. Each species is a card (src/components/SpeciesCard.astro) linking to its own page,
+// /live/species/<slug>/, where its live numbers and its clips are. Static: no island and no script (the numbers on
+// the cards are the snapshot's), and the browser never asks an API for the lists. Light page.
 import Base from '../../../layouts/Base.astro';
 import SectionNav from '../../../components/SectionNav.astro';
+import SpeciesCard from '../../../components/SpeciesCard.astro';
 import { aiUrl, liveNav } from '../../../lib/nav.mjs';
+import fish from '../../../data/fish.json';
 import species from '../../../data/species.json';
 import media from '../../../data/media.json';
-import { categoryId, groupByCategory, mediaFor } from '../../../lib/species.mjs';
+import { byCategory, pictureOf, unionSpecies, type Species } from '../../../lib/explorer.mjs';
+import { categoryId } from '../../../lib/species.mjs';
 
-type Kind = 'image' | 'video';
-// katie: review (new link labels: a clip's link says what it is, numbered when a species has two of a kind; the hidden
-// words after it name the species and say it opens in a new tab, as the site's other new-tab links do)
-const KIND_LABEL: Record<Kind, string> = { image: 'Photo', video: 'Video' };
 // katie: review (the old page's meta description, verbatim)
 const description = 'Photos and video clips of every species the Wahoo Bay underwater cameras and volunteers have recorded';
 
-const card = (s: (typeof species)[number]) => {
-  const name = s.common_name ?? s.scientific_name;
-  const clips = mediaFor(s.id, media);
-  const label = (c: (typeof clips)[number]) => {
-    const same = clips.filter((x) => x.kind === c.kind);
-    const word = KIND_LABEL[c.kind as Kind];
-    return same.length > 1 ? `${word} ${same.indexOf(c) + 1}` : word;
-  };
-  return {
-    ...s,
-    name,
-    thumb: clips.find((c) => c.thumb)?.thumb ?? null,
-    clips: clips.map((c) => ({ url: c.url, label: label(c) })),
-  };
-};
-
-// A category with no species has no heading: an empty "Shark & Ray" would say none were seen, and the API files the
-// sharks and rays it has under Fish. In a category, the species with a photograph come first and those without after
-// them, each in the snapshot's name order: a card of words only beside photographs would leave a hole under it.
-const photosFirst = (cards: ReturnType<typeof card>[]) => [...cards.filter((c) => c.thumb), ...cards.filter((c) => !c.thumb)];
-const groups = [...groupByCategory(species)]
+// A category with no species has no heading: an empty one would say none were seen. In a category, the species with a
+// picture come first and those without after them, each in the union's name order: a card of words only beside
+// pictures would leave a hole under it.
+const picturesFirst = (list: Species[]) => [...list.filter((s) => pictureOf(s)), ...list.filter((s) => !pictureOf(s))];
+const groups = [...byCategory(unionSpecies(fish, species, media))]
   .filter(([, list]) => list.length > 0)
-  .map(([title, list]) => ({ title, id: categoryId(title), cards: photosFirst(list.map(card)) }));
+  .map(([title, list]) => ({ title, id: categoryId(title), species: picturesFirst(list) }));
 const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
 ---
 <Base title="Species" description={description}>
@@ -48,8 +32,8 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
     <SectionNav section="live" here={'/live/species/'} items={liveNav(ai)} label="Live reef" />
     <!-- katie: review (new heading: the old page was "Species Photos & Videos") -->
     <h1 id="species-title">Species</h1>
-    <!-- katie: review (the old gallery's lead, its first sentence; its second described the filters and votes this page does not have) -->
-    <p class="wb-lead">Photos and video clips from the Wahoo Bay underwater cameras and volunteers — pulled straight from the archive.</p>
+    <!-- katie: review (the lead is the old page's meta description, as a sentence: the explorer lists the fish-ID catalogue's species too) -->
+    <p class="wb-lead">{description}.</p>
     <nav class="site-subnav site-species__jump" aria-labelledby="species-title">
       <ul class="wb-subnav">
         {groups.map((g) => (
@@ -62,23 +46,7 @@ const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
         <!-- katie: review (new heading: the old gallery's category) -->
         <h2 id={g.id}>{g.title}</h2>
         <ul class="site-species" role="list">
-          {g.cards.map((s) => (
-            <li class:list={['wb-card site-species__card', { 'site-species__card--text': !s.thumb }]}>
-              {s.thumb && <img class="wb-card__media site-species__media" src={s.thumb} alt="" loading="lazy" decoding="async">}
-              <div class="wb-card__body">
-                {s.common_name ? <h3>{s.common_name}</h3> : <h3><i>{s.scientific_name}</i></h3>}
-                {s.common_name && <p><i>{s.scientific_name}</i></p>}
-                {s.conservation_status && <p class="site-species__status"><span class="wb-caption">{s.conservation_status}</span></p>}
-                {s.clips.length > 0 && (
-                  <ul class="site-species__clips" role="list">
-                    {s.clips.map((c) => (
-                      <li><a href={c.url} target="_blank" rel="noopener">{c.label}<span class="wb-sr-only">: {s.name} (opens in a new tab)</span></a></li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </li>
-          ))}
+          {g.species.map((s) => <SpeciesCard species={s} />)}
         </ul>
       </section>
     ))}

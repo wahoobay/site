@@ -1,0 +1,93 @@
+---
+// /live/species/<slug>/: one species of the explorer (src/lib/explorer.mjs, unionSpecies over the committed snapshots),
+// a page each, built from the snapshot. Its names, family and order, the name the volunteers' list gives it when that
+// is not the accepted one, its conservation status when the Java list has one; its picture (pictureOf, as on its card);
+// for a species with a fish-ID id, its numbers (SpeciesLive, src/islands/SpeciesLive.tsx: the snapshot's until the
+// island has the profile, then the live ones, with "When we see it" and the recent crops; a failed fetch keeps the
+// snapshot's); then the volunteers' photographs and clips (the 2a gallery's links, each with its thumbnail), and the
+// way back to the index. A species without a fish-ID id has no island, no numbers and no charts: the reef camera's
+// classifier does not know it. Light page.
+import Base from '../../../layouts/Base.astro';
+import SectionNav from '../../../components/SectionNav.astro';
+import SpeciesLive from '../../../islands/SpeciesLive';
+import { aiUrl, liveNav } from '../../../lib/nav.mjs';
+import fish from '../../../data/fish.json';
+import species from '../../../data/species.json';
+import media from '../../../data/media.json';
+import { pictureOf, unionSpecies, type Species } from '../../../lib/explorer.mjs';
+import arrowLeft from '@wahoobay/design/icons/arrow-left.svg?raw';
+
+export function getStaticPaths() {
+  return unionSpecies(fish, species, media).map((s) => ({ params: { slug: s.slug }, props: { species: s } }));
+}
+
+interface Props {
+  species: Species;
+}
+
+const { species: s } = Astro.props;
+const name = s.common ?? s.latin ?? s.slug;
+const picture = pictureOf(s);
+// katie: review (a new sentence: the species page's meta description)
+const description = `${s.common && s.latin ? `${s.common} (${s.latin})` : name} at Wahoo Bay: sightings from the reef camera and photographs from volunteers.`;
+
+type Kind = 'image' | 'video';
+// katie: review (the 2a gallery's link labels, moved here: a clip's link says what it is, numbered when a species has
+// two of a kind; the hidden words after it name the species and say it opens in a new tab)
+const KIND_LABEL: Record<Kind, string> = { image: 'Photo', video: 'Video' };
+const clips = s.media.map((c) => {
+  const same = s.media.filter((x) => x.kind === c.kind);
+  const word = KIND_LABEL[c.kind as Kind];
+  return { url: c.url, thumb: c.thumb, label: same.length > 1 ? `${word} ${same.indexOf(c) + 1}` : word };
+});
+const ai = aiUrl(import.meta.env.PUBLIC_AI_URL);
+---
+<Base title={name} description={description}>
+  <div class="wb-container site-article">
+    <SectionNav section="live" here={'/live/species/'} items={liveNav(ai)} label="Live reef" />
+    <div class="site-species-page__head">
+      <div class="site-species-page__names">
+        {s.common ? <h1>{s.common}</h1> : <h1><i>{s.latin}</i></h1>}
+        {s.common && s.latin && <p class="wb-lead"><i>{s.latin}</i></p>}
+        <!-- katie: review (new words, before the name the volunteers' list gives the species where it is not the accepted one) -->
+        {s.also_listed_as && <p class="wb-caption site-species-page__also">Also listed as <i>{s.also_listed_as}</i></p>}
+        {(s.family || s.order || s.conservation_status) && (
+          <dl class="wb-caption site-species-page__facts">
+            <!-- katie: review (new labels: Family, Order) -->
+            {s.family && <div><dt>Family</dt><dd>{s.family}</dd></div>}
+            {s.order && <div><dt>Order</dt><dd>{s.order}</dd></div>}
+            <!-- katie: review (new label: the 2a gallery showed the status alone) -->
+            {s.conservation_status && <div><dt>Conservation status</dt><dd>{s.conservation_status}</dd></div>}
+          </dl>
+        )}
+      </div>
+      {picture && (
+        <figure class="site-species-page__picture">
+          <img class="wb-media" src={picture.src} alt={name} decoding="async" onerror={picture.sameOrigin ? 'this.parentElement.remove()' : undefined}>
+          {picture.credit && <figcaption class="wb-caption">{picture.credit}</figcaption>}
+        </figure>
+      )}
+    </div>
+    {s.species_id !== null && (
+      <SpeciesLive
+        client:visible
+        speciesId={s.species_id}
+        name={name}
+        snapshot={{ sightings_total: s.sightings_total, sightings_7d: s.sightings_7d, last_seen: s.last_seen }}
+      />
+    )}
+    {clips.length > 0 && (
+      <section class="site-species-page__clips" aria-labelledby="clips-title">
+        <!-- katie: review (a new heading) -->
+        <h2 id="clips-title">Photographs and clips from volunteers</h2>
+        <ul class="site-species-page__clip-list" role="list">
+          {clips.map((c) => (
+            <li><a href={c.url} target="_blank" rel="noopener">{c.thumb && <img class="wb-media" src={c.thumb} alt="" loading="lazy" decoding="async">}{c.label}<span class="wb-sr-only">: {name} (opens in a new tab)</span></a></li>
+          ))}
+        </ul>
+      </section>
+    )}
+    <!-- katie: review (new words: the way back to the explorer's index) -->
+    <p class="site-species-page__back"><a class="wb-back" href="/live/species/"><Fragment set:html={arrowLeft.trim()} /> Back to species</a></p>
+  </div>
+</Base>

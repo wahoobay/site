@@ -2,10 +2,12 @@
 // GET /api/public/cameras once for all of them and again every 30 s (createCameraStore in src/lib/live-status.mjs:
 // two failed re-checks in a row are offline, the next answer restores it); the page's visibility; and toReact, which
 // hands renderState's VDOM (src/lib/live.mjs) to React. Islands on one page share this module, so they share one
-// status: the badge, the player and the panels never disagree.
-import { createElement, useSyncExternalStore, type ReactNode } from 'react';
+// status: the badge, the player and the panels never disagree. A species page's island (SpeciesLive) uses toReact and
+// useMeasuredSize, the charts' ResizeObserver.
+import { createElement, useCallback, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { fetchJson } from '../lib/public-api.mjs';
 import { createCameraStore, type CameraState } from '../lib/live-status.mjs';
+import type { Size } from '../lib/live.mjs';
 import type { VNode } from '../lib/vdom.mjs';
 
 export { poll } from '../lib/live-status.mjs';
@@ -53,3 +55,23 @@ export function usePageHidden(): boolean {
 /** renderState's VDOM as React elements. */
 export const toReact = (node: VNode | string | null): ReactNode =>
   node === null ? null : typeof node === 'string' ? node : createElement(node.type, node.props, ...node.children.map(toReact));
+
+/**
+ * An element's size as a ResizeObserver reports it (a chart's SVG, drawn at the size it is shown so its axis text
+ * keeps its token size), and the ref to put on the element; null until it is measured. No size (the element between
+ * layouts) is not a measurement. Used by LiveNow and SpeciesLive.
+ */
+export function useMeasuredSize(): [Size | null, (element: Element | null) => (() => void) | undefined] {
+  const [size, setSize] = useState<Size | null>(null);
+  const ref = useCallback((element: Element | null) => {
+    if (!element) return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width <= 0 || height <= 0) return;
+      setSize((was) => (was && was.width === width && was.height === height ? was : { width, height }));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [size, ref];
+}

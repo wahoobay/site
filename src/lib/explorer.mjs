@@ -12,7 +12,7 @@ import { groupByCategory, mediaFor } from './species.mjs';
  *   sightings_total: number | null, sightings_7d: number | null, last_seen: string | null }} Fish
  * @typedef {{ id: number, common_name: string | null, scientific_name: string | null, family: string | null,
  *   category: string | null, conservation_status: string | null }} JavaSpecies
- * @typedef {{ id: number, species_id: number }} Media
+ * @typedef {{ id: number, species_id: number, kind: string, url: string, thumb: string | null, title?: string | null, date?: string | null }} Media
  * @typedef {{ slug: string, latin: string | null, also_listed_as: string | null, common: string | null,
  *   family: string | null, order: string | null, category: string, conservation_status: string | null,
  *   photo: Photo | null, latest_crop: string | null, media: Media[], species_id: string | null, java_id: number | null,
@@ -172,3 +172,35 @@ export const unionSpecies = (fish, javaSpecies, media) => {
  * @param {Species[]} list
  */
 export const byCategory = (list) => groupByCategory(list);
+
+/** @typedef {{ src: string, credit: string | null, sameOrigin: boolean }} Picture */
+
+/**
+ * A species' picture, on its card and its page (Rulings 13, 17 and AE): the fish-ID catalogue's reference photo with
+ * its attribution as the credit line, else the camera's latest crop, else the first volunteer photo (its first clip
+ * with a thumbnail, as the 2a gallery's card had it), else null, a card of words only. `sameOrigin` is a picture on
+ * the site's own origin, the fish-ID app's /api/public/ path, which the page hides when it does not load (the app can
+ * be down, or have no such picture).
+ * @param {Pick<Species, 'photo' | 'latest_crop' | 'media'>} species
+ * @returns {Picture | null}
+ */
+export const pictureOf = ({ photo, latest_crop, media }) => {
+  const pick = (/** @type {string} */ src, /** @type {string | null} */ credit) => ({ src, credit, sameOrigin: src.startsWith('/api/public/') });
+  if (photo?.url) return pick(photo.url, photo.attribution ?? null);
+  if (latest_crop) return pick(latest_crop, null);
+  const thumb = media.find((m) => m.thumb)?.thumb;
+  return thumb ? pick(thumb, null) : null;
+};
+
+/**
+ * How often the camera has seen a species, as its card says it: "Seen once", "Seen 1,204 times"; null for never (a
+ * species the camera has not seen, or one the fish-ID app does not list), so the card says nothing.
+ * @param {number | null | undefined} total
+ */
+export const seenTimes = (total) => {
+  if (typeof total !== 'number' || !(total > 0)) return null;
+  // katie: review: new words (a species card: how often the reef camera has seen it, "Seen once")
+  if (total === 1) return 'Seen once';
+  // katie: review: new words ("Seen 412 times")
+  return `Seen ${total.toLocaleString('en-US')} times`;
+};

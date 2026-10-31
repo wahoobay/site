@@ -1,6 +1,6 @@
-// The species gallery (/live/species/): its categories, and the grouping and lookups the page draws from the committed
-// snapshot in src/data/ (scripts/sync-species.mjs writes it). A plain module, so the tests read it without a build
-// (tests/species.test.mjs).
+// The species explorer's categories (/live/species/, the step-2a gallery's), and the grouping and lookups it draws from
+// the committed Java snapshot in src/data/ (scripts/sync-species.mjs writes it); src/lib/explorer.mjs merges that with
+// the fish-ID app's. A plain module, so the tests read it without a build (tests/species.test.mjs).
 
 /** The old gallery's categories, in its order (its filter, and the list its reviewers filed species under). */
 export const CATEGORIES = ['Fish', 'Shark & Ray', 'Invertebrate', 'Reptile', 'Bird', 'Mammal', 'Other'];
@@ -32,13 +32,3 @@ export const mediaFor = (speciesId, media) => media.filter((m) => m.species_id =
  * @param {string} category
  */
 export const categoryId = (category) => category.toLowerCase().replace(/[^a-z]+/g, '-');
-
-/**
- * The initials square's letters: the first letters of a name's first and last words, "Bluehead wrasse" is BW.
- * @param {string} name
- */
-export const initials = (name) => {
-  const words = name.trim().split(/\s+/).filter((w) => /^[a-z]/i.test(w));
-  const picked = words.length > 1 ? [words[0], words[words.length - 1]] : words;
-  return picked.map((w) => w[0].toUpperCase()).join('');
-};
