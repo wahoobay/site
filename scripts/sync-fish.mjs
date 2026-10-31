@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Before any production build: `SYNC_API=https://ai.wahoobay.net npm run sync:fish`, then commit (README.md).
 // By hand, never in CI or at build (it uses the network): `npm run sync:fish` reads the fish-ID app's public species
 // list (GET <SYNC_API>/api/public/species; SYNC_API defaults to staging, https://staging-ai.wahoobay.net) and writes the
 // snapshot the species explorer (/live/species/) is built from, src/data/fish.json, sorted by scientific name. Commit
