@@ -16,6 +16,7 @@
     "check:links": "node scripts/check-links.mjs dist",
     "sync:species": "node scripts/sync-species.mjs",
     "sync:datasources": "node scripts/sync-datasources.mjs",
+    "sync:fish": "node scripts/sync-fish.mjs",
     "deploy:staging": "scripts/deploy.sh staging",
     "deploy:prod": "scripts/deploy.sh prod",
     "astro": "astro"
@@ -24,7 +25,7 @@
     "@astrojs/markdown-satteri": "0.4.6",
     "@astrojs/react": "7.1.2",
     "@astrojs/sitemap": "3.7.4",
-    "@wahoobay/design": "github:wahoobay/design#v0.2.2",
+    "@wahoobay/design": "github:wahoobay/design#v0.3.0",
     "astro": "7.4.4",
     "mapbox-gl": "3.33.0",
     "react": "19.3.1",

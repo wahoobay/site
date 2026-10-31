@@ -117,8 +117,13 @@ test('the live band is the one dark surface and links to the camera, Fish ID and
   assert.match(band, new RegExp(`href="${escapeRe(AI_URL)}"`));
   assert.match(band, /href="\/live\/highlights\/"/);
   assert.doesNotMatch(band, /min ago|°C/); // no sample data in production
-  // The badge sits on the still, positioned by layout CSS (.wb-video clips and does not position its children).
+  // The badge sits on the still: .wb-video clips its children and, from @wahoobay/design 0.3.0, is their containing
+  // block (position: relative); the badge's corner is layout CSS (.site-band__still).
   assert.match(band, /<div class="wb-video site-band__still">\s*<img\b[^>]*\bsrc="\/images\/learn\/wb-camera\.jpg"[^>]*>[\s\S]*?<span class="wb-live"[^>]*>Live<\/span>\s*<\/div>/);
+  const design = readFileSync('node_modules/@wahoobay/design/dist/components.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(design, /\.wb-video\s*\{[^}]*position:\s*relative/, '@wahoobay/design 0.3.0 positions .wb-video');
+  const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.site-band__still \.wb-live\s*\{\s*position:\s*absolute;\s*inset:\s*var\(--wb-space-4\) auto auto var\(--wb-space-4\);\s*\}/, 'the badge on the top left corner');
   // The words are the camera page's own: its title and description.
   const camera = 'src/content/live/camera.md';
   assert.match(band, new RegExp(`<h2[^>]*>${escapeRe(escapeHtml(frontMatterField(camera, 'title')))}</h2>`));

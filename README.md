@@ -8,7 +8,7 @@ Node 22 or later (`.nvmrc`).
 
 ```sh
 npm ci              # install, exactly as the lockfile says
-npm run dev         # local server with live reload, http://localhost:4321
+npm run dev         # local server with live reload, http://localhost:4321; it sends /api/public/ to the staging fish-ID app
 npm run build       # type-check (astro check), then build the site into dist/
 npm test            # node --test 'tests/*.test.mjs', against dist/ (build first)
 npm run check       # the Impeccable design detector on dist/
@@ -16,7 +16,10 @@ npm run check:links # every internal link and image in dist/ resolves
 npm run preview     # serve dist/ locally
 npm run sync:species # by hand only, never in CI: re-read the Java API's species and media lists into src/data/ for /live/species/; commit the two files
 npm run sync:datasources # by hand only, never in CI: re-read the Java API's list of sites into src/data/datasources.json for the map at /visit/map/; commit the file
+npm run sync:fish   # by hand only, never in CI: re-read the fish-ID app's public species list (SYNC_API, default https://staging-ai.wahoobay.net) into src/data/fish.json for the species explorer at /live/species/; commit the file
 ```
+
+The live pages' islands read the fish-ID app's public API at `/api/public/` on the site's own origin: the deployed site's distribution sends that path to the environment's fish-ID app, and `npm run dev` sends it to staging's, `https://staging-ai.wahoobay.net` (the dev server's proxy in `astro.config.mjs`; the built site is static and has none).
 
 CI runs `npm ci`, `npm run build`, `npm test`, `npm run check` and `npm run check:links` on every pull request and on every push to `main`; all five must pass. Deploys (`deploy:staging`, `deploy:prod`) go through GitHub Actions only, never from a laptop.
 

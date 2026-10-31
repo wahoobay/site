@@ -5,7 +5,7 @@
 // Two values are rewritten, never passed through:
 // - A scientific name is written as nomenclature writes it, "Genus species": the genus with its first letter upper
 //   case and the rest lower, every other word lower case ("Diodon Hystrix" is "Diodon hystrix", a subspecies' third
-//   word too); "sp." and "spp." are left as they are (binomial below).
+//   word too); "sp." and "spp." are left as they are (binomial, src/lib/names.mjs).
 // - A clip's link is published only on the allow-listed hosts (LINK_HOSTS: the API's uploads, Drive and YouTube), a
 //   Drive file in its plain /file/d/<id>/view form, with no query parameter but YouTube's v and t and no fragment
 //   (cleanLink); a clip on any other host is left out, and the sync refuses to write a link that is not in that form.
@@ -13,6 +13,7 @@
 // Commit the two files after a sync. It prints counts and sizes only, never a response body.
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { binomial } from '../src/lib/names.mjs';
 
 const API = 'https://api.wahoobay.net';
 const V1 = `${API}/api/v1`;
@@ -40,18 +41,9 @@ const number = (value) => (typeof value === 'number' && Number.isFinite(value) ?
 // provisional or whose scientific name is a volunteer's "[unverified]" guess: its interim approval gate.
 const isProvisional = (row) => row.name_status === 'provisional' || /^\s*\[unverified\]/i.test(row.scientific_name ?? '');
 
-/**
- * A scientific name as nomenclature writes it (the header): "Genus species", the genus capitalised, every other word
- * lower case, "sp." and "spp." left alone; null stays null.
- * @param {string | null} name
- */
-export const binomial = (name) =>
-  name === null
-    ? null
-    : name
-        .split(/\s+/)
-        .map((word, i) => (/^spp?\.$/i.test(word) ? word : i === 0 ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word.toLowerCase()))
-        .join(' ');
+// A scientific name as nomenclature writes it (the header): one normaliser for the site, which the species explorer
+// also merges the two species lists on; exported from here too, as before.
+export { binomial };
 
 /** A species row of the API as the snapshot keeps it. */
 export const toSpecies = (row) => ({

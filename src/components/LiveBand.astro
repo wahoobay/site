@@ -1,8 +1,9 @@
 ---
 // The home page's live band: the reef camera's still with the Live badge, the camera page's own title and
 // description, and the ways to watch. It is the design's .wb-band on the dark ground (data-theme="dark"): with the
-// footer, the home page's only dark surface (CLAUDE.md; spec §4.3, Deep Field). .wb-video clips and does not position
-// its children, so the badge's place on the still is layout, in site.css (.site-band__still).
+// footer, the home page's only dark surface (CLAUDE.md; spec §4.3, Deep Field). .wb-video clips its children and, from
+// @wahoobay/design 0.3.0, is their containing block; the badge's corner of the still is layout, in site.css
+// (.site-band__still).
 // The badge carries data-impeccable-ignore="pulsing-dot", as on /live/ and in the design's docs (.impeccable/config.json).
 interface Props {
   /** A still of the camera, under public/. */
