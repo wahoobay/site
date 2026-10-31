@@ -2,21 +2,22 @@
 // A Live reef page (src/content/live/*.md), on the dark ground: the Live reef navigation, the h1 (with the live badge
 // when the video is the stream), the video, the lead, a link to the other live page, then the Markdown body. The
 // navigation is above the h1, where Page.astro has its section's (Ruling Z).
-// The badge is static until step 3 reads the stream's state: it says "Live" whether or not the stream is up.
-// It carries data-impeccable-ignore="pulsing-dot", as in the design's docs: spec §4.3 has it breathe, and
-// .impeccable/config.json records that ruling.
+// The badge is the LiveBadge island: it follows the camera's stream ("Live", "Offline"), and carries
+// data-impeccable-ignore="pulsing-dot" while live, as in the design's docs (spec §4.3 has it breathe;
+// .impeccable/config.json records that ruling).
+// The video is the YouTube embed, unless the page fills the `player` slot: the camera page puts its live player, the
+// right-now panels and its two cards there (src/pages/live/index.astro).
 import Base from './Base.astro';
 import SectionNav from '../components/SectionNav.astro';
 import { aiUrl, liveNav } from '../lib/nav.mjs';
+import { REEF_CAMERA } from '../lib/live.mjs';
 import YouTube from '../components/YouTube.astro';
+import LiveBadge from '../islands/LiveBadge';
 import type { CollectionEntry } from 'astro:content';
 
 interface Props {
   entry: CollectionEntry<'live'>;
-  /**
-   * The video is the live stream, so the page shows the Live badge. The badge cannot tell whether the stream is up:
-   * it is static until step 3 reads the stream's state. Recorded video has none.
-   */
+  /** The video is the reef camera's live stream, so the page shows the live badge. Recorded video has none. */
   live?: boolean;
   /** The other live page, as a button under the lead. */
   link: { href: string; label: string };
@@ -32,14 +33,13 @@ const hasBody = (entry.body ?? '').replace(/<!--[\s\S]*?-->/g, '').trim() !== ''
     <SectionNav section="live" here={Astro.url.pathname} items={liveNav(ai)} label="Live reef" />
     <div class="site-live__title">
       <h1>{title}</h1>
-      {live && (
-        <>
-          <!-- katie: review: this badge says "Live" whether or not the stream is up; it starts following the stream in step 3 of the rebuild. Keep it until then, or hide it. -->
-          <span class="wb-live" data-impeccable-ignore="pulsing-dot">Live</span>
-        </>
-      )}
+      {live && <LiveBadge client:load camera={REEF_CAMERA} />}
     </div>
-    <YouTube id={video} title={live ? `${title}, live stream` : `${title}, YouTube playlist`} playlist={playlist} />
+    {Astro.slots.has('player') ? (
+      <slot name="player" />
+    ) : (
+      <YouTube id={video} title={live ? `${title}, live stream` : `${title}, YouTube playlist`} playlist={playlist} />
+    )}
     <p class="wb-lead">{description}</p>
     <div class="site-actions">
       <a class="wb-btn wb-btn--ghost wb-btn--wrap" href={link.href}>{link.label}</a>

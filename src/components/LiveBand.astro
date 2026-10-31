@@ -1,10 +1,18 @@
 ---
-// The home page's live band: the reef camera's still with the Live badge, the camera page's own title and
-// description, and the ways to watch. It is the design's .wb-band on the dark ground (data-theme="dark"): with the
-// footer, the home page's only dark surface (CLAUDE.md; spec §4.3, Deep Field). .wb-video clips its children and, from
-// @wahoobay/design 0.3.0, is their containing block; the badge's corner of the still is layout, in site.css
-// (.site-band__still).
-// The badge carries data-impeccable-ignore="pulsing-dot", as on /live/ and in the design's docs (.impeccable/config.json).
+// The home page's live band: the reef camera's still with the live badge, the camera page's own title and description,
+// the ways to watch, and what the camera sees right now. It is the design's .wb-band on the dark ground
+// (data-theme="dark"): with the footer, the home page's only dark surface (CLAUDE.md; spec §4.3, Deep Field).
+// .wb-video clips its children and, from @wahoobay/design 0.3.0, is their containing block; the badge's corner of the
+// still is layout, in site.css (.site-band__still).
+// The badge is the LiveBadge island, which follows the camera's stream ("Live", "Offline"), with
+// data-impeccable-ignore="pulsing-dot" while live, as on /live/ and in the design's docs (.impeccable/config.json).
+// LiveNow, compact (the species seen in the last hour and three water tiles), follows the words, so a screen reader
+// meets the band's heading first; the band's grid puts it under the still from 48rem, and under the words on phones.
+// It renders nothing while the camera is not live. The band has no player: the stream is /live/'s.
+import LiveBadge from '../islands/LiveBadge';
+import LiveNow from '../islands/LiveNow';
+import { REEF_CAMERA } from '../lib/live.mjs';
+
 interface Props {
   /** A still of the camera, under public/. */
   still: string;
@@ -22,8 +30,7 @@ const { still, heading, text, ai } = Astro.props;
   <div class="wb-container wb-band__inner">
     <div class="wb-video site-band__still">
       <img src={still} width="1600" height="1066" alt="The SeaHIVE reef camera" loading="lazy">
-      <!-- katie: review: this badge says "Live" whether or not the stream is up; it starts following the stream in step 2b of the rebuild. Keep it until then, or hide it. -->
-      <span class="wb-live" data-impeccable-ignore="pulsing-dot">Live</span>
+      <LiveBadge client:load camera={REEF_CAMERA} />
     </div>
     <div class="site-band__words">
       <h2 id="live-title">{heading}</h2>
@@ -34,5 +41,6 @@ const { still, heading, text, ai } = Astro.props;
         <a class="wb-btn wb-btn--ghost" href="/live/highlights/">Best of the reef</a>
       </div>
     </div>
+    <LiveNow client:visible compact camera={REEF_CAMERA} />
   </div>
 </section>

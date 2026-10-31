@@ -11,6 +11,7 @@ import MapTeaser from '../components/MapTeaser.astro';
 import NewsTeaser from '../components/NewsTeaser.astro';
 import Instagram from '../components/Instagram.astro';
 import { aiUrl } from '../lib/nav.mjs';
+import { REEF_STILL } from '../lib/live.mjs';
 
 // The old home page's hero copy, verbatim (wahoobay-net-frontend, src/components/MainPage/HeroSection.js).
 const headline = 'Art. Conservation. Education';
@@ -50,7 +51,7 @@ if (!camera) throw new Error('src/content/live/camera.md is missing');
   </section>
 
   <LiveBand
-    still="/images/learn/wb-camera.jpg"
+    still={REEF_STILL.src}
     heading={camera.data.title}
     text={camera.data.description}
     ai={aiUrl(import.meta.env.PUBLIC_AI_URL)}

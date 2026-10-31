@@ -11,7 +11,8 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync('dist/index.html', 'utf8');
-const code = html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/)?.[1] ?? '';
+// The Instagram strip's script; Astro's island loader for the live band's islands is the page's other inline script.
+const code = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((c) => c.includes("getElementById('instagram')")) ?? '';
 
 class Node {
   constructor(tag, attrs = {}) {
@@ -112,14 +113,15 @@ test('home opens on a full-height stage with the headline on the photograph', ()
 
 test('the live band is the one dark surface and links to the camera, Fish ID and the reel', () => {
   const band = home().match(/<section class="wb-band[^"]*" data-theme="dark"[\s\S]*?<\/section>/)[0];
-  assert.match(band, /class="wb-live"/);
+  // The badge is the LiveBadge island (tests/live.test.mjs): drawn once the camera's status is known.
+  assert.match(band, /<astro-island\b[^>]*LiveBadge/);
   assert.match(band, /href="\/live\/"/);
   assert.match(band, new RegExp(`href="${escapeRe(AI_URL)}"`));
   assert.match(band, /href="\/live\/highlights\/"/);
   assert.doesNotMatch(band, /min ago|°C/); // no sample data in production
   // The badge sits on the still: .wb-video clips its children and, from @wahoobay/design 0.3.0, is their containing
   // block (position: relative); the badge's corner is layout CSS (.site-band__still).
-  assert.match(band, /<div class="wb-video site-band__still">\s*<img\b[^>]*\bsrc="\/images\/learn\/wb-camera\.jpg"[^>]*>[\s\S]*?<span class="wb-live"[^>]*>Live<\/span>\s*<\/div>/);
+  assert.match(band, /<div class="wb-video site-band__still">\s*<img\b[^>]*\bsrc="\/images\/learn\/wb-camera\.jpg"[^>]*>[\s\S]*?<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>\s*<\/div>/);
   const design = readFileSync('node_modules/@wahoobay/design/dist/components.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(design, /\.wb-video\s*\{[^}]*position:\s*relative/, '@wahoobay/design 0.3.0 positions .wb-video');
   const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -269,7 +271,7 @@ test('the low-contrast waiver sits on text on a photograph and on the figures, r
 
 test('the script listens for a failed picture with addEventListener, not an onerror attribute', () => {
   assert.match(code, /addEventListener\(\s*['"]error['"]/);
-  assert.doesNotMatch(html, /onerror/i);
+  assert.doesNotMatch(html, /\bonerror=/i);
 });
 
 test('four posts fill four cards, each a caption link around its picture', async () => {

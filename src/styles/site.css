@@ -257,6 +257,74 @@ main { flex: 1 0 auto; }
 }
 .site-live > .wb-lead { margin-top: var(--wb-space-5); }
 
+/* The camera page (/live/): the detection boxes lie over the stream, in the frame (each box's place and size, in
+   percent of the frame, is the island's: the design's .wb-detect contract). Without script the player is left out and
+   the YouTube embed in its noscript stands alone. Under the player, what the camera sees right now, three of the
+   design's panels: one column on phones; from 48rem the last hour and the water side by side, and the week's chart
+   under them across both, wide enough to read (a third of the row drew it some 265 by 64px); then the two cards,
+   side by side from 48rem. The panels and the cards are as wide as the video. */
+.site-live__overlay {
+  position: absolute;
+  inset: 0;
+}
+@media (scripting: none) {
+  .site-live__player { display: none; }
+}
+.site-live-now {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wb-space-6);
+  max-width: 60rem;
+  margin-top: var(--wb-space-6);
+}
+.site-live-now[hidden] { display: none; }
+/* Until it knows the camera's status the island is an empty box: out of the flow, so it takes no room, yet on the
+   page, where client:visible can see it scroll into view (a hidden box never would, and the island would never run). */
+.site-live-now:empty { position: absolute; }
+@media (min-width: 48rem) {
+  .site-live-now:not(.site-live-now--compact) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .site-live-now__panel--chart { grid-column: 1 / -1; }
+}
+.site-live-now__panel > * + * { margin-top: var(--wb-space-3); }
+.site-live-now__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wb-space-2);
+  padding: 0;
+  list-style: none;
+}
+.site-live-now__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--wb-space-3);
+}
+/* The water's °C, under its °F. */
+.wb-tile__v .site-live-now__sub {
+  display: block;
+  margin: var(--wb-space-1) 0 0;
+}
+/* The home band's: a grid item of the band, under the still from 48rem (the band's gap above it), its panels a step
+   apart and its three tiles side by side. */
+.site-live-now--compact {
+  gap: var(--wb-space-5);
+  margin-top: 0;
+}
+.site-live-now--compact .site-live-now__tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.site-live__cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wb-space-4);
+  max-width: 60rem;
+  margin: var(--wb-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 48rem) {
+  .site-live__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.site-live__cards li { display: flex; }
+.site-live__cards .wb-card { flex: 1; }
+
 /* Home: the Instagram strip under the news, two posts a row on narrow screens, four from 48rem. An empty card
    holds a square until the script fills it (or takes it, or the strip, away). A post is a wb-caption link: its
    square picture, then its caption. */

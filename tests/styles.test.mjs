@@ -94,7 +94,8 @@ test('the page actions and the course documents are wrapping buttons; a document
 });
 
 test('the Instagram cards use the design\'s caption for their link and the card\'s media corners for their picture', () => {
-  const script = read('dist/index.html').match(/<script\b[^>]*>([\s\S]*?)<\/script>/)?.[1] ?? '';
+  // The Instagram strip's script (the live band's islands bring Astro's island loader to the page too).
+  const script = [...read('dist/index.html').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((c) => c.includes('instagram')) ?? '';
   assert.match(script, /link\.className = 'site-instagram__link wb-caption';/);
   assert.match(script, /img\.className = 'wb-card__media';/);
 });

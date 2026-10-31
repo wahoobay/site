@@ -1,12 +1,38 @@
 ---
-// /live/: the SeaHIVE reef camera's live stream and the old Underwater Camera page's copy (src/content/live/camera.md).
+// /live/: the SeaHIVE reef camera, live, and the old Underwater Camera page's copy (src/content/live/camera.md). In the
+// layout's player slot: the live player (the MJPEG stream with the detection boxes, or the YouTube embed when the
+// camera is not live; LivePlayer), with the YouTube embed for a browser without script; what the camera sees right now
+// (LiveNow); then two cards back to the light pages, the species and the visit. The badge is the layout's.
 import { getEntry, render } from 'astro:content';
 import Live from '../../layouts/Live.astro';
+import YouTube from '../../components/YouTube.astro';
+import LivePlayer from '../../islands/LivePlayer';
+import LiveNow from '../../islands/LiveNow';
+import { aiUrl } from '../../lib/nav.mjs';
+import { REEF_CAMERA } from '../../lib/live.mjs';
 
 const entry = await getEntry('live', 'camera');
 if (!entry) throw new Error('src/content/live/camera.md is missing');
 const { Content } = await render(entry);
+const { title, video } = entry.data;
+const visit = await getEntry('pages', 'visit');
+if (!visit) throw new Error('src/content/pages/visit/index.md is missing');
+const streamTitle = `${title}, live stream`;
+
+// katie: review: new words, the second card's heading (the card leads to /visit/, whose description is its text)
+const PLAN_A_VISIT = 'Plan a visit';
+// katie: review: the first card's text is the species page's meta description (src/pages/live/species/index.astro)
+const SPECIES_TEXT = 'Photos and video clips of every species the Wahoo Bay underwater cameras and volunteers have recorded';
 ---
 <Live entry={entry} live link={{ href: '/live/highlights/', label: 'Reef highlights' }}>
+  <Fragment slot="player">
+    <LivePlayer client:load camera={REEF_CAMERA} ai={aiUrl(import.meta.env.PUBLIC_AI_URL)} embedId={video} title={streamTitle} />
+    <noscript><YouTube id={video} title={streamTitle} /></noscript>
+    <LiveNow client:visible camera={REEF_CAMERA} />
+    <ul class="site-live__cards" role="list">
+      <li><a class="wb-card" href="/live/species/"><div class="wb-card__body"><h2>Species</h2><p>{SPECIES_TEXT}</p></div></a></li>
+      <li><a class="wb-card" href="/visit/"><div class="wb-card__body"><h2>{PLAN_A_VISIT}</h2><p>{visit.data.description}</p></div></a></li>
+    </ul>
+  </Fragment>
   <Content />
 </Live>

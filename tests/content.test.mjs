@@ -390,7 +390,7 @@ test('the live pages embed YouTube without cookies or autoplay, and they alone a
   }
   assert.ok(hrefIn(mainOf(live), '/live/highlights/'), '/live/ links the highlights from its body');
   assert.ok(hrefIn(mainOf(highlights), '/live/'), '/live/highlights/ links back to /live/ from its body');
-  assert.match(live, /<span class="wb-live"[^>]*>Live<\/span>/, '/live/ has the live badge');
+  assert.match(live, /<astro-island\b[^>]*LiveBadge/, '/live/ has the live badge (tests/live.test.mjs)');
   assert.doesNotMatch(highlights, /class="wb-live"/, 'the highlights are not live');
   // CLAUDE.md: the dark theme is for the live-camera pages and, on the home page only, the live band and the footer.
   const dark = new Set(['dist/live/index.html', 'dist/live/highlights/index.html']);
@@ -405,11 +405,16 @@ test('the live pages embed YouTube without cookies or autoplay, and they alone a
   }
 });
 
-test('the home page has one script, the Instagram strip\'s; no other page has any', () => {
+// Step 2b: the live band's islands (the badge and the right-now panels, tests/live.test.mjs) bring Astro's island loader
+// to the home page, before the band's first island; the Instagram strip's is still the page's only script of its own.
+const ISLAND_LOADER = /\bastro:(?:load|visible)\b|customElements\.define\(\s*[`"']astro-island[`"']/;
+test('the home page has one script of its own, the Instagram strip\'s; the other pages have none but their islands\'', () => {
   const html = readFileSync('dist/index.html', 'utf8');
-  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)];
-  assert.equal((html.match(/<script\b/g) ?? []).length, 1, 'exactly one <script');
-  const code = scripts[0]?.[1] ?? '';
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const own = scripts.filter((code) => !ISLAND_LOADER.test(code));
+  assert.equal(own.length, 1, 'exactly one script besides the island loader');
+  assert.ok(html.indexOf('<script') > html.indexOf('<section class="wb-band'), 'the loader comes with the band\'s islands');
+  const code = own[0] ?? '';
   assert.ok(code.includes('https://api.wahoobay.net/api/v1/instagram/posts/latest'), 'it fetches the Instagram posts');
   assert.ok(code.includes('textContent'), 'it writes the caption as text');
   assert.doesNotMatch(code, /innerHTML|insertAdjacentHTML|document\.write/, 'it never parses API data as HTML');
@@ -427,6 +432,11 @@ test('the home page has one script, the Instagram strip\'s; no other page has an
     }
     if (file === 'dist/live/log-a-sighting/index.html') {
       assert.match(page, /<astro-island\b[^>]*\bclient="load"/, `${file}: the form's island`);
+      continue;
+    }
+    if (file === 'dist/live/index.html') {
+      assert.match(page, /<astro-island\b[^>]*\bclient="load"/, `${file}: the live camera's islands`);
+      for (const [, code] of page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) assert.match(code, ISLAND_LOADER, `${file}: only the island loader`);
       continue;
     }
     assert.doesNotMatch(page, /<script\b/, `${file}: no client script in this step`);
