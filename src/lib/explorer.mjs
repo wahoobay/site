@@ -40,7 +40,8 @@ const idName = (/** @type {string} */ id) => keyOf(id.replace(/_/g, ' '));
 
 // The fish-ID classes the gallery's categories take (Ruling 37). Actinopterygii is the ray-finned fishes' usual name;
 // the fish-ID catalogue (WoRMS, the ai repository's assets/taxonomy.csv) files bony fish under Teleostei and WoRMS's
-// own class is Actinopteri, so all three are Fish; Crocodylia is the catalogue's class for the alligator.
+// own class is Actinopteri, so all three are Fish; Crocodylia is the catalogue's class for the alligator, and Testudines
+// and Squamata its classes for turtles and for lizards and snakes (Ruling 41).
 const CLASS_CATEGORY = new Map([
   ['Actinopterygii', 'Fish'],
   ['Teleostei', 'Fish'],
@@ -51,6 +52,8 @@ const CLASS_CATEGORY = new Map([
   ['Mammalia', 'Mammal'],
   ['Reptilia', 'Reptile'],
   ['Crocodylia', 'Reptile'],
+  ['Testudines', 'Reptile'],
+  ['Squamata', 'Reptile'],
 ]);
 
 /**

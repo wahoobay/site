@@ -238,6 +238,9 @@ test('categoryOf: the Java category wins; else the class: bony fish, sharks and 
   assert.equal(categoryOf(taxon('Mammalia', 'Chordata')), 'Mammal');
   assert.equal(categoryOf(taxon('Reptilia', 'Chordata')), 'Reptile');
   assert.equal(categoryOf(taxon('Crocodylia', 'Chordata')), 'Reptile', 'the catalogue\'s class for the alligator');
+  // Ruling 41: the catalogue's classes for turtles and for lizards and snakes.
+  assert.equal(categoryOf(taxon('Testudines', 'Chordata')), 'Reptile', 'a turtle');
+  assert.equal(categoryOf(taxon('Squamata', 'Chordata')), 'Reptile', 'a lizard or snake');
   assert.equal(categoryOf({ fish: renamedFish[3] }), 'Invertebrate', 'a conch (Gastropoda, Mollusca)');
   assert.equal(categoryOf(taxon('Malacostraca', 'Arthropoda')), 'Invertebrate');
   assert.equal(categoryOf(taxon('Ascidiacea', 'Chordata')), 'Other', 'a chordate class with no category of its own');
