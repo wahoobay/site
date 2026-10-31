@@ -7,9 +7,11 @@
 // - not known yet (the build, and the first fetch): the still in the video frame, no badge, and the right-now panels an
 //   empty box (LiveNow hydrates when it is on screen, client:visible, so the box must be there to be seen);
 // - live: the camera's MJPEG stream in the frame with the detection boxes over it, the Live badge, the three panels;
-// - embed or offline: the YouTube embed from youtube-nocookie.com, the Offline badge, the panels hidden.
+// - offline: the YouTube embed from youtube-nocookie.com, the Offline badge, the panels hidden;
+// - embed (a camera with no worker, whose YouTube embed is what plays): the embed and the panels hidden as offline, and
+//   no badge at all, neither Live nor Offline (Ruling 56).
 // Colour and type are the design's classes. The one style is a detection box's geometry, left/top/width/height in
-// percent of the frame: the design's .wb-detect contract (@wahoobay/design 0.3.1, its docs page).
+// percent of the frame: the design's .wb-detect contract (@wahoobay/design 0.3.2, its docs page).
 import { chartNode } from './chart.mjs';
 import { emptyText, fahrenheit, relativeTime } from './public-api.mjs';
 import { EMBED_ALLOW, embedUrl } from './video.mjs';
@@ -32,6 +34,10 @@ const WATER_NOW = 'Water right now';
 const SPECIES_WEEK = 'Species this week';
 // katie: review: new words before the reading's age ("Measured 5 days ago")
 const MEASURED = 'Measured ';
+// katie: review: a new sentence (the hour panel at night, when the camera reports the reef dark and saw nothing; Ruling 54)
+const DARK = 'Dark at the reef; detections resume around sunrise.';
+// katie: review: new words before the age of the newest sighting in the hour's answer ("Last seen 3 h ago.")
+const LAST_SEEN = 'Last seen ';
 // katie: review: the water tiles' labels, new words
 const WATER = 'Water';
 // katie: review
@@ -129,10 +135,15 @@ export const boxKey = (d, box) => {
   return `${d.species_id ?? d.latin ?? d.common ?? ''}@${step(box.left + box.width / 2)},${step(box.top + box.height / 2)}`;
 };
 
+/** How close to the frame's right edge, in em, a box's right edge puts its label on its own right (Ruling 38). */
+const RIGHT_EM = 6;
+
 /**
  * The boxes to draw: each detection with a four-number box, in percent of the rendered image, keyed, with its label;
  * `inside` when the box's top is within 1.5em of the frame's top, where the label above it would be cut off (the
- * design's .wb-detect--inside). None before the stream has shown a frame.
+ * design's .wb-detect--inside); `right` when its right edge is within 6em of the frame's right edge, where a label
+ * anchored to its left would run out of the frame (.wb-detect--right; Ruling 38). None before the stream has shown a
+ * frame.
  * @param {Detection[]} detections
  * @param {Size | null | undefined} frame the stream's own size (the image's naturalWidth and naturalHeight)
  * @param {Size | null | undefined} rendered the image's size on the page
@@ -149,7 +160,13 @@ export const boxesFor = (detections, frame, rendered, em) => {
       const base = boxKey(d, box);
       const n = (seen.get(base) ?? 0) + 1;
       seen.set(base, n);
-      return { key: n > 1 ? `${base}~${n}` : base, ...box, inside: (box.top / 100) * rendered.height < 1.5 * em, ...labelFor(d) };
+      return {
+        key: n > 1 ? `${base}~${n}` : base,
+        ...box,
+        inside: (box.top / 100) * rendered.height < 1.5 * em,
+        right: (1 - (box.left + box.width) / 100) * rendered.width < RIGHT_EM * em,
+        ...labelFor(d),
+      };
     });
 };
 
@@ -176,7 +193,8 @@ export const tiles = (latest) => {
 
 /** @param {Status | null} status */
 const badgeNode = (status) => {
-  if (status === null || status === undefined) return null;
+  // Not known yet, or the embed (no worker; the YouTube embed plays, Ruling 56): no badge.
+  if (status === null || status === undefined || status === 'embed') return null;
   // The live badge breathes (spec §4.3), so it carries the design's waiver, as in its docs; the offline one is still.
   return status === 'live'
     ? h('span', { className: 'wb-live', 'data-impeccable-ignore': 'pulsing-dot' }, LIVE)
@@ -189,7 +207,7 @@ const boxNode = (b) =>
     'div',
     {
       key: b.key,
-      className: b.inside ? 'wb-detect wb-detect--inside' : 'wb-detect',
+      className: ['wb-detect', b.inside && 'wb-detect--inside', b.right && 'wb-detect--right'].filter(Boolean).join(' '),
       style: { left: `${b.left}%`, top: `${b.top}%`, width: `${b.width}%`, height: `${b.height}%` },
     },
     h('span', { className: 'wb-detect__label' }, b.name, b.small && h('small', null, b.small)),
@@ -225,6 +243,20 @@ const playerNode = (status, data) => {
 };
 
 /**
+ * The hour panel's words at night (Ruling 54): the dark sentence, then how long ago the newest sighting in the hour's
+ * answer was (its species' `last_seen`), when it has one.
+ * @param {any} summary GET /api/public/detections/summary?hours=1
+ * @param {number} now epoch milliseconds
+ */
+export const darkText = (summary, now) => {
+  const times = (Array.isArray(summary?.species) ? summary.species : [])
+    .map((/** @type {any} */ s) => (typeof s?.last_seen === 'string' ? Date.parse(s.last_seen) : Number.NaN))
+    .filter(Number.isFinite);
+  const age = times.length > 0 ? relativeTime(new Date(Math.max(...times)).toISOString(), now) : null;
+  return age ? `${DARK} ${LAST_SEEN}${age}.` : DARK;
+};
+
+/**
  * @param {Status | null} status
  * @param {RenderData} data
  */
@@ -236,23 +268,26 @@ const panelsNode = (status, data) => {
   const heading = compact ? 'h3' : 'h2';
   const species = Array.isArray(data.summary?.species) ? data.summary.species : [];
   const water = data.latest && typeof data.latest === 'object' ? data.latest.water : null;
-  const shown = tiles(data.latest)
-    .slice(0, compact ? 3 : 4)
-    .filter((t) => t.v !== null);
+  const shown = tiles(data.latest).filter((t) => t.v !== null);
   const age = water ? relativeTime(water.ts, data.now ?? Number.NaN) : null;
+  // The summary groups by species id and name, so one id can come under two names: a chip is keyed by both.
   const hour = h(
     'div',
-    { className: 'wb-panel site-live-now__panel' },
+    { className: 'wb-panel site-live-now__panel site-live-now__panel--hour' },
     h(heading, { className: 'wb-panel__title' }, SEEN_HOUR),
     species.length > 0
       ? h(
           'ul',
           { className: 'site-live-now__chips', role: 'list' },
           species.map((/** @type {any} */ s) =>
-            h('li', { key: s.species_id }, h('span', { className: 'wb-chip' }, s.common || s.latin || s.species_id, h('small', { className: 'wb-chip__meta' }, s.count))),
+            h(
+              'li',
+              { key: `${s.species_id}|${s.latin ?? ''}|${s.common ?? ''}` },
+              h('span', { className: 'wb-chip' }, s.common || s.latin || s.species_id, h('small', { className: 'wb-chip__meta' }, s.count)),
+            ),
           ),
         )
-      : h('p', { className: 'wb-caption' }, emptyText('hour')),
+      : h('p', { className: 'wb-caption' }, data.dark === true ? darkText(data.summary, data.now ?? Number.NaN) : emptyText('hour')),
   );
   const waterNow = h(
     'div',
@@ -299,7 +334,8 @@ const panelsNode = (status, data) => {
  * @property {boolean} [paused] the page is hidden: the still instead of the stream, and no boxes
  * @property {any} [streamRef] React's ref for the stream's image
  * @property {(event: any) => void} [onStreamError] the stream image's error handler
- * @property {boolean} [compact] the home band's panels: the chips and three tiles
+ * @property {boolean} [compact] the home band's panels: the chips and the tiles, no chart
+ * @property {boolean | null} [dark] the camera's entry's `dark` (GET /api/public/cameras): true at night
  * @property {any} [summary] GET /api/public/detections/summary?hours=1
  * @property {any} [latest] GET /api/public/environment/latest
  * @property {any} [counts] GET /api/public/species/counts?days=7&top=5

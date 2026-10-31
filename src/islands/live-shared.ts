@@ -22,6 +22,8 @@ export interface Camera {
   embed_url: string | null;
   /** Its detections, GET /api/public/live?camera=…, as a path under /api/public. */
   live: string;
+  /** Whether the worker reports its source dark (night); null, or missing in an older answer, when it does not say. */
+  dark?: boolean | null;
 }
 
 const UNKNOWN: CameraState = { status: null, camera: null, seq: 0 };

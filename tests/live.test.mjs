@@ -12,6 +12,7 @@ import {
   boxesFor,
   isStale,
   labelFor,
+  darkText,
   pollInterval,
   renderState,
   scaleBox,
@@ -20,6 +21,7 @@ import {
   tiles,
 } from '../src/lib/live.mjs';
 import { embedUrl } from '../src/lib/video.mjs';
+import { groupItems } from '../src/lib/prose-groups.mjs';
 import { emptyText } from '../src/lib/public-api.mjs';
 
 const camera = (status, stream = '/stream/stream_raw.mjpeg') => ({
@@ -106,12 +108,22 @@ test('boxKey: the species and the box\'s centre to 2 % of the frame, so a fish t
 test('boxesFor: each named fish as a box in percent with its label; the label goes inside near the top edge; keys are unique', () => {
   const boxes = boxesFor([fish([100, 300, 300, 500]), fish([640, 5, 800, 100], 'Mugil cephalus', 0.66), fish([102, 301, 302, 501])], FRAME, SHOWN, 16);
   assert.equal(boxes.length, 3);
-  assert.deepEqual(boxes[0], { key: boxes[0].key, left: 7.81, top: 41.67, width: 15.63, height: 27.78, inside: false, name: 'Sergeant Major', small: '91%' });
+  assert.deepEqual(boxes[0], { key: boxes[0].key, left: 7.81, top: 41.67, width: 15.63, height: 27.78, inside: false, right: false, name: 'Sergeant Major', small: '91%' });
   // 5px of 720 is 3.75px of 540: within 1.5em (24px) of the frame's top, so the label is pinned inside the box.
   assert.equal(boxes[1].inside, true);
+  assert.equal(boxes[1].right, false);
   assert.equal(boxes[1].name, 'Mugil cephalus');
   assert.equal(new Set(boxes.map((b) => b.key)).size, 3, 'two fish of one species side by side get two keys');
   assert.deepEqual(boxesFor([fish([0, 0, 10, 10])], null, SHOWN, 16), [], 'no boxes before the stream has a frame');
+  // Ruling 38: a box whose right edge is within 6em (96px at 16px) of the frame's right edge has its label anchored to
+  // its own right edge (the design's .wb-detect--right), so the label is not cut off; at the top too it is also inside.
+  const [near, far, corner] = boxesFor([fish([1000, 300, 1160, 500]), fish([900, 300, 1100, 500]), fish([1100, 4, 1280, 200])], FRAME, SHOWN, 16);
+  // 1160 of 1280 is 870 of 960 px: 90px from the right edge, within 96px. 1100 is 825px: 135px away.
+  assert.equal(near.right, true);
+  assert.equal(far.right, false);
+  assert.deepEqual([corner.inside, corner.right], [true, true]);
+  // The em is the frame's: at 12px, 6em is 72px, and the 90px box is clear of it.
+  assert.equal(boxesFor([fish([1000, 300, 1160, 500])], FRAME, SHOWN, 12)[0].right, false);
   assert.deepEqual(boxesFor([fish([0, 0, 10, 10])], { width: 0, height: 0 }, SHOWN, 16), []);
   assert.deepEqual(boxesFor([{ bbox: [1, 2, 3] }], FRAME, SHOWN, 16), [], 'a detection without a four-number box is skipped');
 });
@@ -160,7 +172,7 @@ const COUNTS = {
 
 const PAGE = { embedId: 'oBTGY6Ax870', title: 'SeaHIVE reef camera, live stream', still: REEF_STILL, stream: 'https://staging-ai.wahoobay.net/stream/stream_raw.mjpeg' };
 
-test('renderState offline and embed: the nocookie embed, the panels hidden, the badge says Offline without a waiver', () => {
+test('renderState offline and embed: the nocookie embed, the panels hidden; offline says Offline without a waiver, embed has no badge', () => {
   for (const status of ['offline', 'embed']) {
     const { badge, player, panels } = renderState(status, PAGE);
     const frames = nodes(player).filter((n) => n.type === 'iframe');
@@ -174,6 +186,11 @@ test('renderState offline and embed: the nocookie embed, the panels hidden, the 
     assert.equal(nodes(player).filter((n) => n.type === 'img').length, 0, 'no stream');
     assert.equal(panels.props.hidden, true, `${status}: LiveNow renders nothing`);
     assert.deepEqual(panels.children, []);
+    // Ruling 56: embed is a camera with no worker whose YouTube embed plays: neither live nor off, so no badge.
+    if (status === 'embed') {
+      assert.equal(badge, null, 'embed: no badge');
+      continue;
+    }
     assert.equal(badge.props.className, 'wb-live wb-live--off');
     assert.equal(text(badge), 'Offline');
     assert.equal(badge.props['data-impeccable-ignore'], undefined, 'the offline badge does not breathe: no waiver');
@@ -184,6 +201,7 @@ test('renderState live with no fish: the stream, no box, and the hour panel says
   const { badge, player, panels } = renderState('live', { detections: [] });
   assert.equal(classed(player, 'wb-detect').length, 0);
   assert.ok(text(panels).includes(emptyText('hour')), emptyText('hour'));
+  assert.ok(!text(panels).includes('Dark at the reef'), 'not dark: today\'s sentence');
   assert.equal(panels.props.hidden, undefined);
   assert.equal(badge.props.className, 'wb-live');
   assert.equal(badge.props['data-impeccable-ignore'], 'pulsing-dot');
@@ -282,6 +300,46 @@ test('renderState live: empty panels say so; the chart before it is measured has
   assert.deepEqual(svg.children, []);
 });
 
+// Ruling 54: at night the camera sees nothing, and the hour panel says why instead of "nothing seen". The camera's
+// entry of GET /api/public/cameras carries `dark` (true, false, or null when its worker does not say; a missing field is
+// null): only true changes the sentence, and only when the hour has no sightings.
+test('renderState live: dark at the reef with nothing seen in the hour, the night sentence instead of the empty one', () => {
+  const now = Date.parse('2026-10-31T02:00:00+00:00');
+  const hourOf = (panels) => classed(panels, 'site-live-now__panel--hour')[0];
+  const empty = { hours: 1, total: 0, species: [] };
+  const dark = hourOf(renderState('live', { dark: true, summary: empty, now }).panels);
+  assert.equal(text(dark), 'Seen in the last hourDark at the reef; detections resume around sunrise.');
+  assert.deepEqual(dark.children.at(-1).props, { className: 'wb-caption' });
+  for (const value of [false, null, undefined]) {
+    assert.equal(text(hourOf(renderState('live', { dark: value, summary: empty, now }).panels)), `Seen in the last hour${emptyText('hour')}`, `dark ${value}: today's sentence`);
+  }
+  // Fish seen in the hour are chips, dark or not.
+  const seen = { hours: 1, total: 2, species: [{ species_id: 'Mugil cephalus', latin: 'Mugil cephalus', common: null, count: 2, last_seen: '2026-10-31T01:30:00+00:00' }] };
+  const chips = hourOf(renderState('live', { dark: true, summary: seen, now }).panels);
+  assert.equal(classed(chips, 'wb-chip').length, 1);
+  assert.ok(!text(chips).includes('Dark at the reef'));
+  // The home band's compact panels say the same.
+  assert.ok(text(hourOf(renderState('live', { compact: true, dark: true, summary: empty, now }).panels)).endsWith('Dark at the reef; detections resume around sunrise.'));
+});
+
+test('darkText: the night sentence, then the newest last_seen\'s age when the summary has one', () => {
+  const now = Date.parse('2026-10-31T02:00:00+00:00');
+  assert.equal(darkText(null, now), 'Dark at the reef; detections resume around sunrise.');
+  assert.equal(darkText({ species: [] }, now), 'Dark at the reef; detections resume around sunrise.');
+  const summary = { species: [{ last_seen: '2026-10-30T22:00:00+00:00' }, { last_seen: '2026-10-31T01:00:00+00:00' }, { last_seen: 'not a time' }, { last_seen: null }] };
+  assert.equal(darkText(summary, now), 'Dark at the reef; detections resume around sunrise. Last seen 1 h ago.');
+});
+
+// Minor 11: the summary groups by species id and name, so one id can come twice under two names: their chips keep
+// apart.
+test('renderState live: two chips of one species id under two names have two keys', () => {
+  const summary = { hours: 1, total: 5, species: [{ species_id: 'Caranx ruber', latin: 'Caranx ruber', common: 'Bar Jack', count: 3, last_seen: null }, { species_id: 'Caranx ruber', latin: 'Carangoides ruber', common: null, count: 2, last_seen: null }] };
+  const items = nodes(renderState('live', { summary }).panels).filter((n) => n.type === 'li' && classed(n, 'wb-chip').length === 1);
+  assert.equal(items.length, 2);
+  assert.notEqual(items[0].props.key, items[1].props.key);
+  assert.ok(items.every((li) => li.props.key.includes('Caranx ruber')));
+});
+
 // Fix round 1 (Ruling 40): a panel whose answer has not arrived yet is left out, so a failed fetch never says
 // "Nothing seen" (src/lib/live-status.mjs, mergeAnswers, says which are pending).
 test('renderState live: a panel whose answer has not arrived yet is left out, not shown as empty', () => {
@@ -293,12 +351,13 @@ test('renderState live: a panel whose answer has not arrived yet is left out, no
   assert.ok(!text(later).includes(emptyText('water')) && !text(later).includes(emptyText('chart')));
 });
 
-test('renderState compact (the home band): the chips and three tiles, h3 headings, no chart', () => {
+test('renderState compact (the home band): the chips and the four tiles, h3 headings, no chart', () => {
   const summary = { hours: 1, total: 7, species: [{ species_id: 'Diplodus argenteus', latin: 'Diplodus argenteus', common: 'Silver Porgy', count: 7, last_seen: null }] };
   const { panels } = renderState('live', { compact: true, summary, latest: LATEST, counts: COUNTS });
   assert.match(panels.props.className, /\bsite-live-now--compact\b/);
   assert.equal(classed(panels, 'wb-chip').length, 1);
-  assert.deepEqual(classed(panels, 'wb-tile').map((t) => text(classed(t, 'wb-tile__k')[0])), ['Water', 'pH', 'Oxygen']);
+  // The finish review's polish: turbidity too, so the band's row of tiles has no empty slot.
+  assert.deepEqual(classed(panels, 'wb-tile').map((t) => text(classed(t, 'wb-tile__k')[0])), ['Water', 'pH', 'Oxygen', 'Turbidity']);
   assert.equal(classed(panels, 'wb-chart').length, 0);
   assert.deepEqual(nodes(panels).filter((n) => /^h[1-6]$/.test(n.type)).map((n) => n.type), ['h3', 'h3']);
 });
@@ -324,7 +383,7 @@ test('only the detection boxes carry a style, and only their geometry (the desig
 
 test('the new words are marked for Katie', () => {
   const lib = readFileSync('src/lib/live.mjs', 'utf8');
-  for (const words of ["'Seen in the last hour'", "'Water right now'", "'Species this week'", "'Offline'", "'Water'", "'Oxygen'", "'Turbidity'", "'pH'", 'Measured ']) {
+  for (const words of ["'Seen in the last hour'", "'Water right now'", "'Species this week'", "'Offline'", "'Water'", "'Oxygen'", "'Turbidity'", "'pH'", 'Measured ', "'Dark at the reef; detections resume around sunrise.'", "'Last seen '"]) {
     const at = lib.indexOf(words);
     assert.ok(at > 0, words);
     assert.match(lib.slice(lib.lastIndexOf('\n', lib.lastIndexOf('\n', at) - 1), at), /katie: review/, `${words} is marked`);
@@ -335,6 +394,55 @@ test('the new words are marked for Katie', () => {
     assert.ok(at > 0, words);
     assert.match(page.slice(page.lastIndexOf('\n', page.lastIndexOf('\n', at) - 1), at), /katie: review/, `${words} is marked`);
   }
+});
+
+// The finish review's polish: the camera page's Markdown body, H2 groups of short H3 items, laid out side by side from
+// 48rem and as a tight list below; site.css needs each item wrapped, and only the wrappers are new.
+test('groupItems: each H2 group of two or more H3 items is wrapped, an item an H3 and what follows it, comments kept with their H3', () => {
+  const html = [
+    '<h2 id="a">A</h2>',
+    '<h3 id="a1">A1</h3>',
+    '<p>One</p>',
+    '<!-- katie: review: two -->',
+    '<h3 id="a2">A2</h3>',
+    '<p>Two <a href="/x/">x</a>.</p>',
+    '<h2 id="b">B</h2>',
+    '<p>Alone</p>',
+    '<p><a class="wb-btn wb-btn--action" href="/c/">C</a></p>',
+    '',
+  ].join('\n');
+  assert.equal(
+    groupItems(html),
+    [
+      '<div class="site-live__group"><h2 id="a">A</h2>',
+      '<div class="site-live__items"><div class="site-live__item"><h3 id="a1">A1</h3>\n<p>One</p></div>',
+      '<div class="site-live__item"><!-- katie: review: two -->\n<h3 id="a2">A2</h3>\n<p>Two <a href="/x/">x</a>.</p></div></div></div>',
+      '<h2 id="b">B</h2>',
+      '<p>Alone</p>',
+      '<p><a class="wb-btn wb-btn--action" href="/c/">C</a></p>',
+      '',
+    ].join('\n'),
+  );
+  // Nothing else changes: the text is the same, with the wrappers taken out.
+  const unwrap = (x) => x.replace(/<\/?div\b[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  assert.equal(unwrap(groupItems(html)), unwrap(html));
+  assert.equal(groupItems('<p>No heading</p>'), '<p>No heading</p>');
+  assert.equal(groupItems('<h2>One</h2>\n<h3>Only</h3>\n<p>item</p>'), '<h2>One</h2>\n<h3>Only</h3>\n<p>item</p>', 'one item is not a group');
+});
+
+test('/live/: the body\'s three H2 groups are grids of their H3 items, the copy unchanged, the last section as it was', () => {
+  const main = live().match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
+  const body = main.slice(main.indexOf('<div class="wb-prose site-article__body site-live__body">'));
+  assert.ok(body.length > 0, 'the live body has its class');
+  const groups = [...body.matchAll(/<div class="site-live__group"><h2 id="[^"]+">([^<]+)<\/h2>\s*<div class="site-live__items">([\s\S]*?)<\/div><\/div>(?=\s*<(?:div class="site-live__group"|h2))/g)];
+  assert.deepEqual(groups.map((g) => [g[1], (g[2].match(/<div class="site-live__item"><(?:!--[\s\S]*?-->\s*<)?h3\b/g) ?? []).length]), [
+    ['What You’ll See', 3],
+    ['Camera Features', 4],
+    ['Educational Applications', 3],
+  ]);
+  assert.match(body, /<\/div><\/div>\s*<h2 id="ai-fish-identification">AI Fish Identification<\/h2>\s*<p>Contact us/);
+  const css = read('src/styles/site.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /@media \(min-width: 48rem\)\s*\{[^}]*\.site-live__items\s*\{[^}]*grid-template-columns:/);
 });
 
 test('video.mjs builds the nocookie address the YouTube component and the player share', () => {
@@ -359,7 +467,7 @@ const islandsOf = (html) =>
 const live = () => read('dist/live/index.html');
 const home = () => read('dist/index.html');
 
-test('/live/: the Live reef nav, the h1 with the badge, the lead and its button, the player, the panels, the two cards, the body', () => {
+test('/live/: the Live reef nav, the h1 with the badge, the player, the lead and its button, the panels, the two cards, the body', () => {
   const html = live();
   const main = html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
   const at = (needle) => main.indexOf(needle);
@@ -380,18 +488,19 @@ test('/live/: the Live reef nav, the h1 with the badge, the lead and its button,
   assert.equal(now.client, 'visible');
   assert.equal(now.props.camera, 'seahivecam');
   assert.equal(now.props.compact, undefined);
-  // Fix round 1: the lead and its button above the player, where the layout has them, as Page.astro has its lead.
+  // Ruling 47: the player straight under the h1, so a phone's first screen has the video; the lead and its button
+  // under the player, then the panels, the cards and the body. Markup order, at every width: no CSS reordering.
   const order = {
     nav: at('aria-label="Live reef"'),
     h1: at('<h1'),
     badge: badge.at,
+    player: player.at,
     lead: at('<p class="wb-lead">'),
     button: at('<div class="site-actions">'),
-    player: player.at,
     panels: now.at,
     species: at('<a class="wb-card" href="/live/species/"'),
     visit: at('<a class="wb-card" href="/visit/"'),
-    body: at('<div class="wb-prose site-article__body">'),
+    body: at('<div class="wb-prose site-article__body site-live__body">'),
   };
   for (const [name, p] of Object.entries(order)) assert.ok(p >= 0, name);
   const names = Object.keys(order);
@@ -400,6 +509,13 @@ test('/live/: the Live reef nav, the h1 with the badge, the lead and its button,
   // The badge is beside the h1, in the title row.
   // Astro puts its island loader (an inline style and scripts) before the page's first island, here the badge.
   assert.match(main, /<div class="site-live__title">\s*<h1>[^<]+<\/h1>\s*(?:<(script|style)>[\s\S]*?<\/\1>)*<astro-island\b[^>]*LiveBadge/);
+});
+
+test('/live/highlights/ shares the layout\'s order: the nav, the h1, the video, then the lead and its button', () => {
+  const main = read('dist/live/highlights/index.html').match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
+  const order = ['aria-label="Live reef"', '<h1', '<div class="wb-video site-video">', '<p class="wb-lead">', '<div class="site-actions">'].map((n) => main.indexOf(n));
+  assert.ok(order.every((p) => p >= 0), String(order));
+  assert.deepEqual([...order].sort((a, b) => a - b), order);
 });
 
 test('/live/: before the status is known the player is the still in the frame; without script it is the nocookie embed', () => {
