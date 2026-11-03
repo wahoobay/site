@@ -4,8 +4,10 @@
 // JSON body of POST /sightings (wahoobay-net-api), as the old form (wahoobay-net-frontend,
 // src/pages/intake/IntakeForm.js) sent them.
 
-/** The Java API, version 1. Public: the three endpoints the form uses need no sign-in and are rate-limited there. */
-export const API = 'https://api.wahoobay.net/api/v1';
+import { API_BASE } from './java-api.mjs';
+
+/** The Java API, version 1 (src/lib/java-api.mjs). Public: the three endpoints the form uses need no sign-in and are rate-limited there. */
+export const API = API_BASE;
 
 /** The old form's life stages, in its order. */
 export const LIFE_STAGES = ['Adult', 'Juvenile', 'Larval', 'Unknown'];
