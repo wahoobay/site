@@ -51,7 +51,7 @@ test('staging disallows everything from the first sync on; production ships the 
   assert.equal(staging.robotsAtSync.length, 2);
   for (const r of staging.robotsAtSync) assert.equal(r.trim(), 'User-agent: * Disallow: /');
   assert.ok(!staging.some((l) => l.startsWith('s3 cp ')), 'no after-the-fact robots upload');
-  for (const r of runDeploy('prod').robotsAtSync) assert.equal(r.replace(/\s+/g, ' ').trim(), 'User-agent: * Allow: / Sitemap: https://wahoobay.net/sitemap-index.xml');
+  for (const r of runDeploy('prod').robotsAtSync) assert.equal(r.replace(/\s+/g, ' ').trim(), 'User-agent: * Allow: / Sitemap: https://wahoobay.org/sitemap-index.xml');
 });
 
 test('public/robots.txt allows indexing and names the sitemap', () => {
@@ -59,7 +59,7 @@ test('public/robots.txt allows indexing and names the sitemap', () => {
   assert.equal(robotsBlocksEverything(text), false);
   assert.match(text, /^User-agent: \*$/m);
   assert.match(text, /^Allow: \/$/m);
-  assert.match(text, /^Sitemap: https:\/\/wahoobay\.net\/sitemap-index\.xml$/m);
+  assert.match(text, /^Sitemap: https:\/\/wahoobay\.org\/sitemap-index\.xml$/m);
 });
 
 test('staging refuses to sync when the KVS has no auth key', () => {

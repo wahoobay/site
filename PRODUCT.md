@@ -2,7 +2,7 @@
 
 <!-- impeccable:product-schema 1 -->
 
-Derived from the approved design, 2026-10-29: `wahoobay/infra`, `docs/superpowers/specs/2026-10-29-wahoobay-net-overhaul-design.md`, §1–§3 (approved by Dan Zimmerman on 2026-10-29). Not taken from an interview: every fact below is the design's, and a change to it is a change to that design first.
+Derived from the approved design, 2026-10-29: `wahoobay/infra`, `docs/superpowers/specs/2026-10-29-wahoobay-net-overhaul-design.md`, §1–§3 (approved by Dan Zimmerman on 2026-10-29), with its amendment of 2026-11-02 (the site's address is wahoobay.org). Not taken from an interview: every fact below is the design's, and a change to it is a change to that design first.
 
 ## Platform
 
@@ -22,9 +22,9 @@ Astro, static output, on the `@wahoobay/design` package (decided in the approved
 
 ## Product Purpose
 
-wahoobay.net is rebuilt as one product with one look, replacing a patchwork (one React application assembled by several developers since 2022, per-page stylesheets, a hidden admin panel with its own design, hand deploys). The public pages, the interactive pieces and the fish-ID system's public face must read as a single thing, deployed from GitHub through staging and production.
+The Wahoo Bay website, today's wahoobay.net, is rebuilt as one product with one look at wahoobay.org (wahoobay.net redirects there from the cutover), replacing a patchwork (one React application assembled by several developers since 2022, per-page stylesheets, a hidden admin panel with its own design, hand deploys). The public pages, the interactive pieces and the fish-ID system's public face must read as a single thing, deployed from GitHub through staging and production.
 
-It succeeds when, in order: a design system is shared by the site and the fish-ID application; the new site serves its content from Markdown; the fish-ID system's public face is on wahoobay.net; the public "log a sighting" flow and its review keep working; and wahoobay.net moves to the new site with every old URL redirected.
+It succeeds when, in order: a design system is shared by the site and the fish-ID application; the new site serves its content from Markdown; the fish-ID system's public face is on the site; the public "log a sighting" flow and its review keep working; and the new site serves wahoobay.org, with wahoobay.net and every old URL redirected to it.
 
 It fails, even if it works, if it becomes another patchwork (two front-end frameworks, per-page stylesheets, a second set of colours, fish-ID pages in a different design), if anything is deployed by hand or with a long-lived key, if a data page depends on a service or account Wahoo Bay does not control, if a volunteer's name or e-mail address is reachable from a public page or a download, if it only looks right on one screen size or fails WCAG AA contrast, or if its cost grows.
 

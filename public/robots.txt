@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://wahoobay.net/sitemap-index.xml
+Sitemap: https://wahoobay.org/sitemap-index.xml
