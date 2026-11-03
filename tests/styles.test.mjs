@@ -138,3 +138,9 @@ test('the photos on /get-involved/ambassadors/ and /get-involved/support/ sit in
     for (const { tag, around } of photos) assert.ok(around.some((cls) => /(^|\s)wb-prose(\s|$)/.test(cls)), `${file}: ${tag} is outside .wb-prose`);
   }
 });
+
+test('the admin is a data tool: its page is wider than the 72rem reading container, so its tables fit beside the sidebar', () => {
+  const rule = css.match(/\.site-admin-page\s*\{([^}]*)\}/);
+  assert.ok(rule, '.site-admin-page has a rule');
+  assert.match(rule[1], /max-width:\s*90rem/);
+});

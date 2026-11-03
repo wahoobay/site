@@ -685,6 +685,9 @@ main { flex: 1 0 auto; }
    navigation (.wb-subnav, a row that wraps), stand as columns. A notice is above the screen, its words and Dismiss on
    one row while they fit. The forms are a column of the design's fields, no wider than they need. */
 .site-admin-page {
+  /* A data tool, not a reading page: wider than the site's 72rem container, so its tables (a status chip that never
+     wraps, a whole date, a worded action) fit beside the sidebar at 1280 and 1440 instead of scrolling inside it. */
+  max-width: 90rem;
   padding-top: var(--wb-space-6);
   padding-bottom: var(--wb-space-8);
 }
