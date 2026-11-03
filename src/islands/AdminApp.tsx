@@ -7,8 +7,8 @@
 // (any 401) ends the session and returns to the sign-in, which opens the same screen again afterwards.
 // The forms are the design's controls (.wb-field, .wb-label, .wb-input, .wb-help, .wb-error, .wb-btn--action); the
 // island sets no style of its own.
-import { createElement, useCallback, useEffect, useReducer, useRef, useState, type ComponentType, type ReactNode, type SubmitEvent } from 'react';
-import type { VNode } from '../lib/vdom.mjs';
+import { useCallback, useEffect, useReducer, useRef, useState, type ComponentType, type ReactNode, type SubmitEvent } from 'react';
+import { toReact } from './vdom-react';
 import { SessionExpired } from '../lib/java-api.mjs';
 import { changePassword, clear, load, save, signIn } from '../lib/admin/session.mjs';
 import { NO_ACCESS, errorText, noticeNode, passwordErrors, reduce, ribbonNode, sidebar, signInErrors, start, view } from '../lib/admin/shell.mjs';
@@ -40,10 +40,6 @@ const NOT_READY = 'This screen is not ready yet.';
 
 /** The build's environment (set by each deploy job; staging when unset): every build but production's shows the Test ribbon. */
 const ENV: string | undefined = import.meta.env.PUBLIC_SITE_ENV;
-
-/** shell.mjs's VDOM as React elements. */
-const toReact = (node: VNode | string | null): ReactNode =>
-  node === null ? null : typeof node === 'string' ? node : createElement(node.type, node.props, ...node.children.map(toReact));
 
 /** The id of a field's error, for its control's aria-describedby. */
 const errorId = (id: string) => `${id}-error`;

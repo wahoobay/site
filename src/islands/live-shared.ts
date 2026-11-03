@@ -1,16 +1,17 @@
 // What the live camera's three islands share (LiveBadge, LivePlayer, LiveNow): the camera's status, asked of
 // GET /api/public/cameras once for all of them and again every 30 s (createCameraStore in src/lib/live-status.mjs:
-// two failed re-checks in a row are offline, the next answer restores it); the page's visibility; and toReact, which
-// hands renderState's VDOM (src/lib/live.mjs) to React. Islands on one page share this module, so they share one
-// status: the badge, the player and the panels never disagree. A species page's island (SpeciesLive) uses toReact and
-// useMeasuredSize, the charts' ResizeObserver.
-import { createElement, useCallback, useState, useSyncExternalStore, type ReactNode } from 'react';
+// two failed re-checks in a row are offline, the next answer restores it); the page's visibility; and toReact (from
+// vdom-react.ts), which hands renderState's VDOM (src/lib/live.mjs) to React. Islands on one page share this module,
+// so they share one status: the badge, the player and the panels never disagree. A species page's island (SpeciesLive)
+// uses toReact and useMeasuredSize, the charts' ResizeObserver.
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import { fetchJson } from '../lib/public-api.mjs';
 import { createCameraStore, type CameraState } from '../lib/live-status.mjs';
 import type { Size } from '../lib/live.mjs';
-import type { VNode } from '../lib/vdom.mjs';
 
 export { poll } from '../lib/live-status.mjs';
+/** renderState's VDOM as React elements (vdom-react.ts). */
+export { toReact } from './vdom-react';
 export type { CameraState };
 
 /** A camera of GET /api/public/cameras. */
@@ -53,10 +54,6 @@ const onVisibilityChange = (listener: () => void) => {
 export function usePageHidden(): boolean {
   return useSyncExternalStore(onVisibilityChange, () => document.hidden, () => false);
 }
-
-/** renderState's VDOM as React elements. */
-export const toReact = (node: VNode | string | null): ReactNode =>
-  node === null ? null : typeof node === 'string' ? node : createElement(node.type, node.props, ...node.children.map(toReact));
 
 /**
  * An element's size as a ResizeObserver reports it (a chart's SVG, drawn at the size it is shown so its axis text

@@ -151,6 +151,36 @@ test('a volunteer, who has no screen, is told so instead of an empty dashboard',
   assert.equal(view(start(session('volunteer'), '#/password')).screen, 'password', 'but may change their password');
 });
 
+test('an account that may not open the dashboard but has other screens goes to its first one, not to "no screens"', () => {
+  const reviewer = { token: 'jwt', user: { name: 'Ana', role: 'volunteer', permissions: ['reviewSightings'], mustChangePassword: false } };
+  for (const hash of ['#/', '#/users', '#/nope', '#/species/7']) {
+    const v = view(start(reviewer, hash));
+    assert.equal(v.screen, 'queue', hash);
+    assert.equal(v.hash, '#/queue', `${hash}: the address bar says so`);
+    assert.deepEqual(v.params, {}, hash);
+    assert.deepEqual(v.nav.map((i) => i.screen), ['queue', 'sightings'], hash);
+    assert.deepEqual(v.nav.filter((i) => i.current).map((i) => i.screen), ['queue'], hash);
+    assert.notEqual(v.screen, 'noAccess', hash);
+  }
+  assert.equal(view(start(reviewer, '#/sightings')).screen, 'sightings', 'a permitted screen opens as asked');
+  assert.deepEqual(view(start(reviewer, '#/review/42')).params, { id: '42' });
+  const archivist = { token: 'jwt', user: { name: 'Bo', role: 'intern', permissions: ['viewAudit'], mustChangePassword: false } };
+  assert.equal(view(start(archivist, '#/')).screen, 'activity');
+});
+
+test('"no screens" is only for an account whose sidebar would be empty', () => {
+  for (const user of [
+    { name: 'Vol', role: 'volunteer', mustChangePassword: false },
+    { name: 'Ana', role: 'intern', permissions: [], mustChangePassword: false },
+    { name: 'Cy', role: 'volunteer', permissions: ['hideMedia', 'inviteTeam'], mustChangePassword: false },
+  ]) {
+    const v = view(start({ token: 'jwt', user }, '#/queue'));
+    assert.deepEqual(navItems(user), [], user.name);
+    assert.equal(v.screen, 'noAccess', user.name);
+    assert.equal(v.hash, '#/', user.name);
+  }
+});
+
 test('the sidebar marks the current screen; a review is under the queue, a species under the species', () => {
   const current = (hash) => view(start(session('owner'), hash)).nav.filter((i) => i.current).map((i) => i.screen);
   assert.deepEqual(current('#/'), ['dashboard']);

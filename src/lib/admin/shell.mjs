@@ -155,9 +155,10 @@ export function reduce(state, event) {
 
 /**
  * What the state shows. `screen` is "signin" (nobody signed in), "password" (forced while the account must change
- * it, every other route blocked), "noAccess" (an account the guard sends to a dashboard it may not open either), or
- * the route's screen. `hash` is the address of what shows, which the island puts in the address bar when the guard
- * changed it; null at the sign-in, which leaves the address to open after it.
+ * it, every other route blocked), "noAccess" (an account with no screen at all: its sidebar would be empty), or the
+ * route's screen. Where the guard sends the user to a dashboard they may not open either, they go to the first screen
+ * their sidebar lists instead. `hash` is the address of what shows, which the island puts in the address bar when the
+ * guard changed it; null at the sign-in, which leaves the address to open after it.
  * @param {State} state
  * @returns {View}
  */
@@ -167,14 +168,18 @@ export function view(state) {
   if (!session) return { ...base, screen: 'signin', route: null, hash: null };
   const user = session.user;
   if (user?.mustChangePassword) return { ...base, screen: 'password', route: PASSWORD, hash: PASSWORD.hash, forced: true };
+  const items = navItems(user);
   const asked = matchRoute(state.hash);
-  const route = guard(user, asked.route);
-  const params = route === asked.route ? asked.params : {};
+  let route = guard(user, asked.route);
+  let params = route === asked.route ? asked.params : {};
+  if (route === DASHBOARD && !can(user, DASHBOARD.cap ?? '')) {
+    if (items.length === 0) return { ...base, screen: 'noAccess', route, hash: DASHBOARD.hash };
+    route = matchRoute(items[0].hash).route;
+    params = {};
+  }
   const section = UNDER[/** @type {keyof typeof UNDER} */ (route.screen)] ?? route.screen;
-  const nav = navItems(user).map((item) => ({ ...item, current: item.screen === section }));
-  const hash = hashFor(route, params);
-  if (route === DASHBOARD && !can(user, DASHBOARD.cap ?? '')) return { ...base, screen: 'noAccess', route, hash, nav };
-  return { ...base, screen: route.screen, route, params, hash, nav };
+  const nav = items.map((item) => ({ ...item, current: item.screen === section }));
+  return { ...base, screen: route.screen, route, params, hash: hashFor(route, params), nav };
 }
 
 /**
