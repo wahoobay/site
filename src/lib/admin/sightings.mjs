@@ -560,20 +560,24 @@ export function sightingsTable(rows, { caption, columns, onRecycle }) {
 // --- the review -----------------------------------------------------------------------------------------------------
 
 /**
- * The approve body (plan 9, Review Focus 5): { keep: { "<mediaId>": true|false } }, one entry for each of the
- * sighting's media, kept unless `keepMap` says false; a sighting with no media sends { keep: {} }. The server drops the
- * media not kept.
+ * The approve body (plan 9, Review Focus 5 as Ruling P9 amends it): { keep: {} } unless the reviewer discarded at least
+ * one of the sighting's media; then { keep: { "<mediaId>": true|false } }, one entry for each, kept unless `keepMap`
+ * says false. Why not always the full map: AdminSightingService.approve (wahoobay/api, lines 143-149) runs its
+ * keep/discard branch for any non-empty map, and discardUnkept (lines 173-180) then repoints the sighting's primary
+ * media to its best kept junction row, or to NULL when it has none. A legacy sighting with no sighting_media rows (its
+ * media_list is the one fallback item) would lose its photo, and one whose primary is not in the junction would get
+ * another primary, silently. The old review sent `keep` only when something was discarded, too.
  * @param {any} sighting
  * @param {Record<string, boolean>} [keepMap]
  * @returns {{ keep: Record<string, boolean> }}
  */
 export function approvePayload(sighting, keepMap = {}) {
+  const media = mediaOf(sighting);
+  const kept = (/** @type {any} */ m) => keepMap?.[String(m.media_id)] !== false;
   /** @type {Record<string, boolean>} */
   const keep = {};
-  for (const m of mediaOf(sighting)) {
-    const id = String(m.media_id);
-    keep[id] = keepMap?.[id] !== false;
-  }
+  if (media.every(kept)) return { keep };
+  for (const m of media) keep[String(m.media_id)] = kept(m);
   return { keep };
 }
 
@@ -686,6 +690,18 @@ export function editPayload(sighting, fields) {
     (out[f.group] ??= {})[f.key] = after;
   }
   return Object.keys(out).length ? out : null;
+}
+
+/**
+ * What the edit endpoint's answer ({ sighting_id, updated }) means: `updated: false` is that the server changed nothing
+ * (AdminSightingController.edit), which is not "saved". An answer without the field is the server's OK.
+ * @param {string | number} id
+ * @param {any} answer
+ * @returns {{ saved: boolean, text: string }}
+ */
+export function editOutcome(id, answer) {
+  if (answer && typeof answer === 'object' && answer.updated === false) return { saved: false, text: `Nothing was changed on sighting ${id}.` };
+  return { saved: true, text: `Your changes to sighting ${id} are saved.` };
 }
 
 /**
@@ -821,7 +837,9 @@ export function clipSummary(status) {
 
 /**
  * A media item large (mediaView): the saved clip with its poster and controls, a YouTube still with a link to the
- * video, a photo, or "No media attached". Every picture and the clip carry referrerPolicy no-referrer.
+ * video, a photo, or "No media attached". Every picture and the clip carry referrerPolicy no-referrer. The frame is
+ * keyed by its source: hideBroken hides the element itself, so another source must be another element, or every
+ * picture shown after a broken one would stay hidden.
  * @param {ReturnType<typeof mediaView>} view
  */
 export function mediaNode(view) {
@@ -829,20 +847,20 @@ export function mediaNode(view) {
     case 'video':
       return h(
         'div',
-        { className: 'wb-video site-admin__hero' },
+        { key: view.src, className: 'wb-video site-admin__hero' },
         h('video', { src: view.src, poster: view.poster, controls: true, preload: 'metadata', playsInline: true, referrerPolicy: NO_REFERRER }, 'This browser cannot play the clip.'),
       );
     case 'youtube':
       return h(
         'div',
-        { className: 'site-admin__media' },
+        { key: view.src, className: 'site-admin__media' },
         h('div', { className: 'wb-video site-admin__hero' }, h('img', { src: view.src, alt: 'A still from the video', referrerPolicy: NO_REFERRER, onError: hideBroken })),
         h('p', null, h('a', { href: view.href, target: '_blank', rel: 'noreferrer noopener' }, 'Watch the video on YouTube')),
       );
     case 'image':
-      return h('div', { className: 'wb-video site-admin__hero' }, h('img', { src: view.src, alt: 'The media sent with the sighting', referrerPolicy: NO_REFERRER, onError: hideBroken }));
+      return h('div', { key: view.src, className: 'wb-video site-admin__hero' }, h('img', { src: view.src, alt: 'The media sent with the sighting', referrerPolicy: NO_REFERRER, onError: hideBroken }));
     default:
-      return h('p', null, 'No media attached');
+      return h('p', { key: 'none' }, 'No media attached');
   }
 }
 

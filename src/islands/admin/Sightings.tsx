@@ -2,7 +2,7 @@
 // status and searched across the whole table (the search is sent once typing pauses, from the first page), each
 // opening its review and each movable to the recycle bin after a confirm. The requests, the table, the pager and the
 // sentences are src/lib/admin/sightings.mjs's; a 401 goes to the shell's notify, as does a failed move.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ScreenProps } from '../AdminApp';
 import { toReact } from '../vdom-react';
 import { can } from '../../lib/admin/permissions.mjs';
@@ -33,7 +33,15 @@ export default function Sightings({ session, notify }: ScreenProps) {
   const [typed, setTyped] = useState('');
   const [q, setQ] = useState('');
   const [recycling, setRecycling] = useState<SightingRow | null>(null);
+  const [recycled, setRecycled] = useState(0);
+  const heading = useRef<HTMLHeadingElement>(null);
   const { busy, run } = useOneAtATime();
+
+  // After a recycle the dialog hands the focus back to the row's button, which the reload removes: the heading takes
+  // it instead (a passive effect, so after the dialog's close in its layout effect).
+  useEffect(() => {
+    if (recycled > 0) heading.current?.focus();
+  }, [recycled]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -70,6 +78,7 @@ export default function Sightings({ session, notify }: ScreenProps) {
       async () => {
         await send(deleteRequest(row.id as number), session.token);
         setRecycling(null);
+        setRecycled((n) => n + 1);
         notify(`Sighting ${row.id} is in the recycle bin.`);
         list.reload();
       },
@@ -82,7 +91,7 @@ export default function Sightings({ session, notify }: ScreenProps) {
 
   return (
     <section className="site-admin__screen" aria-labelledby="sightings-title">
-      <h2 id="sightings-title">All sightings</h2>
+      <h2 id="sightings-title" tabIndex={-1} ref={heading}>All sightings</h2>
       <p>Every sighting outside the recycle bin, newest first. Open one to review or edit it.</p>
       <div className="wb-toolbar">
         <div className="wb-field">

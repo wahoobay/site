@@ -2,7 +2,7 @@
 // tests fake `fetch` and never touch the network or need a build.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { API_BASE, ApiError, SessionExpired, apiFetch, mediaUrl, pageQuery } from '../src/lib/java-api.mjs';
+import { API_BASE, ApiError, SessionExpired, apiFetch, mediaUrl, pageQuery, uploadsBase } from '../src/lib/java-api.mjs';
 import { API } from '../src/lib/sighting.mjs';
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -110,6 +110,15 @@ test('mediaUrl: an uploaded photo is served at /api/uploads/{key}, outside the v
   assert.equal(mediaUrl('upload', '1730-abc.jpg'), `${api}/uploads/1730-abc.jpg`);
   assert.equal(mediaUrl('upload', '/uploads/a b.jpg'), `${api}/uploads/a%20b.jpg`);
   for (const bad of ['', '/uploads/', '/uploads/..', '/uploads/a/b.jpg', '../x']) assert.throws(() => mediaUrl('upload', bad), RangeError, bad);
+});
+
+test('uploadsBase: the uploads sit beside the version prefix, so a base that does not end in /v1 is refused', () => {
+  assert.equal(uploadsBase('https://api.wahoobay.net/api/v1'), 'https://api.wahoobay.net/api');
+  assert.equal(uploadsBase('http://localhost:8080/api/v1'), 'http://localhost:8080/api');
+  for (const bad of ['https://api.wahoobay.net/api', 'https://api.wahoobay.net/api/v2', 'https://api.wahoobay.net/api/v1/admin', '']) {
+    assert.throws(() => uploadsBase(bad), /PUBLIC_JAVA_API_URL must end in \/v1/, bad);
+  }
+  assert.equal(mediaUrl('upload', 'k.jpg'), `${uploadsBase(API_BASE)}/uploads/k.jpg`);
 });
 
 test('pageQuery builds limit and offset, with extras that are set', () => {

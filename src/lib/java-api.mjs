@@ -9,6 +9,21 @@
 export const API_BASE = (import.meta.env?.PUBLIC_JAVA_API_URL || 'https://api.wahoobay.net/api/v1').replace(/\/+$/, '');
 
 /**
+ * Where the uploaded photos are: beside the version prefix (UploadServeController serves /api/uploads/{key}), so the
+ * base must end in /v1. Any other base is refused with a RangeError, at this module's load (UPLOADS_BASE below), so a
+ * build with a wrong PUBLIC_JAVA_API_URL stops: the sighting form's page renders this module while it builds.
+ * @param {string} base
+ */
+export function uploadsBase(base) {
+  if (!/^https?:\/\/[^/].*\/v1$/.test(base)) {
+    throw new RangeError(`PUBLIC_JAVA_API_URL must end in /v1 (the Java API's version 1, as https://api.wahoobay.net/api/v1); it is "${base}"`);
+  }
+  return base.slice(0, -'/v1'.length);
+}
+
+const UPLOADS_BASE = uploadsBase(API_BASE);
+
+/**
  * Why a call to the Java API failed: `status` is the HTTP status it answered with, or 0 when nothing answered (a
  * timeout, the network); `body` is what it answered, parsed when it was JSON (`{error}`, a 409's `linked_sightings`),
  * else the text, else null.
@@ -118,8 +133,8 @@ export async function apiFetch(path, { method = 'GET', body, token, timeoutMs = 
  * - `poster`: its poster frame (GET /clips/{id}?poster=1).
  * - `thumb`: an image on an allowed host (Drive, YouTube) through the API's proxy, for the page's COEP (GET /thumb?u=).
  * - `upload`: a photo the sighting form uploaded, its media `url` ("/uploads/<key>") or the key alone. Served at
- *   /api/uploads/{key}, outside the version prefix (UploadServeController), to anyone: its key cannot be guessed, so no
- *   token goes in it. A key that is no flat file name is a RangeError.
+ *   /api/uploads/{key}, outside the version prefix (UploadServeController; uploadsBase), to anyone: its key cannot be
+ *   guessed, so no token goes in it. A key that is no flat file name is a RangeError.
  * @param {'clip' | 'poster' | 'thumb' | 'upload'} kind
  * @param {string | number} idOrUrl
  * @param {string | null} [token]
@@ -129,7 +144,7 @@ export const mediaUrl = (kind, idOrUrl, token) => {
   if (kind === 'upload') {
     const key = String(idOrUrl).replace(/^\/uploads\//, '');
     if (!key || key === '.' || key === '..' || /[/\\]/.test(key)) throw new RangeError(`mediaUrl: "${idOrUrl}" is no uploaded file`);
-    return `${API_BASE.replace(/\/v1$/, '')}/uploads/${encodeURIComponent(key)}`;
+    return `${UPLOADS_BASE}/uploads/${encodeURIComponent(key)}`;
   }
   if (kind === 'clip' || kind === 'poster') {
     return `${API_BASE}${withQuery(`/clips/${encodeURIComponent(String(idOrUrl))}`, { token, poster: kind === 'poster' ? 1 : undefined })}`;

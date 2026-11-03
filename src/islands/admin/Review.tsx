@@ -15,6 +15,7 @@ import {
   clipStatusRequest,
   clipSummary,
   deleteRequest,
+  editOutcome,
   editPayload,
   editRequest,
   environmentNode,
@@ -81,18 +82,27 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
   const actions = reviewActions(session.user, sighting, busy !== null);
   const changes = sighting ? editPayload(sighting, fields) : null;
 
-  /** Save the changes, if any; the sighting is then as the server has it. */
+  /**
+   * Save the changes, if any, and say what the server did (editOutcome: its `updated: false` is "Nothing was
+   * changed"); once saved, the sighting is as the server has it. No changes: null.
+   */
   const saveChanges = async () => {
-    if (!changes) return;
-    await send(editRequest(id, changes), token);
-    setSighting(savedSighting(sighting, changes));
+    if (!changes) return null;
+    const outcome = editOutcome(id, await send(editRequest(id, changes), token));
+    if (outcome.saved) setSighting(savedSighting(sighting, changes));
+    return outcome;
   };
 
   const approve = () =>
     void run(
       'approve',
       async () => {
-        await saveChanges();
+        // Changes the server did not take are not approved over: the reviewer looks again first.
+        const outcome = await saveChanges();
+        if (outcome && !outcome.saved) {
+          notify({ tone: 'error', text: `${outcome.text} It is not approved yet: check the fields, then approve again.` });
+          return;
+        }
         await send(approveRequest(sighting, keep), token);
         navigate(QUEUE);
         notify(`Sighting ${id} is approved.`);
@@ -124,8 +134,8 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
     void run(
       'save',
       async () => {
-        await saveChanges();
-        notify(`Your changes to sighting ${id} are saved.`);
+        const outcome = await saveChanges();
+        if (outcome) notify(outcome.text);
       },
       notify,
     );

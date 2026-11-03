@@ -22,6 +22,7 @@ import {
   clipStatusRequest,
   clipSummary,
   deleteRequest,
+  editOutcome,
   editPayload,
   editRequest,
   environmentNode,
@@ -129,7 +130,8 @@ test('one sighting, its conditions, its clip, and the four actions, at the contr
   assert.deepEqual(deleteRequest(42), { path: '/admin/sightings/42', method: 'DELETE' });
   const body = { sighting: { notes: 'x' } };
   assert.deepEqual(editRequest(42, body), { path: '/admin/sightings/42', method: 'PATCH', body });
-  assert.deepEqual(approveRequest(ROW, {}), { path: '/admin/sightings/42/approve', method: 'PATCH', body: { keep: { 7: true } } });
+  assert.deepEqual(approveRequest(ROW, {}), { path: '/admin/sightings/42/approve', method: 'PATCH', body: { keep: {} } });
+  assert.deepEqual(approveRequest(ROW, { 7: false }), { path: '/admin/sightings/42/approve', method: 'PATCH', body: { keep: { 7: false } } });
   assert.equal(sightingRequest('42/../users').path, '/admin/sightings/42%2F..%2Fusers', 'an id never carries a path');
 });
 
@@ -412,13 +414,24 @@ const MEDIA_TWO = [
   { media_id: 12, role: 'photo', storage_type: 'upload', url: '/uploads/b.jpg', kind: 'photo', keep: true },
 ];
 
-test('approvePayload: one entry per media item, kept unless discarded', () => {
+test('approvePayload (Ruling P9): with one discarded, an entry for every media item, kept unless discarded', () => {
   const s = { sighting_id: 42, media_list: MEDIA_TWO };
   assert.deepEqual(approvePayload(s, { 12: false }), { keep: { 11: true, 12: false } });
-  assert.deepEqual(approvePayload(s, {}), { keep: { 11: true, 12: true } });
-  assert.deepEqual(approvePayload(s), { keep: { 11: true, 12: true } });
-  assert.deepEqual(approvePayload(s, { 99: false }), { keep: { 11: true, 12: true } }, 'a choice for media it does not have is dropped');
+  assert.deepEqual(approvePayload(s, { 11: true, 12: false }), { keep: { 11: true, 12: false } });
+  assert.deepEqual(approvePayload(s, { 11: false, 12: false }), { keep: { 11: false, 12: false } }, 'discarding all is the reviewer\'s to choose');
   assert.deepEqual(Object.keys(approvePayload(s, { 12: false }).keep), ['11', '12'], 'the keys are media ids as text');
+});
+
+test('approvePayload (Ruling P9): nothing discarded sends { keep: {} }, so the server leaves the media alone', () => {
+  // AdminSightingService.approve runs its keep branch for any non-empty map, and discardUnkept then repoints (or nulls)
+  // the primary media of a sighting whose media are not all in sighting_media: all-true would drop a legacy photo.
+  const s = { sighting_id: 42, media_list: MEDIA_TWO };
+  assert.deepEqual(approvePayload(s, {}), { keep: {} });
+  assert.deepEqual(approvePayload(s), { keep: {} });
+  assert.deepEqual(approvePayload(s, { 11: true, 12: true }), { keep: {} });
+  assert.deepEqual(approvePayload(s, { 99: false }), { keep: {} }, 'a discard of media it does not have is no discard');
+  const legacy = { sighting_id: 7, media_id: 70, media_list: [{ media_id: 70, role: 'photo', keep: true, url: '/uploads/old.jpg' }] };
+  assert.deepEqual(approvePayload(legacy, {}), { keep: {} }, 'the fallback item of a sighting with no junction rows');
 });
 
 test('approvePayload: a sighting with no media sends { keep: {} }', () => {
@@ -585,6 +598,11 @@ test('mediaNode: every picture and the clip carry referrerPolicy no-referrer', (
     assert.equal(media[0].props.referrerPolicy, 'no-referrer', view.type);
   }
   const frames = find(mediaNode(mediaView(MEDIA_TWO[0], 'jwt')), (n) => classes(n).includes('wb-video'));
+  // hideBroken hides the element itself: a new source must be a new element, or a picture after a broken one stays hidden.
+  const keys = [MEDIA_TWO[0], MEDIA_TWO[1], ROW.media_list[0], { ...ROW.media_list[0], archive_uri: null, archived: false }].map((m) => mediaNode(mediaView(m, 'jwt')).props.key);
+  assert.deepEqual(keys, [`${UPLOADS}/uploads/a.jpg`, `${UPLOADS}/uploads/b.jpg`, mediaUrl('clip', 7, 'jwt'), 'https://img.youtube.com/vi/abcDEF12345/hqdefault.jpg']);
+  assert.equal(new Set(keys).size, keys.length, 'each source its own key');
+  assert.equal(mediaNode({ type: 'none' }).props.key, 'none');
   assert.equal(frames.length, 1, 'shown in the design\'s 16:9 frame');
   const css = source('src/styles/site.css');
   assert.match(css, /\.wb-media\.site-admin__thumb\[hidden\],\s*\.site-admin__hero > img\[hidden\]\s*\{\s*display: none;/, 'a broken picture hides despite the design\'s display: block');
@@ -634,6 +652,12 @@ test('reviewFields and editPayload: only what changed is sent, trimmed; species 
   assert.deepEqual(editPayload(s, { ...fields, notes: '' }), { sighting: { notes: '' } }, 'emptied: the server stores null');
   assert.equal(editPayload({ ...s, species_id: null }, { ...fields, family: 'Other' }), null, 'no species to change');
   assert.ok(!('habitat_type' in fields), 'a field the row does not carry is never sent blank over the species');
+});
+
+test('editOutcome: the edit endpoint\'s updated: false is "Nothing was changed", not "saved"', () => {
+  assert.deepEqual(editOutcome('42', { sighting_id: 42, updated: true }), { saved: true, text: 'Your changes to sighting 42 are saved.' });
+  assert.deepEqual(editOutcome('42', { sighting_id: 42, updated: false }), { saved: false, text: 'Nothing was changed on sighting 42.' });
+  assert.deepEqual(editOutcome('42', null), { saved: true, text: 'Your changes to sighting 42 are saved.' }, 'an answer without the field is the server\'s OK');
 });
 
 test('savedSighting: the sighting as the server now has it (an emptied field is null)', () => {
@@ -696,4 +720,8 @@ test('the screens: every API failure they do not show themselves goes to notify;
   assert.match(review, /CONFIRM\.reject/);
   assert.match(review, /CONFIRM\.delete/);
   assert.match(source('src/islands/admin/Sightings.tsx'), /CONFIRM\.delete/);
+  const sightings = source('src/islands/admin/Sightings.tsx');
+  assert.match(sightings, /<h2 id="sightings-title" tabIndex=\{-1\} ref=\{heading\}>/, 'the heading can take the focus');
+  assert.match(sightings, /heading\.current\?\.focus\(\)/, 'after a recycle the focus goes to the heading, not to a removed row');
+  assert.match(review, /editOutcome\(/, 'the review reads the edit endpoint\'s updated');
 });
