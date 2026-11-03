@@ -1,7 +1,7 @@
 // What the admin's lists share beyond the sighting screens' pager (sightings.mjs): a page of a list the Java API answers
 // whole (the species, the recycle bin, the activity log), a set of checked rows (the recycle bin's restore and purge, a
-// species' move), counts and lists in words, why an action failed, and the markup of a table of records, its thumbnail
-// and its check box as a small VDOM (src/lib/vdom.mjs). Used by catalogue.mjs and housekeeping.mjs; a plain module, so
+// species' move), counts and lists in words, why an action failed, the look of a confirm dialog's button, and the
+// markup of a table of records, its thumbnail and its check box as a small VDOM (src/lib/vdom.mjs). Used by catalogue.mjs and housekeeping.mjs; a plain module, so
 // the tests read it without a build (tests/admin-catalogue.test.mjs).
 import { errorText } from './shell.mjs';
 import { hideBroken } from './sightings.mjs';
@@ -134,16 +134,34 @@ export function failureText(error, subject) {
  */
 export const failureNotice = (error, subject) => (error instanceof SessionExpired ? error : { tone: 'error', text: failureText(error, subject) });
 
+/**
+ * What a confirm dialog (.wb-dialog) asks: its title, what the action does, the confirm button's words (they name the
+ * consequence) and its tone (confirmButtonClass). CONFIRM (sightings.mjs), SPECIES_CONFIRM and MEDIA_CONFIRM
+ * (catalogue.mjs), RECYCLE_CONFIRM, UNDO_CONFIRM, USER_CONFIRM and INTAKE_CONFIRM (housekeeping.mjs) are each one.
+ * @typedef {{ title: string, body: string, confirm: string, tone: 'grave' | 'action' }} Confirm
+ */
+
+/**
+ * The confirm dialog's button (src/islands/admin/shared.tsx, ConfirmDialog), from the confirm's `tone`: "grave" is the
+ * design's ink fill (.wb-btn--grave), for a confirm that takes something away (a reject, a move to the recycle bin, a
+ * permanent delete, a merge, an approve that drops media, a disable); anything else is the action blue of any primary.
+ * Never the accent. Its label names the consequence; Cancel, first, has the focus.
+ * @param {'grave' | 'action' | undefined} tone
+ * @param {boolean} busy while the action runs
+ */
+export const confirmButtonClass = (tone, busy) => `wb-btn ${tone === 'grave' ? 'wb-btn--grave' : 'wb-btn--action'}${busy ? ' wb-btn--busy' : ''}`;
+
 // --- markup ---------------------------------------------------------------------------------------------------------
 
 /**
- * @typedef {{ key: string, label: string, header?: boolean, cell: (row: any) => any }} Column
+ * @typedef {{ key: string, label: string, header?: boolean, className?: string, cell: (row: any) => any }} Column
  */
 
 /**
  * A table of records (.wb-table in its .wb-table-wrap, stacking into labelled cards where the wrapper is narrow): the
  * caption for screen readers, a header row, then a row per record, each cell carrying its column in data-label. The
- * column marked `header` is each row's header cell (a th scoped to the row).
+ * column marked `header` is each row's header cell (a th scoped to the row). A column's `className` goes on each of its
+ * cells (the design's .wb-table__long, for free text such as an email that may break anywhere).
  * @param {any[]} rows
  * @param {{ caption: string, columns: Column[], key: (row: any) => string | number | null }} options
  */
@@ -163,7 +181,7 @@ export const recordsTable = (rows, { caption, columns, key }) =>
           h(
             'tr',
             { key: String(key(row) ?? i) },
-            columns.map((c) => h(c.header ? 'th' : 'td', { key: c.key, scope: c.header ? 'row' : undefined, 'data-label': c.label }, c.cell(row))),
+            columns.map((c) => h(c.header ? 'th' : 'td', { key: c.key, className: c.className, scope: c.header ? 'row' : undefined, 'data-label': c.label }, c.cell(row))),
           ),
         ),
       ),

@@ -63,11 +63,13 @@ export default function Activity({ session, notify }: ScreenProps) {
     <section className="site-admin__screen" aria-labelledby="activity-title">
       <h2 id="activity-title" tabIndex={-1} ref={heading}>Activity</h2>
       <p>Every change made here in the last 14 days, the latest first, with who made it. A change that can be undone has its Undo for 14 days; a merge or a permanent delete has none.</p>
-      <div className="wb-toolbar">
-        <button className="wb-btn wb-btn--ghost" type="button" disabled={list.loading} onClick={list.reload}>
-          Refresh
-        </button>
-      </div>
+      {state.refresh && (
+        <div className="wb-toolbar">
+          <button className="wb-btn wb-btn--ghost" type="button" disabled={list.loading} onClick={list.reload}>
+            Refresh
+          </button>
+        </div>
+      )}
       {toReact(
         listBody(state, {
           onRetry: list.reload,

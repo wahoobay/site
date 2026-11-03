@@ -50,6 +50,7 @@ import {
   recycleRequest,
   recycleRow,
   recycleTable,
+  recycleToolbar,
   restorePayload,
   restoreRequest,
   settingsActions,
@@ -424,6 +425,104 @@ test('the dashboard says "Intake is closed" when enabled is false', () => {
   assert.equal(text(intakeNode(intakeView({ enabled: true }), { settingsHref: '#/settings' })), 'Intake is open. The sighting form takes sightings.');
   assert.equal(text(intakeNode(intakeView(null), { settingsHref: null })), 'The sighting form\'s state did not load.');
   assert.equal(QUEUE_EMPTY, 'No sightings waiting for review', 'the dashboard\'s queue uses the queue\'s sentence');
+});
+
+// --- the finish review (Task 7) -------------------------------------------------------------------------------------
+
+test('fix 4: a recycled provisional sighting has no scientific name; the visitor\'s words are a plain sub-line', () => {
+  const guess = recycleRow({ ...BINNED, species_id: 18, common_name: 'Big silver fish with a yellow tail', scientific_name: '[unverified] Big silver fish with a yellow tail', name_status: 'provisional' }, TOKEN);
+  assert.equal(guess.species, 'Unidentified');
+  assert.equal(guess.scientific, null);
+  assert.equal(guess.visitorsName, 'Big silver fish with a yellow tail');
+  const table = recycleTable([guess, recycleRow(BINNED, TOKEN)], { selected: [], enabled: true, onSelect() {} });
+  const heads = find(find(table, (n) => n.type === 'tbody')[0], (n) => n.type === 'th');
+  assert.deepEqual(find(heads[0], (n) => classes(n).includes('site-admin__sub')).map(text), ['Visitor\'s name: Big silver fish with a yellow tail']);
+  assert.equal(find(heads[0], (n) => n.type === 'i').length, 0, 'nothing in italics');
+  assert.doesNotMatch(text(heads[0]), /\[unverified\]/i);
+  assert.equal(text(find(heads[1], (n) => n.type === 'i')[0]), 'Abudefduf saxatilis', 'a real one stays in italics');
+});
+
+test('fixes 3b and 6: long text may break in the recycle bin, the activity log and users; times are the day over the time', () => {
+  const long = (tree) => find(find(tree, (n) => n.type === 'tbody')[0], (n) => classes(n).includes('wb-table__long')).map((c) => c.props['data-label']);
+  const spoken = (tree, label) => find(tree, (n) => n.props?.['data-label'] === label).map((c) => find(c, (n) => classes(n).includes('site-admin__when'))[0]?.children.map(text));
+  const bin = recycleTable([recycleRow(BINNED, TOKEN)], { selected: [], enabled: true, onSelect() {} });
+  assert.deepEqual(long(bin), ['Submitted by']);
+  assert.deepEqual(spoken(bin, 'Seen'), [['Oct 31, 2026', '10:22 AM']]);
+  assert.deepEqual(spoken(bin, 'Recycled'), [['Nov 2, 2026', '8:05 AM']]);
+  const log = activityTable([logRow(LOGGED)], { actionsFor: (r) => activityActions(ADMIN, r, false), onUndo() {} });
+  assert.deepEqual(long(log), ['By'], 'the actor is an email');
+  assert.deepEqual(spoken(log, 'When'), [['Nov 2, 2026', '8:05 AM']]);
+  const users = usersTable([userRow({ ...ROY, email: 'priya.natarajan-okonkwo@student.pompanobeachschools.example.org' }, OWNER)], { actionsFor: (r) => userActions(OWNER, r, false), onEdit() {}, onDisable() {}, onEnable() {} });
+  assert.deepEqual(long(users), ['Email']);
+});
+
+test('fix 5: the housekeeping confirms carry a tone: a purge and a disable are grave; a restore, an undo and the switch are not', () => {
+  assert.equal(RECYCLE_CONFIRM.purge(2).tone, 'grave');
+  assert.equal(RECYCLE_CONFIRM.restore(2).tone, 'action');
+  assert.equal(USER_CONFIRM.disable(userRow(ROY, OWNER)).tone, 'grave');
+  assert.equal(UNDO_CONFIRM(logRow(LOGGED)).tone, 'action');
+  assert.equal(INTAKE_CONFIRM(true).tone, 'action');
+  assert.equal(INTAKE_CONFIRM(false).tone, 'action');
+  assert.equal(RECYCLE_CONFIRM.purge(2).confirm, 'Delete 2 sightings', 'the label names the consequence');
+});
+
+test('fixes 7 and 12: the recycle bin\'s toolbar: the page\'s check box with how many are checked, the pair, then Refresh', () => {
+  const calls = [];
+  const options = {
+    actions: recycleActions(ADMIN, [], false),
+    selection: { count: 0, all: false, some: false },
+    pageCount: 9,
+    busy: false,
+    loading: false,
+    refresh: true,
+    onAll: (on) => calls.push(['all', on]),
+    onRestore: () => calls.push('restore'),
+    onPurge: () => calls.push('purge'),
+    onRefresh: () => calls.push('refresh'),
+  };
+  const bar = recycleToolbar(options);
+  assert.deepEqual(classes(bar), ['wb-toolbar']);
+  const groups = bar.children.filter(Boolean);
+  assert.deepEqual(groups.map((g) => classes(g)), [['site-admin__selection'], ['site-admin__actions'], ['site-admin__actions']]);
+  const [selection, pair, refresh] = groups;
+  const box = find(selection, (n) => n.type === 'input')[0];
+  assert.equal(box.props.id, 'recycle-all');
+  assert.equal(text(find(selection, (n) => n.type === 'label')[0]), 'Check every sighting on this page');
+  assert.equal(text(find(selection, (n) => n.props?.role === 'status')[0]), 'None checked', 'on the check box\'s line');
+  box.props.onChange({ target: { checked: true } });
+  assert.deepEqual(find(pair, (n) => n.type === 'button').map(text), ['Restore', 'Delete permanently'], 'the pair together, Refresh apart');
+  assert.deepEqual(find(pair, (n) => n.type === 'button').map((b) => classes(b)), [['wb-btn', 'wb-btn--action'], ['wb-btn', 'wb-btn--ghost']]);
+  assert.ok(find(pair, (n) => n.type === 'button').every((b) => b.props.disabled === true), 'none checked: off');
+  assert.deepEqual(find(refresh, (n) => n.type === 'button').map(text), ['Refresh']);
+  find(refresh, (n) => n.type === 'button')[0].props.onClick();
+  assert.deepEqual(calls, [['all', true], 'refresh']);
+  const two = recycleToolbar({ ...options, actions: recycleActions(ADMIN, [1, 2], false), selection: { count: 2, all: false, some: true } });
+  assert.equal(text(find(two, (n) => n.props?.role === 'status')[0]), '2 sightings checked');
+  const [restore, purge] = find(two, (n) => n.type === 'button');
+  assert.equal(restore.props.disabled, false);
+  restore.props.onClick();
+  purge.props.onClick();
+  assert.deepEqual(calls.slice(-2), ['restore', 'purge']);
+  const failed = recycleToolbar({ ...options, refresh: false });
+  assert.ok(!find(failed, (n) => n.type === 'button').some((b) => text(b) === 'Refresh'), 'not beside the error notice\'s Try again');
+  const empty = recycleToolbar({ ...options, pageCount: 0 });
+  assert.equal(find(empty, (n) => n.type === 'input').length, 0, 'no rows, no check box for the page');
+  const intern = recycleToolbar({ ...options, actions: recycleActions(INTERN, [], false) });
+  assert.deepEqual(find(intern, (n) => n.type === 'button').map(text), ['Refresh'], 'no recycle: only Refresh');
+  assert.deepEqual(find(recycleToolbar({ ...options, loading: true }), (n) => n.type === 'button').filter((b) => text(b) === 'Refresh').map((b) => b.props.disabled), [true]);
+  const css = source('src/styles/site.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(([, sel]) => sel.split(',').map((x) => x.trim()).includes('.site-admin__selection'));
+  assert.ok(rule, 'site.css lays out the selection group');
+  assert.match(rule[2], /display:\s*flex/);
+  assert.match(rule[2], /align-items:\s*center/, '"None checked" sits on the check box\'s line');
+});
+
+test('finish review: the housekeeping islands draw the toolbar and Refresh as the modules decide', () => {
+  const recycle = source('src/islands/admin/Recycle.tsx');
+  assert.match(recycle, /toReact\(\s*recycleToolbar\(/);
+  assert.match(recycle, /refresh: state\.refresh/);
+  assert.doesNotMatch(recycle, /None checked|Refresh</, 'the words are the module\'s');
+  assert.match(source('src/islands/admin/Activity.tsx'), /\{state\.refresh && \(\s*<div className="wb-toolbar">/);
 });
 
 // --- the islands ----------------------------------------------------------------------------------------------------

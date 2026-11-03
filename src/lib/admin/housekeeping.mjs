@@ -21,7 +21,7 @@
 // - DELETE /admin/users/{id} disables, never deletes, and refuses the signed-in account and the last owner (409).
 // - PATCH /admin/settings/intake is not in the activity log, and closes the live form for everyone.
 import { CAPABILITIES, ROLES, ROLE_CAPS, can } from './permissions.mjs';
-import { NOT_GIVEN, formatWhen, sightingRow, statusChip } from './sightings.mjs';
+import { NOT_GIVEN, formatWhen, nameLines, sightingRow, statusChip, whenNode } from './sightings.mjs';
 import { checkNode, idOf, idsOf, plural, recordsTable, thumbNode } from './lists.mjs';
 import { h } from '../vdom.mjs';
 
@@ -68,15 +68,16 @@ export const purgeRequest = (ids) => {
 
 /**
  * @typedef {{
- *   id: number | null, species: string, scientific: string | null, status: 'pending' | 'verified' | 'rejected',
- *   statusLabel: string, when: string, recycled: string, submitter: string, camera: string,
+ *   id: number | null, species: string, scientific: string | null, visitorsName: string | null,
+ *   status: 'pending' | 'verified' | 'rejected', statusLabel: string, when: string, recycled: string, submitter: string, camera: string,
  *   thumb: { src: string, video: boolean } | null,
  * }} RecycleRow
  */
 
 /**
- * A recycled sighting: as the sighting screens read it (sightingRow), and when it was recycled. It links to no review:
- * the review's actions would answer 404 for a recycled sighting.
+ * A recycled sighting: as the sighting screens read it (sightingRow: no "[unverified] …" placeholder as a scientific
+ * name, what the visitor typed apart), and when it was recycled. It links to no review: the review's actions would
+ * answer 404 for a recycled sighting.
  * @param {any} r a row of GET /admin/recycle
  * @param {string | null} [token]
  * @returns {RecycleRow}
@@ -87,6 +88,7 @@ export function recycleRow(r, token) {
     id: row.id,
     species: row.species,
     scientific: row.scientific,
+    visitorsName: row.visitorsName,
     status: row.status,
     statusLabel: row.statusLabel,
     when: row.when,
@@ -98,7 +100,8 @@ export function recycleRow(r, token) {
 }
 
 /**
- * The recycle bin's table: a check box per row, its picture, species, status, when seen and recycled, who sent it.
+ * The recycle bin's table: a check box per row, its picture, species (and the lines under it: nameLines), status, when
+ * seen and recycled (each the day over the time), who sent it (free to break anywhere: it may be an email).
  * @param {RecycleRow[]} rows
  * @param {{ selected: number[], enabled: boolean, onSelect: (id: number, on: boolean) => void }} options
  */
@@ -120,12 +123,12 @@ export const recycleTable = (rows, { selected, enabled, onSelect }) =>
         key: 'species',
         label: 'Species',
         header: true,
-        cell: (r) => [r.species, r.scientific && r.scientific !== r.species && h('span', { key: 'sci', className: 'site-admin__sub' }, h('i', null, r.scientific))],
+        cell: (r) => [r.species, ...nameLines(r)],
       },
       { key: 'status', label: 'Status', cell: (r) => statusChip(r.status) },
-      { key: 'when', label: 'Seen', cell: (r) => r.when },
-      { key: 'recycled', label: 'Recycled', cell: (r) => r.recycled },
-      { key: 'submitter', label: 'Submitted by', cell: (r) => r.submitter },
+      { key: 'when', label: 'Seen', cell: (r) => whenNode(r.when) },
+      { key: 'recycled', label: 'Recycled', cell: (r) => whenNode(r.recycled) },
+      { key: 'submitter', label: 'Submitted by', className: 'wb-table__long', cell: (r) => r.submitter },
       { key: 'id', label: 'ID', cell: (r) => (r.id === null ? NOT_GIVEN : String(r.id)) },
     ],
   });
@@ -146,10 +149,11 @@ export function recycleActions(user, selected, busy) {
 
 /**
  * The confirm dialogs (.wb-dialog) before a restore and a purge, each naming the count. A restore's undo (AuditService
- * "recycle_ids") recycles again but does not put back a rejected status, so the restore says so.
+ * "recycle_ids") recycles again but does not put back a rejected status, so the restore says so. A purge is for good,
+ * so its `tone` is grave (lists.mjs, confirmButtonClass); a restore puts back.
  */
 export const RECYCLE_CONFIRM = Object.freeze({
-  /** @param {number} n */
+  /** @param {number} n @returns {import('./lists.mjs').Confirm} */
   restore: (n) => ({
     title: `Restore ${plural(n, 'sighting', 'sightings')}?`,
     body:
@@ -157,8 +161,9 @@ export const RECYCLE_CONFIRM = Object.freeze({
         ? 'It leaves the recycle bin. If it was rejected, it goes back to the review queue as pending; otherwise it keeps its status. An undo in the activity log puts it back in the bin, but if it was rejected it stays pending.'
         : 'They leave the recycle bin. A rejected one goes back to the review queue as pending; the others keep their status. An undo in the activity log puts them back in the bin, but a rejected one stays pending.',
     confirm: `Restore ${plural(n, 'sighting', 'sightings')}`,
+    tone: 'action',
   }),
-  /** @param {number} n */
+  /** @param {number} n @returns {import('./lists.mjs').Confirm} */
   purge: (n) => ({
     title: `Delete ${plural(n, 'sighting', 'sightings')} permanently?`,
     body:
@@ -166,8 +171,42 @@ export const RECYCLE_CONFIRM = Object.freeze({
         ? 'It is deleted for good, with its conditions and any photo or clip that no other sighting uses. This cannot be undone.'
         : 'They are deleted for good, with their conditions and any photo or clip that no other sighting uses. This cannot be undone.',
     confirm: `Delete ${plural(n, 'sighting', 'sightings')}`,
+    tone: 'grave',
   }),
 });
+
+/**
+ * The recycle bin's toolbar (.wb-toolbar), three groups that wrap as wholes: the check box for the page's rows with how
+ * many are checked, on one line (.site-admin__selection centres them); Restore and Delete permanently, the pair that acts
+ * on the checked rows, together (.site-admin__actions); then Refresh apart, and not at all while the list's error
+ * notice offers its own Try again (`refresh`: listState). Without recycle there is only Refresh. Each group holds its
+ * buttons, so none takes the toolbar's push-down for a button beside a field (there is no field here).
+ * @param {{
+ *   actions: ReturnType<typeof recycleActions>, selection: { count: number, all: boolean }, pageCount: number,
+ *   busy: boolean, loading: boolean, refresh: boolean, onAll: (on: boolean) => void, onRestore: () => void,
+ *   onPurge: () => void, onRefresh: () => void,
+ * }} options
+ */
+export const recycleToolbar = ({ actions, selection, pageCount, busy, loading, refresh, onAll, onRestore, onPurge, onRefresh }) =>
+  h(
+    'div',
+    { className: 'wb-toolbar' },
+    actions.restore.shown &&
+      h(
+        'div',
+        { key: 'selection', className: 'site-admin__selection' },
+        pageCount > 0 && checkNode({ id: 'recycle-all', checked: selection.all, disabled: busy, label: 'Check every sighting on this page', onChange: onAll }),
+        h('span', { role: 'status' }, selection.count ? `${plural(selection.count, 'sighting', 'sightings')} checked` : 'None checked'),
+      ),
+    (actions.restore.shown || actions.purge.shown) &&
+      h(
+        'div',
+        { key: 'pair', className: 'site-admin__actions' },
+        actions.restore.shown && h('button', { key: 'restore', className: 'wb-btn wb-btn--action', type: 'button', disabled: !actions.restore.enabled, onClick: onRestore }, 'Restore'),
+        actions.purge.shown && h('button', { key: 'purge', className: 'wb-btn wb-btn--ghost', type: 'button', disabled: !actions.purge.enabled, onClick: onPurge }, 'Delete permanently'),
+      ),
+    refresh && h('div', { key: 'refresh', className: 'site-admin__actions' }, h('button', { className: 'wb-btn wb-btn--ghost', type: 'button', disabled: loading, onClick: onRefresh }, 'Refresh')),
+  );
 
 /**
  * What a restore or a purge did, from the server's count ({ restored } or { purged }), and how many it skipped (no
@@ -228,20 +267,23 @@ export function activityActions(user, row, busy) {
 }
 
 /**
- * The confirm dialog (.wb-dialog) before an undo: which change it reverses.
+ * The confirm dialog (.wb-dialog) before an undo: which change it reverses. It puts a change back, so its tone is action.
  * @param {LogRow} row
+ * @returns {import('./lists.mjs').Confirm}
  */
 export const UNDO_CONFIRM = (row) => ({
   title: 'Undo this change?',
   body: `“${row.summary}” (${row.when}, by ${row.actor}) is reversed. The undo is logged too, and cannot itself be undone.`,
   confirm: 'Undo',
+  tone: 'action',
 });
 
 /** What an undo did. @param {LogRow} row */
 export const undoOutcome = (row) => `Undone: ${row.summary}.`;
 
 /**
- * The log's table: when, by whom, the change, and its Undo (or "Undone", or "Cannot be undone").
+ * The log's table: when (the day over the time), by whom (an email, free to break anywhere), the change, and its Undo
+ * (or "Undone", or "Cannot be undone").
  * @param {LogRow[]} rows
  * @param {{ actionsFor: (row: LogRow) => ReturnType<typeof activityActions>, onUndo: (row: LogRow) => void }} options
  */
@@ -250,8 +292,8 @@ export const activityTable = (rows, { actionsFor, onUndo }) =>
     caption: 'Changes in the last 14 days',
     key: (r) => r.id,
     columns: [
-      { key: 'when', label: 'When', cell: (r) => r.when },
-      { key: 'actor', label: 'By', cell: (r) => r.actor },
+      { key: 'when', label: 'When', cell: (r) => whenNode(r.when) },
+      { key: 'actor', label: 'By', className: 'wb-table__long', cell: (r) => r.actor },
       { key: 'summary', label: 'Change', header: true, cell: (r) => r.summary },
       {
         key: 'undo',
@@ -399,7 +441,8 @@ export function userActions(user, row, busy) {
 }
 
 /**
- * The users' table: name, email, role (and its changes), status; Change role, Disable and Enable as the user may.
+ * The users' table: name, email (free to break anywhere, so a long one never pushes the actions out of sight), role
+ * (and its changes), status; Change role, Disable and Enable as the user may.
  * @param {UserRow[]} rows
  * @param {{ actionsFor: (row: UserRow) => ReturnType<typeof userActions>, onEdit: (row: UserRow) => void, onDisable: (row: UserRow) => void, onEnable: (row: UserRow) => void }} options
  */
@@ -408,7 +451,7 @@ export function usersTable(rows, { actionsFor, onEdit, onDisable, onEnable }) {
   /** @type {import('./lists.mjs').Column[]} */
   const columns = [
     { key: 'name', label: 'Name', header: true, cell: (r) => [r.name, r.self && h('span', { key: 'you', className: 'site-admin__sub' }, 'You')] },
-    { key: 'email', label: 'Email', cell: (r) => r.email },
+    { key: 'email', label: 'Email', className: 'wb-table__long', cell: (r) => r.email },
     { key: 'role', label: 'Role', cell: (r) => [r.roleLabel, r.changes && h('span', { key: 'changes', className: 'site-admin__sub' }, r.changes)] },
     { key: 'status', label: 'Status', cell: (r) => [r.statusLabel, r.mustChange && h('span', { key: 'must', className: 'site-admin__sub' }, 'Must change their password')] },
   ];
@@ -545,13 +588,14 @@ export function userPatchPayload(row, editor) {
   return Object.keys(out).length ? out : null;
 }
 
-/** The confirm dialog (.wb-dialog) before an account is disabled (the API's DELETE). */
+/** The confirm dialog (.wb-dialog) before an account is disabled (the API's DELETE): grave, it takes their access away. */
 export const USER_CONFIRM = Object.freeze({
-  /** @param {UserRow} row */
+  /** @param {UserRow} row @returns {import('./lists.mjs').Confirm} */
   disable: (row) => ({
     title: `Disable ${row.name}'s account?`,
     body: `${row.name} is signed out at their next step and cannot sign in until an owner enables the account again. Their activity stays in the log.`,
     confirm: 'Disable account',
+    tone: 'grave',
   }),
 });
 
@@ -601,8 +645,10 @@ export function intakeNode(view, { settingsHref }) {
 }
 
 /**
- * The confirm dialog (.wb-dialog) before the switch: it opens or closes the live form for everyone.
+ * The confirm dialog (.wb-dialog) before the switch: it opens or closes the live form for everyone. Either way it can be
+ * switched back, and deletes nothing, so its tone is action.
  * @param {boolean} open the state it sets
+ * @returns {import('./lists.mjs').Confirm}
  */
 export const INTAKE_CONFIRM = (open) =>
   open
@@ -610,11 +656,13 @@ export const INTAKE_CONFIRM = (open) =>
         title: 'Open the sighting form?',
         body: 'Visitors can send sightings again on the live form. The change is not in the activity log.',
         confirm: 'Open the form',
+        tone: 'action',
       }
     : {
         title: 'Close the sighting form?',
         body: 'Nobody can send a sighting until it is opened again: the form says sightings are paused and the API refuses them. It is the live form, for everyone, and the change is not in the activity log.',
         confirm: 'Close the form',
+        tone: 'action',
       };
 
 /**

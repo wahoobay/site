@@ -31,6 +31,7 @@ import {
   SPECIES_EMPTY,
   SPECIES_FIELDS,
   SPECIES_SIGHTINGS_EMPTY,
+  factsList,
   filterSpecies,
   folderOptions,
   heroPayload,
@@ -598,6 +599,70 @@ test('MEDIA_CONFIRM, visibilityOutcome and mediaEmpty', () => {
   assert.equal(mediaEmpty({ folder: 'all', q: 'x' }), 'No media match the search.');
 });
 
+// --- the finish review (Task 7) -------------------------------------------------------------------------------------
+
+test('fix 2: where a media item stands is a status chip, never the accent: shown, hidden, or pending review', () => {
+  assert.equal(mediaRow(MEDIA).stateStatus, 'shown');
+  assert.equal(mediaRow({ ...MEDIA, is_public: 0 }).stateStatus, 'hidden');
+  assert.equal(mediaRow({ ...MEDIA, is_approved: 0 }).stateStatus, 'pending');
+  assert.equal(mediaRow({ ...MEDIA, is_approved: 0, is_public: 0 }).stateStatus, 'pending', 'not approved: the review decides');
+  const rows = [MEDIA, { ...MEDIA, media_id: 22, is_public: 0 }, { ...MEDIA, media_id: 23, is_approved: 0 }, { ...MEDIA, media_id: 24, is_approved: 0, is_public: 0 }].map((m) => mediaRow(m, TOKEN));
+  const table = mediaTable(rows, { actionsFor: (row) => mediaActions(ADMIN, row, false), onVisibility() {}, onDelete() {} });
+  const cells = find(table, (n) => n.type === 'td' && n.props['data-label'] === 'Public site');
+  const chips = cells.map((c) => c.children[0]);
+  for (const chip of chips) assert.deepEqual(classes(chip), ['wb-chip', 'wb-status']);
+  assert.deepEqual(chips.map((c) => c.props['data-status']), ['shown', 'hidden', 'pending', 'pending']);
+  assert.deepEqual(chips.map(text), ['Shown', 'Hidden', 'Not approved', 'Hidden, not approved'], 'the words carry the meaning');
+  assert.doesNotMatch(JSON.stringify(table), /accent/);
+});
+
+test('fix 4: the media library and the species list read the placeholder with the shared helper', () => {
+  const placeholder = mediaRow({ ...MEDIA, species: 'Big silver fish', sci: '[unverified] Big silver fish' });
+  assert.equal(placeholder.species, 'Big silver fish');
+  assert.equal(placeholder.scientific, null);
+  assert.equal(mediaRow({ ...MEDIA, species: null, sci: '[unverified] Big silver fish' }).species, 'No species', 'the placeholder is never shown as a name');
+  assert.equal(mediaRow(MEDIA).scientific, 'Abudefduf saxatilis');
+  assert.equal(speciesRow(PROVISIONAL, TOKEN).scientific, null);
+  assert.deepEqual(speciesChoices([PROVISIONAL, { ...PROVISIONAL, species_id: 10, common_name: null }], 3).map((c) => c.label), ['Blue fish (provisional)', 'Species 10 (provisional)']);
+});
+
+test('fix 5: the catalogue\'s confirms carry a tone: a merge, a species\' delete and a media delete are grave; a move is not', () => {
+  assert.equal(SPECIES_CONFIRM.merge('A', 'B', 2).tone, 'grave');
+  assert.equal(SPECIES_CONFIRM.delete('A', 'unsorted', 2).tone, 'grave');
+  assert.equal(SPECIES_CONFIRM.delete('A', 'delete', 2).tone, 'grave');
+  assert.equal(SPECIES_CONFIRM.move(2, 'A', 'B').tone, 'action', 'a move can be undone and takes nothing away');
+  assert.equal(MEDIA_CONFIRM.delete(mediaRow(MEDIA)).tone, 'grave');
+  assert.equal(MEDIA_CONFIRM.delete(mediaRow(MEDIA)).confirm, 'Delete permanently');
+});
+
+test('fix 6: every time in a catalogue table is the day over the time, each kept whole', () => {
+  const spoken = (cell) => find(cell, (n) => classes(n).includes('site-admin__when'))[0]?.children.map(text);
+  const media = mediaTable([mediaRow(MEDIA, TOKEN)], { actionsFor: (row) => mediaActions(ADMIN, row, false), onVisibility() {}, onDelete() {} });
+  assert.deepEqual(spoken(find(media, (n) => n.props?.['data-label'] === 'Date')[0]), ['Oct 31, 2026', '10:22 AM']);
+  const sightings = speciesSightingsTable([speciesSightingRow(SIGHTING, TOKEN, 7)], { selected: [], enabled: true, onSelect() {}, onHero() {} });
+  assert.deepEqual(spoken(find(sightings, (n) => n.props?.['data-label'] === 'Seen')[0]), ['Oct 31, 2026', '10:22 AM']);
+  const species = speciesTable([speciesRow(SPECIES, TOKEN), speciesRow(PROVISIONAL, TOKEN)]);
+  assert.deepEqual(find(species, (n) => n.props?.['data-label'] === 'Last seen').map(spoken), [['Oct 31, 2026', '10:22 AM'], ['Not seen yet']]);
+});
+
+test('fix 3b: a species\' Submitted-by cell may break anywhere; recordsTable puts a column\'s class on its cells', () => {
+  const sightings = speciesSightingsTable([speciesSightingRow({ ...SIGHTING, volunteer_name: 'seagrass.monitoring.volunteers@pompanobeachschools.example.org' }, TOKEN, 7)], { selected: [], enabled: true, onSelect() {}, onHero() {} });
+  const long = find(find(sightings, (n) => n.type === 'tbody')[0], (n) => classes(n).includes('wb-table__long'));
+  assert.deepEqual(long.map((c) => c.props['data-label']), ['Submitted by']);
+  const table = recordsTable([{ id: 1, a: 'x', b: 'y' }], { caption: 'c', key: (r) => r.id, columns: [{ key: 'a', label: 'A', header: true, cell: (r) => r.a }, { key: 'b', label: 'B', className: 'wb-table__long', cell: (r) => r.b }] });
+  const [th, td] = find(find(table, (n) => n.type === 'tbody')[0], (n) => n.type === 'th' || n.type === 'td');
+  assert.equal(th.props.className, undefined, 'no class unless the column asks');
+  assert.equal(td.props.className, 'wb-table__long');
+});
+
+test('fix 3a: a species\' facts may break anywhere too; a time among them breaks only between its day and its time', () => {
+  const list = factsList(speciesFacts(speciesSummary(DETAIL)));
+  for (const dd of find(list, (n) => n.type === 'dd')) assert.deepEqual(classes(dd), ['wb-table__long']);
+  const values = Object.fromEntries(find(list, (n) => n.type === 'dt').map((dt, i) => [text(dt), text(find(list, (n) => n.type === 'dd')[i])]));
+  assert.equal(values['First seen'], 'Mar\u00a01,\u00a02025, 10:00\u00a0AM');
+  assert.equal(values.Family, 'Pomacentridae');
+});
+
 // --- the islands ----------------------------------------------------------------------------------------------------
 
 test('AdminApp registers the catalogue screens by their route\'s screen name', () => {
@@ -629,4 +694,8 @@ test('the catalogue screens: every API failure goes to notify; media only throug
   assert.match(media, /MEDIA_CONFIRM\.delete\(/);
   assert.match(media, /failureNotice\(/, 'a 409 names the sightings');
   assert.match(media, /mediaActions\(/);
+});
+
+test('finish review, fix 12: the species list shows no Refresh beside the error notice\'s Try again', () => {
+  assert.match(source('src/islands/admin/Species.tsx'), /\{state\.refresh && \(\s*<button className="wb-btn wb-btn--ghost" type="button" disabled=\{list\.loading\} onClick=\{list\.reload\}>\s*Refresh/);
 });

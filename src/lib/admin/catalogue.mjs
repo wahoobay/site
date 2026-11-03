@@ -21,7 +21,8 @@
 import { can } from './permissions.mjs';
 import { ROUTES, hashFor } from './routes.mjs';
 import { errorText } from './shell.mjs';
-import { NOT_GIVEN, SPECIES_CATEGORIES, formatWhen, sightingRow, statusChip, thumbOf } from './sightings.mjs';
+import { NOT_GIVEN, SPECIES_CATEGORIES, formatWhen, sightingRow, statusChip, thumbOf, whenNode, whenText } from './sightings.mjs';
+import { isProvisional, scientificName } from './names.mjs';
 import { RECYCLED_LOSE_IT, checkNode, idOf, idsOf, plural, recordsTable, thumbNode } from './lists.mjs';
 import { ApiError, pageQuery } from '../java-api.mjs';
 import { h } from '../vdom.mjs';
@@ -45,14 +46,8 @@ const SPECIES_ROUTE = /** @type {import('./routes.mjs').Route} */ (ROUTES.find((
 /** @param {any} m A moving picture (a frame is a still). */
 const isVideo = (m) => m?.storage_type !== 'frame' && m?.media_kind !== 'frame' && (m?.media_kind === 'video' || m?.storage_type === 'youtube');
 
-/** A name a visitor typed, which no reviewer has confirmed (SightingWriteService: "[unverified] <name>"). @param {any} s */
-const isProvisional = (s) => s?.name_status === 'provisional' || /^\s*\[unverified\]/i.test(plain(s?.scientific_name));
-
-/** A scientific name, or null for the "[unverified] …" placeholder. @param {any} s */
-const scientificOf = (s) => {
-  const sci = plain(s?.scientific_name);
-  return sci && !/^\[unverified\]/i.test(sci) ? sci : null;
-};
+/** A species' scientific name, or null for the "[unverified] …" placeholder (names.mjs). @param {any} s */
+const scientificOf = (s) => scientificName(s?.scientific_name);
 
 /** A species' name: its common name, else its scientific one. @param {any} s */
 const nameOf = (s) => plain(s?.common_name) || scientificOf(s) || 'Unnamed species';
@@ -177,7 +172,7 @@ export const speciesTable = (rows) =>
       { key: 'conservation', label: 'Conservation', cell: (r) => r.conservation },
       { key: 'sightings', label: 'Sightings', cell: (r) => r.sightings.toLocaleString('en-US') },
       { key: 'media', label: 'Media', cell: (r) => r.media.toLocaleString('en-US') },
-      { key: 'lastSeen', label: 'Last seen', cell: (r) => r.lastSeen },
+      { key: 'lastSeen', label: 'Last seen', cell: (r) => whenNode(r.lastSeen) },
     ],
   });
 
@@ -333,9 +328,13 @@ export const speciesFacts = (s) => [
   ['Last seen', s.lastSeen],
 ];
 
-/** The facts as a <dl>, each term in bold (as the review's facts). @param {[string, string][]} facts */
+/**
+ * The facts as a <dl>, each term in bold, each value free to break anywhere, a time only between its day and its time
+ * (as the review's facts).
+ * @param {[string, string][]} facts
+ */
 export const factsList = (facts) =>
-  h('dl', { className: 'site-admin__facts' }, facts.map(([term, value]) => [h('dt', { key: `${term}-t` }, h('b', null, term)), h('dd', { key: `${term}-d` }, value)]));
+  h('dl', { className: 'site-admin__facts' }, facts.map(([term, value]) => [h('dt', { key: `${term}-t` }, h('b', null, term)), h('dd', { key: `${term}-d`, className: 'wb-table__long' }, whenText(value))]));
 
 /**
  * @typedef {{ key: string, label: string, kind: 'text' | 'select', options?: readonly string[], labels?: Record<string, string> }} SpeciesField
@@ -458,28 +457,34 @@ export function speciesActions(user, busy) {
 export function speciesChoices(list, exceptId) {
   const except = idOf(exceptId);
   return (Array.isArray(list) ? list : [])
-    .map((s) => ({ id: idOf(s?.species_id), label: `${plain(s?.common_name) || plain(s?.scientific_name) || `Species ${s?.species_id}`}${isProvisional(s) ? ' (provisional)' : ''}` }))
+    .map((s) => ({ id: idOf(s?.species_id), label: `${plain(s?.common_name) || scientificOf(s) || `Species ${s?.species_id}`}${isProvisional(s) ? ' (provisional)' : ''}` }))
     .filter((c) => c.id !== null && c.id !== except)
     .map((c) => /** @type {{ id: number, label: string }} */ (c))
     .sort((a, b) => a.label.localeCompare(b.label, 'en'));
 }
 
-/** The confirm dialogs (.wb-dialog) before a merge, a move and a delete, each saying what it will do. */
+/**
+ * The confirm dialogs (.wb-dialog) before a merge, a move and a delete, each saying what it will do. A merge and a
+ * delete take a species away for good, so their `tone` is grave (lists.mjs, confirmButtonClass); a move can be undone.
+ */
 export const SPECIES_CONFIRM = Object.freeze({
   /**
    * @param {string} name
    * @param {string} target
    * @param {number} count its sightings outside the recycle bin
+   * @returns {import('./lists.mjs').Confirm}
    */
   merge: (name, target, count) => ({
     title: `Merge ${name} into ${target}?`,
     body: `Its ${plural(count, 'sighting', 'sightings')} (and any in the recycle bin) and its media move to ${target}, and ${name} is deleted. A merge cannot be undone.`,
     confirm: 'Merge',
+    tone: 'grave',
   }),
   /**
    * @param {number} count
    * @param {string} from
    * @param {string} to
+   * @returns {import('./lists.mjs').Confirm}
    */
   move: (count, from, to) => ({
     title: `Move ${plural(count, 'sighting', 'sightings')} to ${to}?`,
@@ -488,11 +493,13 @@ export const SPECIES_CONFIRM = Object.freeze({
         ? `It leaves ${from} and counts as ${to}. Its media stay filed under ${from} in the media library. You can undo the move in the activity log.`
         : `They leave ${from} and count as ${to}. Their media stay filed under ${from} in the media library. You can undo the move in the activity log.`,
     confirm: `Move ${plural(count, 'sighting', 'sightings')}`,
+    tone: 'action',
   }),
   /**
    * @param {string} name
    * @param {string} mode DELETE_MODES
    * @param {number} count its sightings outside the recycle bin
+   * @returns {import('./lists.mjs').Confirm}
    */
   delete: (name, mode, count) => {
     let body;
@@ -511,7 +518,7 @@ export const SPECIES_CONFIRM = Object.freeze({
           ? `${name} is deleted. Any of its sightings in the recycle bin, and its media, stay with no species. This cannot be undone.`
           : `${name} is deleted. Its ${plural(count, 'sighting', 'sightings')} (and any in the recycle bin) and its media stay, with no species. This cannot be undone.`;
     }
-    return { title: `Delete ${name}?`, body, confirm: 'Delete species' };
+    return { title: `Delete ${name}?`, body, confirm: 'Delete species', tone: 'grave' };
   },
 });
 
@@ -569,9 +576,9 @@ export const speciesSightingsTable = (rows, { selected, enabled, onSelect, onHer
       },
       { key: 'sighting', label: 'Sighting', header: true, cell: (r) => (r.href ? h('a', { href: r.href }, `Sighting ${r.id}`) : NOT_GIVEN) },
       { key: 'media', label: 'Media', cell: (r) => thumbNode(r.thumb) },
-      { key: 'when', label: 'Seen', cell: (r) => r.when },
+      { key: 'when', label: 'Seen', cell: (r) => whenNode(r.when) },
       { key: 'status', label: 'Status', cell: (r) => statusChip(r.status) },
-      { key: 'submitter', label: 'Submitted by', cell: (r) => r.submitter },
+      { key: 'submitter', label: 'Submitted by', className: 'wb-table__long', cell: (r) => r.submitter },
       { key: 'camera', label: 'Camera', cell: (r) => r.camera },
       {
         key: 'picture',
@@ -645,6 +652,8 @@ export const mediaDeleteRequest = (id) => ({ path: mediaPath(id), method: 'DELET
 
 const KIND_LABELS = Object.freeze({ photo: 'Photo', video: 'Video', frame: 'Still from a video' });
 const STATE_LABELS = Object.freeze({ public: 'Shown', hidden: 'Hidden', unapproved: 'Not approved', 'hidden-unapproved': 'Hidden, not approved' });
+/** Each state as the design's status chip (.wb-status[data-status]): shown, hidden, or pending while the review decides. */
+const STATE_STATUS = Object.freeze({ public: 'shown', hidden: 'hidden', unapproved: 'pending', 'hidden-unapproved': 'pending' });
 const NO_SPECIES = 'No species';
 
 /** The API's flag as a boolean: MySQL answers a TINYINT as 0 or 1. @param {unknown} v */
@@ -654,7 +663,7 @@ const flag = (v) => v === true || v === 1 || v === '1' || v === 'true';
  * @typedef {{
  *   id: number | null, species: string, scientific: string | null, when: string, kind: 'photo' | 'video' | 'frame',
  *   kindLabel: string, state: 'public' | 'hidden' | 'unapproved' | 'hidden-unapproved', stateLabel: string,
- *   thumb: { src: string, video: boolean } | null,
+ *   stateStatus: 'shown' | 'hidden' | 'pending', thumb: { src: string, video: boolean } | null,
  * }} MediaRow
  */
 
@@ -662,7 +671,9 @@ const flag = (v) => v === true || v === 1 || v === '1' || v === 'true';
  * A media item as the library shows it: its species, its date, what kind it is, and where it stands on the public site:
  * shown, hidden (a reviewer took it down), not approved (on no verified sighting, so not on the site whatever
  * is_public says; publishing it is the review's decision), or hidden and not approved (taken down before its
- * sighting was decided: it stays off the site even once that is approved, until it is unhidden).
+ * sighting was decided: it stays off the site even once that is approved, until it is unhidden). `stateStatus` is that
+ * state as the design's status chip: shown, hidden, or pending for both not-approved states (the words tell them apart).
+ * Its species is the server's name for it, never the "[unverified] …" placeholder (names.mjs).
  * @param {any} m a row of GET /admin/media
  * @param {string | null} [token]
  * @returns {MediaRow}
@@ -677,15 +688,18 @@ export function mediaRow(m, token) {
   /** @type {MediaRow['state']} */
   const state = approved ? (hidden ? 'hidden' : 'public') : hidden ? 'hidden-unapproved' : 'unapproved';
   const src = thumbOf(m, token);
+  const sci = scientificName(m?.sci);
+  const species = plain(m?.species) || sci || NO_SPECIES;
   return {
     id: idOf(m?.media_id),
-    species: plain(m?.species) || plain(m?.sci) || NO_SPECIES,
-    scientific: plain(m?.sci) && plain(m?.sci) !== plain(m?.species) && !/^\[unverified\]/i.test(plain(m?.sci)) ? plain(m.sci) : null,
+    species,
+    scientific: sci && sci !== species ? sci : null,
     when: formatWhen(m?.media_date),
     kind,
     kindLabel: KIND_LABELS[kind],
     state,
     stateLabel: STATE_LABELS[state],
+    stateStatus: /** @type {MediaRow['stateStatus']} */ (STATE_STATUS[state]),
     thumb: src ? { src, video: kind === 'video' } : null,
   };
 }
@@ -730,8 +744,8 @@ export function mediaTable(rows, { actionsFor, onVisibility, onDelete }) {
       cell: (r) => [r.species, r.scientific && h('span', { key: 'sci', className: 'site-admin__sub' }, h('i', null, r.scientific))],
     },
     { key: 'kind', label: 'Kind', cell: (r) => r.kindLabel },
-    { key: 'when', label: 'Date', cell: (r) => r.when },
-    { key: 'state', label: 'Public site', cell: (r) => h('span', { className: 'wb-chip' }, r.stateLabel) },
+    { key: 'when', label: 'Date', cell: (r) => whenNode(r.when) },
+    { key: 'state', label: 'Public site', cell: (r) => h('span', { className: 'wb-chip wb-status', 'data-status': r.stateStatus }, r.stateLabel) },
     { key: 'id', label: 'ID', cell: (r) => (r.id === null ? NOT_GIVEN : String(r.id)) },
   ];
   if (any) {
@@ -764,13 +778,14 @@ export function mediaTable(rows, { actionsFor, onVisibility, onDelete }) {
   return recordsTable(rows, { caption: 'Media', key: (r) => r.id, columns });
 }
 
-/** The confirm dialog (.wb-dialog) before a media item's delete; recycled sightings lose it too (RECYCLED_LOSE_IT). */
+/** The confirm dialog (.wb-dialog) before a media item's delete, grave (it is for good); recycled sightings lose it too (RECYCLED_LOSE_IT). */
 export const MEDIA_CONFIRM = Object.freeze({
-  /** @param {MediaRow} row */
+  /** @param {MediaRow} row @returns {import('./lists.mjs').Confirm} */
   delete: (row) => ({
     title: `Delete media ${row.id} permanently?`,
     body: `${row.species === NO_SPECIES ? 'This' : `The ${row.species}`} ${row.kindLabel.toLowerCase()} is deleted for good, with any saved clip, and stops being any species' picture. ${RECYCLED_LOSE_IT} This cannot be undone.`,
     confirm: 'Delete permanently',
+    tone: 'grave',
   }),
 });
 

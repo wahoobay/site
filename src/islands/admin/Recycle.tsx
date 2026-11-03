@@ -1,13 +1,24 @@
 // The recycle bin (#/recycle): every rejected or deleted sighting, the latest first (GET /admin/recycle, the whole list,
 // a page at a time here). Restore and Delete permanently act on the checked rows, on any page, each after a .wb-dialog
-// confirm that names the count. What shows and what is sent is src/lib/admin/housekeeping.mjs's; a 401 on any call,
-// and any failed action, goes to the shell's notify.
+// confirm that names the count. What shows and what is sent is src/lib/admin/housekeeping.mjs's, the toolbar too
+// (recycleToolbar); a 401 on any call, and any failed action, goes to the shell's notify.
 import { useEffect, useRef, useState } from 'react';
 import type { ScreenProps } from '../AdminApp';
 import { toReact } from '../vdom-react';
 import { DEFAULT_LIMIT, listBody, listState, pagerNode } from '../../lib/admin/sightings.mjs';
-import { checked, checkedAll, pageSlice, plural, selectionOf, stillThere } from '../../lib/admin/lists.mjs';
-import { RECYCLE_CONFIRM, RECYCLE_EMPTY, purgeRequest, recycleActions, recycleOutcome, recycleRequest, recycleRow, recycleTable, restoreRequest } from '../../lib/admin/housekeeping.mjs';
+import { checked, checkedAll, pageSlice, selectionOf, stillThere } from '../../lib/admin/lists.mjs';
+import {
+  RECYCLE_CONFIRM,
+  RECYCLE_EMPTY,
+  purgeRequest,
+  recycleActions,
+  recycleOutcome,
+  recycleRequest,
+  recycleRow,
+  recycleTable,
+  recycleToolbar,
+  restoreRequest,
+} from '../../lib/admin/housekeeping.mjs';
 import { ConfirmDialog, send, useOneAtATime, usePagedList } from './shared';
 
 export default function Recycle({ session, notify }: ScreenProps) {
@@ -81,34 +92,20 @@ export default function Recycle({ session, notify }: ScreenProps) {
     <section className="site-admin__screen" aria-labelledby="recycle-title">
       <h2 id="recycle-title" tabIndex={-1} ref={heading}>Recycle bin</h2>
       <p>Sightings that were rejected or moved here, the latest first. Restore puts them back; a rejected one returns to the review queue. Delete permanently removes them for good.</p>
-      <div className="wb-toolbar">
-        {page.length > 0 && actions.restore.shown && (
-          <span className="site-admin__check">
-            <input
-              type="checkbox"
-              id="recycle-all"
-              checked={selection.all}
-              disabled={busy !== null}
-              onChange={(e) => setSelected((was) => checkedAll(was, pageIds, e.target.checked))}
-            />
-            <label htmlFor="recycle-all">Check every sighting on this page</label>
-          </span>
-        )}
-        {actions.restore.shown && <span role="status">{selection.count ? `${plural(selection.count, 'sighting', 'sightings')} checked` : 'None checked'}</span>}
-        {actions.restore.shown && (
-          <button className="wb-btn wb-btn--action" type="button" disabled={!actions.restore.enabled} onClick={() => setConfirm('restore')}>
-            Restore
-          </button>
-        )}
-        {actions.purge.shown && (
-          <button className="wb-btn wb-btn--ghost" type="button" disabled={!actions.purge.enabled} onClick={() => setConfirm('purge')}>
-            Delete permanently
-          </button>
-        )}
-        <button className="wb-btn wb-btn--ghost" type="button" disabled={list.loading} onClick={list.reload}>
-          Refresh
-        </button>
-      </div>
+      {toReact(
+        recycleToolbar({
+          actions,
+          selection,
+          pageCount: page.length,
+          busy: busy !== null,
+          loading: list.loading,
+          refresh: state.refresh,
+          onAll: (on) => setSelected((was) => checkedAll(was, pageIds, on)),
+          onRestore: () => setConfirm('restore'),
+          onPurge: () => setConfirm('purge'),
+          onRefresh: list.reload,
+        }),
+      )}
       {toReact(
         listBody(state, {
           onRetry: list.reload,

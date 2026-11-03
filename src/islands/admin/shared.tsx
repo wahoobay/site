@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { SessionExpired, apiFetch } from '../../lib/java-api.mjs';
 import { oneAtATime } from '../../lib/admin/gate.mjs';
+import { confirmButtonClass } from '../../lib/admin/lists.mjs';
 import { pageOf } from '../../lib/admin/sightings.mjs';
 
 /** A request as sightings.mjs builds it. */
@@ -130,17 +131,19 @@ export function useOneAtATime() {
   return { busy, run };
 }
 
-/** What a confirm dialog asks (CONFIRM in sightings.mjs). */
+/** What a confirm dialog asks (CONFIRM in sightings.mjs), and its button's tone (confirmButtonClass in lists.mjs). */
 export interface Confirm {
   title: string;
   body: string;
   confirm: string;
+  tone?: 'grave' | 'action';
 }
 
 /**
  * The confirm dialog: the native <dialog> as the design styles it, opened with showModal() while `confirm` is set
- * (so it traps the focus and Escape cancels it), Cancel first. While the action runs neither button can be pressed and
- * Escape does nothing.
+ * (so it traps the focus and Escape cancels it), Cancel first, so it has the focus. The confirm button is grave (the
+ * design's ink fill) for one that takes something away, else action blue (confirmButtonClass). While the action runs
+ * neither button can be pressed and Escape does nothing.
  */
 export function ConfirmDialog({ id, confirm, busy, onConfirm, onCancel }: { id: string; confirm: Confirm | null; busy: boolean; onConfirm: () => void; onCancel: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -163,7 +166,7 @@ export function ConfirmDialog({ id, confirm, busy, onConfirm, onCancel }: { id: 
           <p id={`${id}-body`}>{confirm.body}</p>
           <div className="wb-dialog__actions">
             <button className="wb-btn wb-btn--ghost" type="button" disabled={busy} onClick={onCancel}>Cancel</button>
-            <button className={`wb-btn wb-btn--action${busy ? ' wb-btn--busy' : ''}`} type="button" disabled={busy} onClick={onConfirm}>
+            <button className={confirmButtonClass(confirm.tone, busy)} type="button" disabled={busy} onClick={onConfirm}>
               {confirm.confirm}
             </button>
           </div>

@@ -1,5 +1,6 @@
 // The main navigation's items (src/components/Nav.astro draws them, then Donate and sign-in). A plain module, so the
 // tests read it without a build (tests/nav.test.mjs).
+import { ADMIN_BASE } from './admin/routes.mjs';
 
 /** The fish-ID app on staging: the address when PUBLIC_AI_URL is not set (local builds, CI, the staging deploy). */
 export const AI_URL_DEFAULT = 'https://staging-ai.wahoobay.net/';
@@ -44,3 +45,12 @@ export const liveNav = (ai) => [
   { label: 'Log a sighting', href: '/live/log-a-sighting/' },
   { label: 'Fish ID', href: ai, external: true },
 ];
+
+/**
+ * The nav's Sign in, which leads to /sign-in/ (who signs in where), on every page but the sighting review's: at
+ * ADMIN_BASE the island has its own sign-in and, once signed in, its own Sign out, so a "Sign in" there would say the
+ * opposite of what is true.
+ * @param {string} path the page's path
+ * @returns {{ label: string, href: string } | null}
+ */
+export const signInLink = (path) => (String(path).startsWith(ADMIN_BASE) ? null : { label: 'Sign in', href: '/sign-in/' });

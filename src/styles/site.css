@@ -728,10 +728,14 @@ main { flex: 1 0 auto; }
 
 /* The sighting screens (src/islands/admin/{Queue,Sightings,Review}.tsx): a column of the heading, a line about the
    screen, the toolbar and the list (the design's table, which stacks into cards where it is narrow, then its pager).
-   A row's scientific name and "New species" sit under its name. A thumbnail is a small 4:3 picture. The review is a
-   container: from 50rem wide its media and its facts stand side by side; the form's fields go two by two where the
+   A row's scientific name and "New species" sit under its name. A time in a table is its day over its time (each kept
+   whole by no-break spaces, src/lib/admin/sightings.mjs whenNode). A thumbnail is a small 4:3 picture. The review's
+   title line is a row of the status chip, the species and its sub-lines, spaced. The review is a container: from 50rem
+   wide its media and its facts stand side by side; the facts (and every group of conditions) share one term track, so
+   their values line up, and stack to one column on a screen under 36rem; the form's fields go two by two where the
    form is 32rem wide; the decision's buttons wrap in a row. A clip or a photo shows whole in the design's 16:9 video
-   frame (.wb-video crops to fill it). */
+   frame (.wb-video crops to fill it). A value that is free text breaks anywhere by the design's .wb-table__long, not
+   here (this file is layout only). */
 .site-admin__screen,
 .site-admin__column,
 .site-admin__edit,
@@ -766,6 +770,13 @@ main { flex: 1 0 auto; }
 .site-admin__picker { gap: var(--wb-space-4); }
 .site-admin__conditions { gap: var(--wb-space-3); }
 .site-admin__sub { display: block; }
+.site-admin__when > span { display: block; }
+.site-admin__title-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wb-space-3);
+}
 .wb-media.site-admin__thumb {
   width: 5rem;
   height: auto;
@@ -811,11 +822,18 @@ main { flex: 1 0 auto; }
 }
 .site-admin__facts {
   display: grid;
-  grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr);
+  grid-template-columns: 10rem minmax(0, 1fr);
   gap: var(--wb-space-2) var(--wb-space-4);
   margin: 0;
 }
 .site-admin__facts > dd { margin: 0; }
+@container (max-width: 36rem) {
+  .site-admin__facts {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--wb-space-1);
+  }
+  .site-admin__facts > dt:not(:first-child) { margin-top: var(--wb-space-3); }
+}
 .site-admin__edit { container-type: inline-size; }
 .site-admin__fields {
   display: grid;
@@ -827,7 +845,10 @@ main { flex: 1 0 auto; }
   .site-admin__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .site-admin__wide { grid-column: 1 / -1; }
-.site-admin__actions {
+/* A row of buttons, and the recycle bin's selection (its page's check box and how many are checked), on one line while
+   they fit, centred on it. */
+.site-admin__actions,
+.site-admin__selection {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

@@ -31,11 +31,13 @@ export default function Queue({ session, notify }: ScreenProps) {
     <section className="site-admin__screen" aria-labelledby="queue-title">
       <h2 id="queue-title">Review queue</h2>
       <p>The sightings visitors sent that wait for a decision, newest first. Open one to approve or reject it.</p>
-      <div className="wb-toolbar">
-        <button className="wb-btn wb-btn--ghost" type="button" disabled={list.loading} onClick={list.reload}>
-          Refresh
-        </button>
-      </div>
+      {state.refresh && (
+        <div className="wb-toolbar">
+          <button className="wb-btn wb-btn--ghost" type="button" disabled={list.loading} onClick={list.reload}>
+            Refresh
+          </button>
+        </div>
+      )}
       {toReact(
         listBody(state, {
           onRetry: list.reload,

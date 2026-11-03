@@ -13,6 +13,7 @@
 import { errorText } from './shell.mjs';
 import { can } from './permissions.mjs';
 import { ROUTES, hashFor } from './routes.mjs';
+import { isProvisional, scientificName, visitorsName } from './names.mjs';
 import { ApiError, mediaUrl, pageQuery } from '../java-api.mjs';
 import { h } from '../vdom.mjs';
 
@@ -120,6 +121,7 @@ const count = (/** @type {number} */ n) => n.toLocaleString('en-US');
  *   prevOffset: number,
  *   nextOffset: number,
  *   refetchOffset: number | null,
+ *   refresh: boolean,
  * }} ListState
  */
 
@@ -128,6 +130,8 @@ const count = (/** @type {number} */ n) => n.toLocaleString('en-US');
  * gone), "loading" (nothing yet, or a page past the end being replaced), "empty" (`empty`, the list's sentence) or
  * "ready" (the table and the pager; `busy` while the next page loads, when paging is off). `refetchOffset` is the
  * last page's offset when the page asked for is past the end, as when the last row of the last page was approved.
+ * `refresh` is whether the screen shows its own Refresh: not while the error notice offers its Try again, so there are
+ * never two buttons that do the same.
  * @param {{ rows: any[], total: number, limit: number, offset: number, loading?: boolean, error?: unknown, empty?: string, failed?: string }} list
  * @returns {ListState}
  */
@@ -163,6 +167,7 @@ export function listState({ rows, total, limit, offset, loading = false, error =
     prevOffset: Math.max(0, at - size),
     nextOffset: at + size,
     refetchOffset: past ? (pages - 1) * size : null,
+    refresh: status !== 'error',
   };
 }
 
@@ -293,11 +298,47 @@ export function statusOf(sighting) {
   return status === 'verified' ? 'verified' : status === 'rejected' ? 'rejected' : 'pending';
 }
 
-/** A provisional name (the visitor's guess) is no identification. @param {any} s */
-const provisional = (s) => s?.name_status === 'provisional' || /^\s*\[unverified\]/i.test(plain(s?.scientific_name));
+/**
+ * The species a sighting shows: its common name, else its scientific one, else UNIDENTIFIED. A provisional name (the
+ * visitor's guess: names.mjs) is no identification, so it is UNIDENTIFIED too; the row says what was typed apart.
+ * @param {any} s
+ */
+const speciesName = (s) => (isProvisional(s) ? UNIDENTIFIED : plain(s?.common_name) || scientificName(s?.scientific_name) || UNIDENTIFIED);
 
-/** The species a sighting shows: its common name, else its scientific one, else UNIDENTIFIED. @param {any} s */
-const speciesName = (s) => (provisional(s) ? UNIDENTIFIED : plain(s?.common_name) || plain(s?.scientific_name) || UNIDENTIFIED);
+/** A time as formatWhen writes it ("Nov 2, 2026, 5:40 PM"): the day and the time. */
+const DAY_AND_TIME = /^([A-Z][a-z]{2} \d{1,2}, \d{4}), (\d{1,2}:\d{2} [AP]M)$/;
+/** A day as formatWhen writes it ("Nov 2, 2026"). */
+const DAY_ALONE = /^[A-Z][a-z]{2} \d{1,2}, \d{4}$/;
+
+/** Text whose spaces never break a line. @param {string} text */
+const whole = (text) => text.replace(/ /g, '\u00a0');
+
+/**
+ * A time in running text (formatWhen's words), for a list of facts: the day and the time each kept whole by no-break
+ * spaces, the ordinary space between them the only place the line may break ("Nov 2, 2026," over "10:55 AM", never
+ * "10:55" over "AM"). A day alone is kept whole; anything else is as it is.
+ * @param {unknown} text
+ */
+export function whenText(text) {
+  const value = plain(text);
+  const m = DAY_AND_TIME.exec(value);
+  if (m) return `${whole(m[1])}, ${whole(m[2])}`;
+  return DAY_ALONE.test(value) ? whole(value) : value;
+}
+
+/**
+ * A time in a table cell (formatWhen's words): the day over the time, two spans that site.css stacks
+ * (.site-admin__when > span), each with no-break spaces so it never splits; a narrow column then wraps between the two
+ * and nowhere else. A day alone is one span, kept whole; anything else (NOT_GIVEN, "Not seen yet", what formatWhen could
+ * not read) is one span that wraps as it likes.
+ * @param {unknown} text
+ */
+export function whenNode(text) {
+  const value = plain(text) || NOT_GIVEN;
+  const m = DAY_AND_TIME.exec(value);
+  const parts = m ? [whole(m[1]), whole(m[2])] : [DAY_ALONE.test(value) ? whole(value) : value];
+  return h('span', { className: 'site-admin__when' }, parts.map((part, i) => h('span', { key: i }, part)));
+}
 
 // --- media ----------------------------------------------------------------------------------------------------------
 
@@ -420,6 +461,7 @@ const REVIEW = /** @type {import('./routes.mjs').Route} */ (ROUTES.find((r) => r
  *   when: string,
  *   species: string,
  *   scientific: string | null,
+ *   visitorsName: string | null,
  *   newSpecies: boolean,
  *   status: 'pending' | 'verified' | 'rejected',
  *   statusLabel: string,
@@ -431,9 +473,10 @@ const REVIEW = /** @type {import('./routes.mjs').Route} */ (ROUTES.find((r) => r
 
 /**
  * A row of the queue or of all sightings, from the server's fields as the old queue read them: when it was seen (else
- * logged), the species (UNIDENTIFIED while provisional or missing) and its scientific name, whether it is a new species
- * (no species, a provisional one, or its only sighting: the server's `cat`), the status, who sent it (the name they
- * gave, else what kind of contributor) and from which camera, and the primary media's thumbnail.
+ * logged), the species (UNIDENTIFIED while provisional or missing) and its scientific name (never the "[unverified] …"
+ * placeholder), what the visitor typed when the name is provisional, whether it is a new species (no species, a
+ * provisional one, or its only sighting: the server's `cat`), the status, who sent it (the name they gave, else what
+ * kind of contributor) and from which camera, and the primary media's thumbnail.
  * @param {any} s
  * @param {string | null} [token]
  * @returns {SightingRow}
@@ -448,8 +491,9 @@ export function sightingRow(s, token) {
     href: id === null || !Number.isFinite(id) ? null : hashFor(REVIEW, { id }),
     when: formatWhen(s?.sighting_datetime || s?.created_at),
     species: speciesName(s),
-    scientific: plain(s?.scientific_name) || null,
-    newSpecies: s?.species_id === null || s?.species_id === undefined || s?.cat === 'new' || provisional(s),
+    scientific: scientificName(s?.scientific_name),
+    visitorsName: visitorsName(s),
+    newSpecies: s?.species_id === null || s?.species_id === undefined || s?.cat === 'new' || isProvisional(s),
     status,
     statusLabel: STATUS_LABELS[status],
     submitter: plain(s?.volunteer_name) || plain(s?.contributor_type) || NOT_GIVEN,
@@ -480,7 +524,18 @@ const COLUMN_LABELS = Object.freeze({
 export const statusChip = (status) => h('span', { className: 'wb-chip wb-status', 'data-status': status }, STATUS_LABELS[status]);
 
 /**
- * One cell of a row. The species is the row's header and links to its review.
+ * The lines under a sighting's species: its scientific name in italics (a taxon), else what the visitor typed, in
+ * plain words, since it is no taxon ("Visitor's name: Big silver fish with a yellow tail"). Each is a .site-admin__sub.
+ * @param {{ species: string, scientific: string | null, visitorsName: string | null }} row
+ */
+export const nameLines = (row) => [
+  row.scientific && row.scientific !== row.species && h('span', { key: 'sci', className: 'site-admin__sub' }, h('i', null, row.scientific)),
+  row.visitorsName && h('span', { key: 'typed', className: 'site-admin__sub' }, `Visitor's name: ${row.visitorsName}`),
+];
+
+/**
+ * One cell of a row. The species is the row's header and links to its review. Who sent it may be an email typed as a
+ * name, so that cell may break anywhere (the design's .wb-table__long); a time is the day over the time (whenNode).
  * @param {string} column
  * @param {SightingRow} row
  * @param {((row: SightingRow) => void) | undefined} onRecycle
@@ -510,10 +565,14 @@ function cell(column, row, onRecycle) {
       return h(
         'th',
         { key: column, scope: 'row', 'data-label': label },
-        row.href ? h('a', { href: row.href }, row.species) : row.species,
-        row.scientific && row.scientific !== row.species && h('span', { className: 'site-admin__sub' }, h('i', null, row.scientific)),
-        row.newSpecies && h('span', { className: 'site-admin__sub' }, 'New species'),
+        row.href ? h('a', { key: 'name', href: row.href }, row.species) : row.species,
+        ...nameLines(row),
+        row.newSpecies && h('span', { key: 'new', className: 'site-admin__sub' }, 'New species'),
       );
+    case 'submitter':
+      return h('td', { key: column, className: 'wb-table__long', 'data-label': label }, row.submitter);
+    case 'when':
+      return h('td', { key: column, 'data-label': label }, whenNode(row.when));
     case 'status':
       return h('td', { key: column, 'data-label': label }, statusChip(row.status));
     case 'actions':
@@ -618,11 +677,17 @@ export function reviewActions(user, sighting, busy) {
   };
 }
 
-/** The confirm dialogs (.wb-dialog) before a reject, a delete, and an approve that drops media (discardCount). */
+/**
+ * The confirm dialogs (.wb-dialog) before a reject, a delete, and an approve that drops media (discardCount). Each has a
+ * `tone` for its confirm button (lists.mjs, confirmButtonClass): "grave", the design's ink fill, for one that takes
+ * something away (a sighting out of the review, media for good); "action" for one that puts back or only changes.
+ * All three here are grave.
+ */
 export const CONFIRM = Object.freeze({
   /**
    * @param {string | number} id
    * @param {number} count how many media the approve drops (one or more)
+   * @returns {import('./lists.mjs').Confirm}
    */
   approveDiscard: (id, count) =>
     count === 1
@@ -630,23 +695,27 @@ export const CONFIRM = Object.freeze({
           title: `Approve sighting ${id} and drop one of its media?`,
           body: 'The dropped item leaves this sighting and is deleted for good unless another sighting uses it. This cannot be undone: undo in the activity log brings back the status, not the media.',
           confirm: 'Approve and drop it',
+          tone: 'grave',
         }
       : {
           title: `Approve sighting ${id} and drop ${count} of its media?`,
           body: `The ${count} dropped items leave this sighting and are deleted for good unless another sighting uses them. This cannot be undone: undo in the activity log brings back the status, not the media.`,
           confirm: 'Approve and drop them',
+          tone: 'grave',
         },
-  /** @param {string | number} id */
+  /** @param {string | number} id @returns {import('./lists.mjs').Confirm} */
   reject: (id) => ({
     title: `Reject sighting ${id}?`,
     body: 'It leaves the queue as rejected and goes to the recycle bin. You can restore it from there, or undo it in the activity log.',
     confirm: 'Reject',
+    tone: 'grave',
   }),
-  /** @param {string | number} id */
+  /** @param {string | number} id @returns {import('./lists.mjs').Confirm} */
   delete: (id) => ({
     title: `Move sighting ${id} to the recycle bin?`,
     body: 'Its status stays as it is. You can restore it from the recycle bin.',
     confirm: 'Move to recycle bin',
+    tone: 'grave',
   }),
 });
 
@@ -744,7 +813,9 @@ export function savedSighting(sighting, payload) {
 }
 
 /**
- * The facts of a sighting the review lists, as a <dl>, each term in bold.
+ * The facts of a sighting the review lists, as a <dl>, each term in bold. A value may break anywhere (the design's
+ * .wb-table__long: who sent it may be an email typed as a name, which would otherwise widen the page); a time breaks only
+ * between its day and its time (whenText).
  * @param {any} s
  */
 export function factsNode(s) {
@@ -757,8 +828,16 @@ export function factsNode(s) {
     ['Contributor', plain(s?.contributor_type) || NOT_GIVEN],
     ['Species', row.newSpecies ? 'New species' : 'Known species'],
   ];
-  return h('dl', { className: 'site-admin__facts' }, facts.map(([term, value]) => [h('dt', { key: `${term}-t` }, h('b', null, term)), h('dd', { key: `${term}-d` }, value)]));
+  return h('dl', { className: 'site-admin__facts' }, facts.map(([term, value]) => [h('dt', { key: `${term}-t` }, h('b', null, term)), h('dd', { key: `${term}-d`, className: 'wb-table__long' }, whenText(value))]));
 }
+
+/**
+ * The review's title line: the status chip, the species in bold and the lines under it (nameLines), each its own item
+ * of a row that site.css spaces (.site-admin__title-line: a flex row with a gap), so the chip never touches the name.
+ * @param {SightingRow} row
+ */
+export const titleLineNode = (row) =>
+  h('p', { className: 'site-admin__title-line' }, statusChip(row.status), h('strong', { key: 'species' }, row.species), ...nameLines(row));
 
 // --- conditions and the clip ----------------------------------------------------------------------------------------
 
@@ -837,25 +916,58 @@ export function environmentNode(summary) {
         'div',
         { key: g.title },
         h('h4', null, g.title),
-        h('dl', { className: 'site-admin__facts' }, g.lines.map((l) => [h('dt', { key: `${l.label}-t`, title: l.description ?? undefined }, h('b', null, l.label)), h('dd', { key: `${l.label}-d` }, l.value)])),
+        h('dl', { className: 'site-admin__facts' }, g.lines.map((l) => [h('dt', { key: `${l.label}-t`, title: l.description ?? undefined }, h('b', null, l.label)), h('dd', { key: `${l.label}-d`, className: 'wb-table__long' }, l.value)])),
       ),
     ),
   );
 }
 
 /**
- * What GET …/clip-status says ({ media_id, archived, state }: ClipService's pending, done, skipped or failed, else
- * none), and whether to ask again (only while it is being saved). Nothing yet is null.
+ * Whether a saved clip is to be expected: ClipService.captureForSubmission archives one only for a camera video (a
+ * YouTube moment, whose media row is the sighting's primary media), so a sighting whose primary media is a photo, or
+ * that has none, expects no clip. A primary item that is already saved (and no still frame) is a clip too.
+ * @param {any} sighting
+ */
+export function clipExpected(sighting) {
+  if (!sighting || typeof sighting !== 'object') return false;
+  const primary = mediaOf(sighting)[0] ?? (sighting.media_id != null ? sighting : null);
+  return Boolean(primary) && !isFrame(primary) && (isVideo(primary) || isArchived(primary));
+}
+
+/**
+ * What GET …/clip-status says ({ media_id, archived, state }: AdminSightingController.clipStatus answers the primary
+ * media's ClipService job, pending, done, skipped or failed; else done when it is archived; else none, no job in this
+ * server's memory: a photo, no media, or a video whose capture never ran), and whether to ask again (only while it is
+ * being saved). A job the server ran always says so; "none" is "No saved clip" only where a clip was `expected`
+ * (clipExpected), and nothing elsewhere. Nothing yet, or nothing to say, is null.
  * @param {any} status
+ * @param {boolean} [expected]
  * @returns {{ text: string, pending: boolean } | null}
  */
-export function clipSummary(status) {
+export function clipSummary(status, expected = true) {
   if (!status || typeof status !== 'object') return null;
   if (status.archived === true || status.state === 'done') return { text: 'Clip saved for review', pending: false };
   if (status.state === 'pending') return { text: 'Saving the clip…', pending: true };
   if (status.state === 'failed') return { text: 'Saving the clip failed', pending: false };
   if (status.state === 'skipped') return { text: 'The clip was not saved', pending: false };
-  return { text: 'No saved clip', pending: false };
+  return expected ? { text: 'No saved clip', pending: false } : null;
+}
+
+/**
+ * The review's line about the clip, from the clip-status answer as the island holds it ({ state: 'loading' | 'failed' |
+ * 'done', value }): while it loads, "Checking the clip…"; when it failed, the notice with its retry ({ kind: 'failed' });
+ * then clipSummary's words. A sighting that expects no clip (clipExpected) shows nothing at all, unless the server
+ * reports a job for it.
+ * @param {{ state: string, value?: any }} answer
+ * @param {any} sighting
+ * @returns {{ kind: 'line', text: string } | { kind: 'failed' } | null}
+ */
+export function clipLine(answer, sighting) {
+  const expected = clipExpected(sighting);
+  if (answer?.state === 'failed') return expected ? { kind: 'failed' } : null;
+  if (answer?.state !== 'done') return expected ? { kind: 'line', text: 'Checking the clip…' } : null;
+  const summary = clipSummary(answer.value, expected);
+  return summary ? { kind: 'line', text: summary.text } : null;
 }
 
 // --- the media's markup ---------------------------------------------------------------------------------------------

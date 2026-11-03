@@ -20,6 +20,8 @@ import {
   approvePayload,
   approveRequest,
   clipStatusRequest,
+  clipExpected,
+  clipLine,
   clipSummary,
   deleteRequest,
   discardCount,
@@ -39,6 +41,7 @@ import {
   mediaOf,
   mediaPicker,
   mediaView,
+  nameLines,
   pageOf,
   pagerNode,
   queueRequest,
@@ -52,7 +55,11 @@ import {
   sightingsTable,
   statusOf,
   thumbOf,
+  titleLineNode,
+  whenNode,
+  whenText,
 } from '../src/lib/admin/sightings.mjs';
+import { confirmButtonClass } from '../src/lib/admin/lists.mjs';
 
 /** Every node of a VDOM tree, depth first. */
 const nodes = (node) => (node === null || typeof node !== 'object' ? [] : [node, ...node.children.flatMap(nodes)]);
@@ -301,6 +308,7 @@ test('sightingRow: the fields the old queue showed, with the primary media\'s th
     when: 'Oct 31, 2026, 10:22 AM',
     species: 'Sergeant major',
     scientific: 'Abudefduf saxatilis',
+    visitorsName: null,
     newSpecies: false,
     status: 'pending',
     statusLabel: 'Pending',
@@ -711,7 +719,188 @@ test('factsNode: the sighting\'s facts as a list of terms', () => {
   const terms = find(tree, (n) => n.type === 'dt').map(text);
   const values = find(tree, (n) => n.type === 'dd').map(text);
   assert.deepEqual(terms, ['Seen', 'Logged', 'Camera', 'Submitted by', 'Contributor', 'Species']);
-  assert.deepEqual(values, ['Oct 31, 2026, 10:22 AM', 'Oct 31, 2026, 11:00 AM', 'Reef camera', 'Ana Reyes', 'volunteer', 'Known species']);
+  assert.deepEqual(values, ['Oct\u00a031,\u00a02026, 10:22\u00a0AM', 'Oct\u00a031,\u00a02026, 11:00\u00a0AM', 'Reef camera', 'Ana Reyes', 'volunteer', 'Known species'], 'a time breaks only between its day and its time (whenText)');
+});
+
+// --- the finish review (Task 7) -------------------------------------------------------------------------------------
+
+/** The provisional species the sighting form makes from a name no species has (SightingWriteService.resolveSpeciesId). */
+const GUESS = Object.freeze({
+  ...ROW,
+  sighting_id: 1451,
+  species_id: 18,
+  common_name: 'Big silver fish with a yellow tail',
+  scientific_name: '[unverified] Big silver fish with a yellow tail',
+  family: null,
+  genus: null,
+  name_status: 'provisional',
+  cat: 'new',
+});
+
+test('fix 4: a provisional name has no scientific name; what the visitor typed is a plain sub-line, not a taxon', () => {
+  const row = sightingRow(GUESS);
+  assert.equal(row.species, UNIDENTIFIED);
+  assert.equal(row.scientific, null, 'the "[unverified] …" placeholder is no scientific name');
+  assert.equal(row.visitorsName, 'Big silver fish with a yellow tail');
+  assert.equal(row.newSpecies, true);
+  assert.equal(sightingRow({ ...GUESS, name_status: null }).scientific, null, 'the placeholder alone is enough');
+  assert.equal(sightingRow(ROW).visitorsName, null, 'a confirmed species is nobody\'s guess');
+  for (const columns of [QUEUE_COLUMNS, SIGHTINGS_COLUMNS]) {
+    const wrap = sightingsTable([row], { caption: 'x', columns });
+    const head = find(wrap, (n) => n.type === 'th' && n.props.scope === 'row')[0];
+    assert.equal(find(head, (n) => n.type === 'i').length, 0, 'nothing in italics');
+    const subs = find(head, (n) => classes(n).includes('site-admin__sub')).map(text);
+    assert.deepEqual(subs, ['Visitor\'s name: Big silver fish with a yellow tail', 'New species']);
+    assert.doesNotMatch(text(head), /\[unverified\]/i);
+  }
+  const lines = nameLines(sightingRow(ROW)).filter(Boolean);
+  assert.equal(lines.length, 1);
+  assert.equal(find(lines[0], (n) => n.type === 'i').length, 1, 'a real scientific name stays in italics');
+});
+
+test('fix 3b: the Submitted-by cell may break anywhere (an email typed as a name); no other cell opts in', () => {
+  const email = 'seagrass.monitoring.volunteers@pompanobeachschools.example.org';
+  for (const columns of [QUEUE_COLUMNS, SIGHTINGS_COLUMNS]) {
+    const wrap = sightingsTable([sightingRow({ ...ROW, volunteer_name: email })], { caption: 'x', columns, onRecycle() {} });
+    const cells = find(find(wrap, (n) => n.type === 'tbody')[0], (n) => n.type === 'td' || n.type === 'th');
+    const long = cells.filter((c) => classes(c).includes('wb-table__long'));
+    assert.deepEqual(long.map((c) => c.props['data-label']), ['Submitted by']);
+    assert.equal(text(long[0]), email);
+  }
+});
+
+test('fix 6: a time in a table cell is two lines, the day over the time, neither of which breaks', () => {
+  const node = whenNode('Nov 2, 2026, 5:40 PM');
+  assert.deepEqual(classes(node), ['site-admin__when']);
+  assert.deepEqual(node.children.map((c) => c.type), ['span', 'span']);
+  assert.deepEqual(node.children.map(text), ['Nov 2, 2026', '5:40 PM'], 'no-break spaces keep each part whole');
+  assert.deepEqual(whenNode('Oct 31, 2026').children.map(text), ['Oct 31, 2026'], 'a day alone is one line');
+  assert.deepEqual(whenNode(NOT_GIVEN).children.map(text), [NOT_GIVEN]);
+  assert.deepEqual(whenNode('last Tuesday by the north module').children.map(text), ['last Tuesday by the north module'], 'what is no time may still wrap');
+  const wrap = sightingsTable([sightingRow(ROW)], { caption: 'x', columns: QUEUE_COLUMNS });
+  const seen = find(wrap, (n) => n.type === 'td' && n.props['data-label'] === 'Seen')[0];
+  assert.deepEqual(find(seen, (n) => classes(n).includes('site-admin__when')).length, 1);
+  assert.equal(text(seen), 'Oct 31, 2026' + '10:22 AM');
+});
+
+test('fix 12: while the list\'s error notice offers Try again, the screen\'s Refresh is not shown', () => {
+  const base = { rows: [{}], total: 1, limit: 20, offset: 0 };
+  assert.equal(listState({ ...base, loading: false, error: new ApiError(500, null) }).refresh, false);
+  assert.equal(listState({ ...base, loading: false, error: null }).refresh, true);
+  assert.equal(listState({ ...base, rows: [], total: 0, loading: true, error: null }).refresh, true, 'loading: Refresh shows (disabled by the screen)');
+  assert.equal(listState({ ...base, rows: [], total: 0, loading: false, error: null }).refresh, true, 'empty: Refresh shows');
+});
+
+/** A sighting with one photo (an upload) and no camera video, as the queue row has it. */
+const PHOTO_ONLY = Object.freeze({
+  ...ROW,
+  media_id: 11,
+  storage_type: 'upload',
+  storage_key: 'a.jpg',
+  media_url: '/uploads/a.jpg',
+  media_kind: 'photo',
+  archive_uri: null,
+  media_list: [MEDIA_TWO[0]],
+});
+const NO_MEDIA = Object.freeze({ ...ROW, media_id: null, storage_type: null, storage_key: null, media_url: null, media_kind: null, archive_uri: null, media_list: [] });
+
+test('fix 9: ClipService saves a clip only for a camera video, so only then is a clip expected', () => {
+  assert.equal(clipExpected(ROW), true, 'a camera video');
+  assert.equal(clipExpected({ ...ROW, media_list: [{ ...ROW.media_list[0], archive_uri: null, archived: false }], archive_uri: null }), true, 'a video not saved yet');
+  assert.equal(clipExpected(PHOTO_ONLY), false, 'a photo');
+  assert.equal(clipExpected(NO_MEDIA), false, 'no media');
+  assert.equal(clipExpected(null), false);
+});
+
+test('fix 9: clip-status "none" says "No saved clip" only where a clip was expected; a job the server ran always shows', () => {
+  // AdminSightingController.clipStatus: ClipService.jobStatus (pending, done, skipped, failed) for the primary media,
+  // else "done" when it is archived, else "none" (no job in this server's memory: no video, or none was ever started).
+  const none = { media_id: 11, archived: false, state: 'none' };
+  assert.deepEqual(clipSummary(none, true), { text: 'No saved clip', pending: false });
+  assert.equal(clipSummary(none, false), null, 'a photo-only or no-media sighting has no clip to miss');
+  assert.deepEqual(clipSummary({ media_id: 11, archived: false, state: 'pending' }, false), { text: 'Saving the clip…', pending: true });
+  assert.deepEqual(clipSummary({ media_id: 11, archived: false, state: 'failed' }, false), { text: 'Saving the clip failed', pending: false });
+  assert.deepEqual(clipSummary({ media_id: 11, archived: true, state: 'done' }, false), { text: 'Clip saved for review', pending: false });
+  assert.equal(clipSummary(null, true), null);
+});
+
+test('fix 9: clipLine, the review\'s line under the media: nothing at all for a sighting that expects no clip', () => {
+  const done = (value) => ({ state: 'done', value });
+  assert.deepEqual(clipLine({ state: 'loading' }, ROW), { kind: 'line', text: 'Checking the clip…' });
+  assert.deepEqual(clipLine({ state: 'failed', error: new Error('x') }, ROW), { kind: 'failed' });
+  assert.deepEqual(clipLine(done({ media_id: 7, archived: true, state: 'done' }), ROW), { kind: 'line', text: 'Clip saved for review' });
+  assert.deepEqual(clipLine(done({ media_id: 7, archived: false, state: 'none' }), ROW), { kind: 'line', text: 'No saved clip' });
+  for (const s of [PHOTO_ONLY, NO_MEDIA]) {
+    assert.equal(clipLine({ state: 'loading' }, s), null);
+    assert.equal(clipLine({ state: 'failed', error: new Error('x') }, s), null);
+    assert.equal(clipLine(done({ media_id: s.media_id, archived: false, state: 'none' }), s), null);
+  }
+  assert.deepEqual(clipLine(done({ media_id: 11, archived: false, state: 'pending' }), PHOTO_ONLY), { kind: 'line', text: 'Saving the clip…' }, 'a job the server ran is reported');
+});
+
+test('fix 5: the review\'s confirms carry a tone; what takes a sighting away is grave, in the design\'s ink fill', () => {
+  assert.equal(CONFIRM.reject(42).tone, 'grave');
+  assert.equal(CONFIRM.delete(42).tone, 'grave');
+  assert.equal(CONFIRM.approveDiscard(42, 1).tone, 'grave');
+  assert.equal(CONFIRM.approveDiscard(42, 2).tone, 'grave');
+  assert.equal(CONFIRM.reject(42).confirm, 'Reject', 'the label names the consequence');
+  assert.equal(CONFIRM.approveDiscard(42, 2).confirm, 'Approve and drop them');
+  assert.equal(confirmButtonClass('grave', false), 'wb-btn wb-btn--grave');
+  assert.equal(confirmButtonClass('grave', true), 'wb-btn wb-btn--grave wb-btn--busy');
+  assert.equal(confirmButtonClass('action', false), 'wb-btn wb-btn--action');
+  assert.equal(confirmButtonClass(undefined, false), 'wb-btn wb-btn--action', 'no tone: the plain confirm');
+  for (const tone of ['grave', 'action', undefined]) assert.doesNotMatch(confirmButtonClass(tone, false), /accent/);
+});
+
+test('fix 8: the review\'s title line: the chip, the species, its sub-lines, each its own item of a flex row', () => {
+  const line = titleLineNode(sightingRow(ROW));
+  assert.equal(line.type, 'p');
+  assert.deepEqual(classes(line), ['site-admin__title-line']);
+  const items = line.children.filter(Boolean);
+  assert.deepEqual(classes(items[0]), ['wb-chip', 'wb-status']);
+  assert.equal(items[1].type, 'strong');
+  assert.equal(text(items[1]), 'Sergeant major');
+  assert.equal(text(items[2]), 'Abudefduf saxatilis');
+  assert.ok(items.every((n) => typeof n === 'object'), 'no bare text between them: the row\'s gap spaces them');
+  const guess = titleLineNode(sightingRow(GUESS)).children.filter(Boolean);
+  assert.deepEqual(guess.map(text), ['Pending', UNIDENTIFIED, 'Visitor\'s name: Big silver fish with a yellow tail']);
+});
+
+test('fix 3a: a fact\'s value may break anywhere (an email typed as a name), by the design\'s long-text class', () => {
+  const tree = factsNode({ ...ROW, volunteer_name: 'seagrass.monitoring.volunteers@pompanobeachschools.example.org' });
+  const values = find(tree, (n) => n.type === 'dd');
+  assert.ok(values.length > 0);
+  for (const dd of values) assert.deepEqual(classes(dd), ['wb-table__long']);
+  for (const dd of find(environmentNode(environmentSummary({ groups: [{ title: 'Weather', items: [{ label: 'Wind', unit: 'kn', value: 12 }] }] })), (n) => n.type === 'dd')) {
+    assert.deepEqual(classes(dd), ['wb-table__long']);
+  }
+  // site.css is layout only (tests/styles.test.mjs forbids overflow-wrap there): the design's opt-in class does it, and
+  // it is not scoped to a table, so it applies to a <dd> too.
+  const design = source('node_modules/@wahoobay/design/dist/components.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(design, /(^|\n)\.wb-table__long\s*\{\s*overflow-wrap:\s*anywhere;?\s*\}/);
+});
+
+test('fix 10\'s fixed term track: a time in a list of facts breaks only between its day and its time', () => {
+  assert.equal(whenText('Nov 2, 2026, 10:55 AM'), 'Nov\u00a02,\u00a02026, 10:55\u00a0AM', 'never "10:55" over "AM"');
+  assert.equal(whenText('May 10, 2025'), 'May\u00a010,\u00a02025');
+  assert.equal(whenText('Reef camera'), 'Reef camera', 'anything else as it is');
+  assert.equal(whenText('Nov 2, 2026, 7:28 AM, 2.5 min from the sighting'), 'Nov 2, 2026, 7:28 AM, 2.5 min from the sighting');
+  assert.equal(whenText(null), '');
+});
+
+test('fixes 6, 8 and 10: the layout rules in site.css', () => {
+  const css = source('src/styles/site.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.site-admin__when > span\s*\{\s*display:\s*block;\s*\}/, 'the day and the time, one under the other');
+  const title = css.match(/\.site-admin__title-line\s*\{([^}]*)\}/)?.[1] ?? '';
+  assert.match(title, /display:\s*flex/);
+  assert.match(title, /flex-wrap:\s*wrap/);
+  assert.match(title, /gap:\s*var\(--wb-space-3\)/, 'the chip no longer touches the name');
+  const facts = css.match(/\.site-admin__facts\s*\{([^}]*)\}/)?.[1] ?? '';
+  assert.match(facts, /grid-template-columns:\s*10rem minmax\(0, 1fr\)/, 'one fixed term track, so Details and every Conditions group line up');
+  const narrow = css.match(/@container \(max-width: 36rem\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+  assert.match(narrow, /\.site-admin__facts\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/, 'one column where the screen is narrow');
+  assert.match(narrow, /\.site-admin__facts\s*\{[^}]*row-gap:\s*var\(--wb-space-1\)/, 'stacked, a value sits close under its term');
+  assert.match(narrow, /\.site-admin__facts > dt:not\(:first-child\)\s*\{\s*margin-top:\s*var\(--wb-space-3\);\s*\}/, 'and the pairs stand apart');
 });
 
 // --- the islands ----------------------------------------------------------------------------------------------------
@@ -754,4 +943,18 @@ test('the screens: every API failure they do not show themselves goes to notify;
   assert.match(review, /useAnswer\(clipStatusRequest\(id\)\.path, token, notify, clipRound, clipPending\)/, 'and the clip\'s state');
   assert.match(review, /setEnvRound\(\(n\) => n \+ 1\)/);
   assert.match(review, /setClipRound\(\(n\) => n \+ 1\)/);
+});
+
+test('finish review: the islands draw what the modules decide (title line, clip line, Refresh, the confirm\'s tone)', () => {
+  const review = source('src/islands/admin/Review.tsx');
+  assert.match(review, /toReact\(titleLineNode\(row\)\)/, 'fix 8: the title line is the tested one');
+  assert.match(review, /clipLine\(clip, sighting\)/, 'fix 9: the clip line is the tested one');
+  assert.doesNotMatch(review, /No saved clip|Checking the clip/, 'its words are the module\'s');
+  const queue = source('src/islands/admin/Queue.tsx');
+  assert.match(queue, /\{state\.refresh && \(\s*<div className="wb-toolbar">/, 'fix 12: no Refresh beside the error notice\'s Try again');
+  const shared = source('src/islands/admin/shared.tsx');
+  assert.match(shared, /className=\{confirmButtonClass\(confirm\.tone, busy\)\}/, 'fix 5: the confirm button takes its tone');
+  assert.match(shared, /tone\?: 'grave' \| 'action'/);
+  const actions = shared.match(/<div className="wb-dialog__actions">([\s\S]*?)<\/div>/)?.[1] ?? '';
+  assert.ok(actions.indexOf('>Cancel<') >= 0 && actions.indexOf('>Cancel<') < actions.indexOf('confirm.confirm'), 'Cancel first, so showModal() focuses it');
 });

@@ -13,6 +13,7 @@ import {
   CONFIRM,
   FIELDS,
   approveRequest,
+  clipLine,
   clipStatusRequest,
   clipSummary,
   deleteRequest,
@@ -36,7 +37,7 @@ import {
   savedSighting,
   sightingRequest,
   sightingRow,
-  statusChip,
+  titleLineNode,
   type Field,
 } from '../../lib/admin/sightings.mjs';
 import { ConfirmDialog, send, useAnswer, useOneAtATime } from './shared';
@@ -193,6 +194,8 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
   const media = mediaOf(sighting);
   const hero = media.find((m) => String(m.media_id) === String(shown)) ?? media[0] ?? null;
   const hasSpecies = sighting.species_id !== null && sighting.species_id !== undefined;
+  // What to say about the saved clip, if anything: nothing for a photo or no media (no clip is ever saved for those).
+  const clipNow = clipLine(clip, sighting);
   const off = !actions.edit.enabled;
 
   const field = (f: Field) => {
@@ -221,15 +224,7 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
     <section className="site-admin__screen" aria-labelledby="review-title">
       {back}
       <h2 id="review-title">Sighting {id}</h2>
-      <p className="site-admin__title-line">
-        {toReact(statusChip(row.status))} <strong>{row.species}</strong>
-        {row.scientific && row.scientific !== row.species && (
-          <>
-            {' '}
-            <i>{row.scientific}</i>
-          </>
-        )}
-      </p>
+      {toReact(titleLineNode(row))}
 
       <div className="site-admin__review">
         <div className="site-admin__column">
@@ -244,7 +239,7 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
               onKeep: (mediaId, on) => setKeep((was) => ({ ...was, [String(mediaId)]: on })),
             }),
           )}
-          {clip.state === 'failed' ? (
+          {clipNow?.kind === 'failed' ? (
             <div className="wb-notice wb-notice--error site-admin__notice" role="alert">
               <p>The clip's state did not load.</p>
               <button className="wb-btn wb-btn--action" type="button" onClick={() => setClipRound((n) => n + 1)}>
@@ -252,7 +247,7 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
               </button>
             </div>
           ) : (
-            <p role="status">{clip.state === 'done' ? clipSummary(clip.value)?.text : 'Checking the clip…'}</p>
+            clipNow && <p role="status">{clipNow.text}</p>
           )}
         </div>
         <div className="site-admin__column">

@@ -70,9 +70,11 @@ export default function Species({ session, notify }: ScreenProps) {
             ))}
           </select>
         </div>
-        <button className="wb-btn wb-btn--ghost" type="button" disabled={list.loading} onClick={list.reload}>
-          Refresh
-        </button>
+        {state.refresh && (
+          <button className="wb-btn wb-btn--ghost" type="button" disabled={list.loading} onClick={list.reload}>
+            Refresh
+          </button>
+        )}
       </div>
       {toReact(
         listBody(state, {
