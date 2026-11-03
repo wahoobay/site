@@ -12,9 +12,17 @@ import { toReact } from './vdom-react';
 import { SessionExpired } from '../lib/java-api.mjs';
 import { changePassword, clear, load, save, signIn } from '../lib/admin/session.mjs';
 import { NO_ACCESS, errorText, noticeNode, passwordErrors, reduce, ribbonNode, sidebar, signInErrors, start, view } from '../lib/admin/shell.mjs';
+import Dashboard from './admin/Dashboard';
 import Queue from './admin/Queue';
 import Sightings from './admin/Sightings';
 import Review from './admin/Review';
+import Species from './admin/Species';
+import SpeciesDetail from './admin/SpeciesDetail';
+import Media from './admin/Media';
+import Recycle from './admin/Recycle';
+import Activity from './admin/Activity';
+import Users from './admin/Users';
+import Settings from './admin/Settings';
 
 /** A signed-in reviewer, as POST /auth/signin answers (session.mjs keeps it). */
 export interface Session {
@@ -37,7 +45,19 @@ export interface ScreenProps {
  * The screens, by their route's screen name (src/lib/admin/routes.mjs). The later tasks add their screens here, and
  * nothing else in the shell changes. A route whose screen is not here yet says so.
  */
-const SCREENS: Partial<Record<string, ComponentType<ScreenProps>>> = { queue: Queue, sightings: Sightings, review: Review };
+const SCREENS: Partial<Record<string, ComponentType<ScreenProps>>> = {
+  dashboard: Dashboard,
+  queue: Queue,
+  sightings: Sightings,
+  review: Review,
+  species: Species,
+  speciesDetail: SpeciesDetail,
+  media: Media,
+  recycle: Recycle,
+  activity: Activity,
+  users: Users,
+  settings: Settings,
+};
 
 const NOT_READY = 'This screen is not ready yet.';
 

@@ -1,8 +1,8 @@
-// What the sighting screens (src/islands/admin/{Queue,Sightings,Review}.tsx) share: a request sent with the reviewer's
-// token, a page of a list and an answer from the Java API (asked again while it says to), one action at a time, and
-// the confirm dialog (.wb-dialog, the native <dialog>). Each hook hands a SessionExpired (any 401) to the shell's
-// `notify`, which ends the session and returns to the sign-in; any other failure is the screen's to show. The
-// decisions are src/lib/admin/sightings.mjs's.
+// What the admin's screens (src/islands/admin/*.tsx) share: a request sent with the reviewer's token, a page of a list
+// and an answer from the Java API (asked again while it says to), one action at a time, and the confirm dialog
+// (.wb-dialog, the native <dialog>). Each hook hands a SessionExpired (any 401) to the shell's `notify`, which ends the
+// session and returns to the sign-in; any other failure is the screen's to show. The decisions are the plain modules'
+// (src/lib/admin/sightings.mjs, catalogue.mjs, housekeeping.mjs, lists.mjs).
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { SessionExpired, apiFetch } from '../../lib/java-api.mjs';
 import { pageOf } from '../../lib/admin/sightings.mjs';
@@ -17,6 +17,12 @@ export interface ApiRequest {
 
 type Notify = (notice: unknown) => void;
 
+/**
+ * The token for a public endpoint (GET /intake/status): apiFetch sends no Authorization header without one, so the
+ * reviewer's token goes nowhere it is not needed.
+ */
+export const NO_TOKEN = '';
+
 /** Send a request with the reviewer's token. */
 export const send = (request: ApiRequest, token: string) =>
   apiFetch(request.path, { method: request.method, body: request.body, query: request.query, token });
@@ -27,10 +33,11 @@ const AGAIN_TRIES = 20;
 
 /**
  * A page of a list: asked for whenever the request changes, and again on `reload`. A failure other than the end of the
- * session is kept in `error` for the screen's notice (listState).
+ * session is kept in `error` for the screen's notice (listState). `answer` is the whole of the last answer, for what
+ * comes with a page besides its rows (the media library's folder counts); it stays while the next page loads.
  */
 export function usePagedList(request: ApiRequest, token: string, notify: Notify) {
-  const [page, setPage] = useState<{ rows: any[]; total: number } | null>(null);
+  const [page, setPage] = useState<{ rows: any[]; total: number; answer: any } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [round, setRound] = useState(0);
@@ -41,7 +48,7 @@ export function usePagedList(request: ApiRequest, token: string, notify: Notify)
     setError(null);
     send(request, token)
       .then((answer) => {
-        if (alive) setPage(pageOf(answer));
+        if (alive) setPage({ ...pageOf(answer), answer });
       })
       .catch((error: unknown) => {
         if (!alive) return;
@@ -57,7 +64,7 @@ export function usePagedList(request: ApiRequest, token: string, notify: Notify)
     // `request` is in `key`.
   }, [key, token, round, notify]);
   const reload = useCallback(() => setRound((n) => n + 1), []);
-  return { rows: page?.rows ?? [], total: page?.total ?? 0, loading, error, reload };
+  return { rows: page?.rows ?? [], total: page?.total ?? 0, answer: page?.answer ?? null, loading, error, reload };
 }
 
 export type Answer = { state: 'loading' } | { state: 'failed'; error: unknown } | { state: 'done'; value: any };

@@ -191,12 +191,12 @@ export function loadFailure(id, error) {
 }
 
 /**
- * A list's body: the error notice and its retry, the loading line, the empty sentence, or the table and the pager
- * (built only then).
+ * A list's body: the error notice and its retry, the loading line (`loadingText`, the sightings' unless another list
+ * says what it loads), the empty sentence, or the table and the pager (built only then).
  * @param {ListState} state
- * @param {{ onRetry: () => void, table: () => any, pager: () => any }} parts
+ * @param {{ onRetry: () => void, table: () => any, pager: () => any, loadingText?: string }} parts
  */
-export function listBody(state, { onRetry, table, pager }) {
+export function listBody(state, { onRetry, table, pager, loadingText = 'Loading sightings…' }) {
   if (state.status === 'error') {
     return h(
       'div',
@@ -205,7 +205,7 @@ export function listBody(state, { onRetry, table, pager }) {
       h('button', { className: 'wb-btn wb-btn--action', type: 'button', onClick: onRetry }, 'Try again'),
     );
   }
-  if (state.status === 'loading') return h('p', { role: 'status' }, 'Loading sightings…');
+  if (state.status === 'loading') return h('p', { role: 'status' }, loadingText);
   if (state.status === 'empty') return h('p', null, state.emptyText);
   return h('div', { className: 'site-admin__list', 'aria-busy': state.busy }, table(), pager());
 }
