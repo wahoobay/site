@@ -1,7 +1,7 @@
 {
   "name": "wahoobay-site",
   "private": true,
-  "description": "wahoobay.net, the Wahoo Bay website, built with Astro on the @wahoobay/design system.",
+  "description": "wahoobay.org, the Wahoo Bay website, built with Astro on the @wahoobay/design system.",
   "type": "module",
   "version": "0.0.1",
   "engines": {

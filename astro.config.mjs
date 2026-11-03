@@ -35,7 +35,7 @@ const devProxyFirst = {
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://wahoobay.net',
+  site: 'https://wahoobay.org',
   output: 'static',
   trailingSlash: 'always',
   build: { format: 'directory' },

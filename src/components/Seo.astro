@@ -10,7 +10,7 @@ interface Props {
 }
 
 const { title, description, image = '/WB-1.jpg', noindex = false } = Astro.props;
-const site = Astro.site ?? new URL('https://wahoobay.net');
+const site = Astro.site ?? new URL('https://wahoobay.org');
 const fullTitle = Astro.url.pathname === '/' ? 'Wahoo Bay' : `${title} · Wahoo Bay`;
 const canonical = new URL(Astro.url.pathname, site).href;
 const imageUrl = new URL(image, site).href;
