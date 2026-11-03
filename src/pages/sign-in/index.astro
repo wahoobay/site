@@ -1,9 +1,11 @@
 ---
 // /sign-in/: who signs in where. The old page (src/pages/other/Login.js, h1 "Sign in to Wahoo Bay") kept a volunteer's
-// name on the device and signed staff in to the old review panel; this site has no accounts, so it only points the way.
-// The sighting review's address is not printed here; reviewers keep the link they were given.
+// name on the device and signed staff in to the old review panel; this page has no form, so it only points the way:
+// to the fish-ID tool, and to the sighting review at /admin/ (ADMIN_BASE, src/lib/admin/routes.mjs), which has its own
+// sign-in. The old site's hidden review address is never printed here.
 import Base from '../../layouts/Base.astro';
 import { aiUrl } from '../../lib/nav.mjs';
+import { ADMIN_BASE } from '../../lib/admin/routes.mjs';
 
 const description = 'Where to sign in: the fish-identification review tool, and the sighting review.';
 // The fish-ID app's sign-in, on the same per-environment address as the nav's Fish ID (PUBLIC_AI_URL, else staging).
@@ -19,7 +21,9 @@ const fishId = `${aiUrl(import.meta.env.PUBLIC_AI_URL)}login`;
       <p>Reviewers of the AI fish identifications sign in to the fish-ID tool.</p>
       <p><a class="wb-btn wb-btn--action" href={fishId} target="_blank" rel="noopener">Sign in to fish ID<span class="wb-sr-only"> (opens in a new tab)</span></a></p>
       <h2>Sighting review</h2>
-      <p>Staff who review the sightings visitors log: use the link you were given.</p>
+      <!-- katie: review: new sentence (the sighting review moved into this site, at /admin/) -->
+      <p>Staff who review the sightings visitors log sign in to the sighting review, on this site.</p>
+      <p><a class="wb-btn wb-btn--action" href={ADMIN_BASE}>Sign in to the sighting review</a></p>
     </div>
   </div>
 </Base>

@@ -678,3 +678,50 @@ main { flex: 1 0 auto; }
 @media (scripting: none) {
   .site-sighting { display: none; }
 }
+
+/* The sighting review (/admin/, src/islands/AdminApp.tsx): the Test ribbon across the top on every build but
+   production's, then the screen. Signed in, the sidebar (who is signed in, the screens they may open, change password
+   and sign out) is above the screen on narrow screens and beside it from 48rem, where its lists, the design's section
+   navigation (.wb-subnav, a row that wraps), stand as columns. A notice is above the screen, its words and Dismiss on
+   one row while they fit. The forms are a column of the design's fields, no wider than they need. */
+.site-admin-page {
+  padding-top: var(--wb-space-6);
+  padding-bottom: var(--wb-space-8);
+}
+.site-admin,
+.site-admin__body,
+.site-admin__main,
+.site-admin__nav,
+.site-admin__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+}
+.site-admin { gap: var(--wb-space-5); margin-top: var(--wb-space-5); }
+.site-admin__body { gap: var(--wb-space-6); }
+.site-admin__main { gap: var(--wb-space-5); }
+.site-admin__nav { gap: var(--wb-space-4); }
+.site-admin__form {
+  gap: var(--wb-space-5);
+  max-width: 28rem;
+}
+.site-admin__form > h2 { margin: 0; }
+.site-admin__account { align-items: center; }
+@media (min-width: 48rem) {
+  .site-admin__body--nav {
+    grid-template-columns: 14rem minmax(0, 1fr);
+    align-items: start;
+  }
+  .site-admin__menu {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .site-admin__account { row-gap: var(--wb-space-3); }
+}
+.site-admin__notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wb-space-3);
+}

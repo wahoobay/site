@@ -1,0 +1,18 @@
+---
+// /admin/ (ADMIN_BASE in src/lib/admin/routes.mjs): the sighting review, where staff sign in to the Java API and do
+// what the old site's admin did for sightings, species, media, the recycle bin, the activity log, users and the
+// intake switch. One island, rendered in the browser only (client:only: nothing of it is useful without a session),
+// with a hash router inside it. Not for search: noindex, left out of the sitemap (src/lib/sitemap-filter.mjs) and
+// disallowed in public/robots.txt. Light page, no section navigation.
+import Base from '../../layouts/Base.astro';
+import AdminApp from '../../islands/AdminApp';
+
+const description = 'The sighting review: staff sign in to check the sightings visitors log.';
+---
+<Base title="Sighting review" description={description} noindex>
+  <div class="wb-container site-admin-page">
+    <h1>Sighting review</h1>
+    <AdminApp client:only="react" />
+    <noscript><p>The sighting review needs JavaScript.</p></noscript>
+  </div>
+</Base>

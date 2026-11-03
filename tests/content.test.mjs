@@ -412,7 +412,7 @@ test('the live pages embed YouTube without cookies or autoplay, and they alone a
 
 // Step 2b: the live band's islands (the badge and the right-now panels, tests/live.test.mjs) bring Astro's island loader
 // to the home page, before the band's first island; the Instagram strip's is still the page's only script of its own.
-const ISLAND_LOADER = /\bastro:(?:load|visible)\b|customElements\.define\(\s*[`"']astro-island[`"']/;
+const ISLAND_LOADER = /\bastro:(?:load|visible|only)\b|customElements\.define\(\s*[`"']astro-island[`"']/;
 test('the home page has one script of its own, the Instagram strip\'s; the other pages have none but their islands\'', () => {
   const html = readFileSync('dist/index.html', 'utf8');
   const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
@@ -447,6 +447,12 @@ test('the home page has one script of its own, the Instagram strip\'s; the other
     // A species page whose species has a fish-ID id: its live numbers (tests/explorer-pages.test.mjs); the others none.
     if (/^dist\/live\/species\/[^/]+\/index\.html$/.test(file) && /<astro-island\b/.test(page)) {
       assert.match(page, /<astro-island\b[^>]*\bclient="visible"/, `${file}: the species' live numbers`);
+      for (const [, code] of page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) assert.match(code, ISLAND_LOADER, `${file}: only the island loader`);
+      continue;
+    }
+    // The sighting review's one island, rendered in the browser only (tests/admin-shell.test.mjs).
+    if (file === 'dist/admin/index.html') {
+      assert.match(page, /<astro-island\b[^>]*\bclient="only"/, `${file}: the review's island`);
       for (const [, code] of page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) assert.match(code, ISLAND_LOADER, `${file}: only the island loader`);
       continue;
     }
