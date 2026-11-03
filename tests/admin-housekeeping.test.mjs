@@ -145,7 +145,8 @@ test('purge requires a non-empty selection (and so does restore)', () => {
 test('RECYCLE_CONFIRM names the count and what each does', () => {
   const restore = RECYCLE_CONFIRM.restore(3);
   assert.equal(restore.title, 'Restore 3 sightings?');
-  assert.equal(restore.body, 'They leave the recycle bin. A rejected one goes back to the review queue as pending; the others keep their status. You can undo this in the activity log.');
+  assert.equal(restore.body, 'They leave the recycle bin. A rejected one goes back to the review queue as pending; the others keep their status. An undo in the activity log puts them back in the bin, but a rejected one stays pending.');
+  assert.equal(RECYCLE_CONFIRM.restore(1).body, 'It leaves the recycle bin. If it was rejected, it goes back to the review queue as pending; otherwise it keeps its status. An undo in the activity log puts it back in the bin, but if it was rejected it stays pending.');
   assert.equal(restore.confirm, 'Restore 3 sightings');
   const purge = RECYCLE_CONFIRM.purge(1);
   assert.equal(purge.title, 'Delete 1 sighting permanently?');

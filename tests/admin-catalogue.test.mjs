@@ -54,6 +54,7 @@ import {
   speciesEditRequest,
   speciesEmpty,
   speciesFacts,
+  refreshedFields,
   speciesFields,
   speciesHref,
   speciesListRequest,
@@ -228,8 +229,8 @@ test('idsText and plural: lists and counts in words', () => {
 
 test('failureText: a 409 that names linked_sightings says so as the notice text; anything else is errorText', () => {
   const conflict = new ApiError(409, { error: 'That photo is still attached to a sighting.', linked_sightings: [12, 15] });
-  assert.equal(failureText(conflict, 'Sergeant major'), 'Sergeant major is still used by sightings 12 and 15, so nothing was deleted. Move them to the recycle bin first.');
-  assert.equal(failureText(new ApiError(409, { linked_sightings: [12] }), 'Media 21'), 'Media 21 is still used by sighting 12, so nothing was deleted. Move it to the recycle bin first.');
+  assert.equal(failureText(conflict, 'Sergeant major'), 'Sergeant major is still used by sightings 12 and 15, so nothing was deleted. Move them to the recycle bin first. Any sighting in the recycle bin that uses it loses it for good, even if it is restored later.');
+  assert.equal(failureText(new ApiError(409, { linked_sightings: [12] }), 'Media 21'), 'Media 21 is still used by sighting 12, so nothing was deleted. Move it to the recycle bin first. Any sighting in the recycle bin that uses it loses it for good, even if it is restored later.');
   assert.equal(failureText(new ApiError(409, { error: 'Someone with that email already exists.' }), 'x'), 'Someone with that email already exists.');
   assert.equal(failureText(new ApiError(0, null), 'x'), 'The server did not answer. Try again in a minute.');
 });
@@ -237,7 +238,7 @@ test('failureText: a 409 that names linked_sightings says so as the notice text;
 test('failureNotice: a failed delete\'s notice; a 401 stays the SessionExpired, so the shell ends the session', () => {
   const expired = new SessionExpired(null);
   assert.equal(failureNotice(expired, 'Media 21'), expired);
-  assert.deepEqual(failureNotice(new ApiError(409, { linked_sightings: [12] }), 'Media 21'), { tone: 'error', text: 'Media 21 is still used by sighting 12, so nothing was deleted. Move it to the recycle bin first.' });
+  assert.deepEqual(failureNotice(new ApiError(409, { linked_sightings: [12] }), 'Media 21'), { tone: 'error', text: 'Media 21 is still used by sighting 12, so nothing was deleted. Move it to the recycle bin first. Any sighting in the recycle bin that uses it loses it for good, even if it is restored later.' });
   assert.deepEqual(failureNotice(new ApiError(500, null), 'Media 21'), { tone: 'error', text: 'The server could not do that (HTTP 500). Try again.' });
 });
 
@@ -396,6 +397,16 @@ test('speciesFields and speciesEditPayload: only what changed, trimmed; the prov
   assert.deepEqual(SPECIES_FIELDS.find((f) => f.key === 'category').options, ['Fish', 'Shark & Ray', 'Invertebrate', 'Reptile', 'Bird', 'Mammal', 'Other']);
 });
 
+test('refreshedFields: a reload keeps changes not yet saved; after a save, or with none, the form is the server\'s', () => {
+  const fields = speciesFields(DETAIL);
+  const after = { ...DETAIL, hero_media_id: 9, family: 'Labridae' };
+  assert.deepEqual(refreshedFields(null, {}, DETAIL, false), fields, 'the first load fills the form');
+  assert.deepEqual(refreshedFields(DETAIL, fields, after, false), speciesFields(after), 'nothing unsaved: the form follows the server');
+  const typing = { ...fields, genus: 'Stegastes' };
+  assert.equal(refreshedFields(DETAIL, typing, after, false), typing, 'a pin or a move does not wipe what is being typed');
+  assert.deepEqual(refreshedFields(DETAIL, typing, after, true), speciesFields(after), 'after a save the form is what was saved');
+});
+
 test('speciesEditOutcome: a scientific name another species has is no save; it offers that species to merge into', () => {
   const clash = speciesEditOutcome({ needs_merge: true, target: { species_id: 4, common_name: 'Goliath grouper' } });
   assert.equal(clash.saved, false);
@@ -435,15 +446,18 @@ test('SPECIES_CONFIRM: merge, move and delete each say what they will do', () =>
   assert.equal(SPECIES_CONFIRM.move(1, 'A', 'B').title, 'Move 1 sighting to B?');
   const keep = SPECIES_CONFIRM.delete('Sergeant major', 'unsorted', 12);
   assert.equal(keep.title, 'Delete Sergeant major?');
-  assert.equal(keep.body, 'Sergeant major is deleted. Its 12 sightings and its media stay, with no species. This cannot be undone.');
+  assert.equal(keep.body, 'Sergeant major is deleted. Its 12 sightings (and any in the recycle bin) and its media stay, with no species. This cannot be undone.');
+  assert.equal(SPECIES_CONFIRM.delete('Sergeant major', 'unsorted', 0).body, 'Sergeant major is deleted. Any of its sightings in the recycle bin, and its media, stay with no species. This cannot be undone.');
   assert.equal(keep.confirm, 'Delete species');
   const bin = SPECIES_CONFIRM.delete('Sergeant major', 'delete', 1);
-  assert.equal(bin.body, 'Sergeant major is deleted and its 1 sighting goes to the recycle bin; restored, it has no species. This cannot be undone.');
+  assert.equal(bin.body, 'Sergeant major is deleted and its 1 sighting goes to the recycle bin. Restored, it has no species, nor does any of its sightings already in the bin. Its media stay, pointing at the deleted species, and show as “No species” in the media library. This cannot be undone.');
+  assert.equal(SPECIES_CONFIRM.delete('Sergeant major', 'delete', 12).body, 'Sergeant major is deleted and its 12 sightings go to the recycle bin. Restored, they have no species, nor does any of its sightings already in the bin. Its media stay, pointing at the deleted species, and show as “No species” in the media library. This cannot be undone.');
+  assert.equal(SPECIES_CONFIRM.delete('Sergeant major', 'delete', 0).body, 'Sergeant major is deleted. It has no sightings outside the recycle bin; any in it have no species if restored. Its media stay, pointing at the deleted species, and show as “No species” in the media library. This cannot be undone.');
 });
 
 test('a 409 on species delete surfaces linked_sightings as the notice text', () => {
   const error = new ApiError(409, { error: 'In use', linked_sightings: [42, 43, 44] });
-  assert.equal(failureText(error, 'Sergeant major'), 'Sergeant major is still used by sightings 42, 43 and 44, so nothing was deleted. Move them to the recycle bin first.');
+  assert.equal(failureText(error, 'Sergeant major'), 'Sergeant major is still used by sightings 42, 43 and 44, so nothing was deleted. Move them to the recycle bin first. Any sighting in the recycle bin that uses it loses it for good, even if it is restored later.');
 });
 
 test('speciesSightingRow and speciesSightingsTable: a check box per row, the review link, the picture to pin', () => {
@@ -519,6 +533,8 @@ test('mediaRow: shown on the site, hidden, or not approved (is_public alone cann
   assert.equal(mediaRow({ ...MEDIA, is_public: false }).stateLabel, 'Hidden');
   assert.equal(mediaRow({ ...MEDIA, is_approved: 0 }).state, 'unapproved');
   assert.equal(mediaRow({ ...MEDIA, is_approved: 0 }).stateLabel, 'Not approved');
+  assert.equal(mediaRow({ ...MEDIA, is_approved: 0, is_public: 0 }).state, 'hidden-unapproved');
+  assert.equal(mediaRow({ ...MEDIA, is_approved: 0, is_public: 0 }).stateLabel, 'Hidden, not approved');
   const clip = mediaRow({ ...MEDIA, media_id: 7, storage_type: 'youtube', storage_key: 'abcDEF12345', url: 'https://youtu.be/abcDEF12345', media_kind: 'video', archive_uri: 'db://media/7', species: null, sci: null }, TOKEN);
   assert.equal(clip.kindLabel, 'Video');
   assert.equal(clip.species, 'No species');
@@ -536,6 +552,7 @@ test('mediaActions: show or hide needs hideMedia (and an approved item); delete 
   assert.equal(mediaActions(user('intern', { permissions: [...ROLE_CAPS.intern, 'hideMedia'] }), pub, false).delete.shown, true, 'a granted hideMedia');
   assert.equal(mediaActions(user('admin', { permissions: ROLE_CAPS.admin.filter((c) => c !== 'editMedia') }), pub, false).delete.shown, false, 'hideMedia alone does not delete');
   assert.equal(mediaActions(ADMIN, mediaRow({ ...MEDIA, is_approved: 0 }), false).visibility.shown, false, 'publishing is the review\'s decision');
+  assert.deepEqual(mediaActions(ADMIN, mediaRow({ ...MEDIA, is_approved: 0, is_public: 0 }), false).visibility, { shown: true, enabled: true, label: 'Unhide', next: true }, 'a hidden item waiting for review can be unhidden');
   const busy = mediaActions(OWNER, pub, true);
   assert.equal(busy.visibility.enabled, false);
   assert.equal(busy.delete.enabled, false);
@@ -559,6 +576,9 @@ test('mediaTable: the state as words, Hide or Show and Delete per row as the use
   assert.deepEqual(calls, [['visibility', 21, false], ['delete', 22]]);
   for (const img of find(t, (n) => n.type === 'img')) assert.equal(img.props.referrerPolicy, 'no-referrer');
   assert.doesNotMatch(JSON.stringify(table), /accent/);
+  const pending = mediaTable([mediaRow({ ...MEDIA, media_id: 23, is_approved: 0, is_public: 0 }, TOKEN)], { actionsFor: (row) => mediaActions(ADMIN, row, false), onVisibility() {}, onDelete() {} });
+  assert.match(text(pending), /Hidden, not approved/);
+  assert.deepEqual(find(pending, (n) => n.type === 'button').map(text), ['Unhide media 23', 'Delete media 23']);
   const readOnly = mediaTable(rows, { actionsFor: (row) => mediaActions(INTERN, row, false), onVisibility() {}, onDelete() {} });
   assert.ok(!find(readOnly, (n) => n.type === 'th').some((th) => text(th) === 'Actions'), 'no actions, no column');
 });
@@ -566,11 +586,12 @@ test('mediaTable: the state as words, Hide or Show and Delete per row as the use
 test('MEDIA_CONFIRM, visibilityOutcome and mediaEmpty', () => {
   const confirm = MEDIA_CONFIRM.delete(mediaRow(MEDIA));
   assert.equal(confirm.title, 'Delete media 21 permanently?');
-  assert.equal(confirm.body, 'The Sergeant major photo is deleted for good, with any saved clip, and stops being any species\' picture. This cannot be undone.');
+  assert.equal(confirm.body, 'The Sergeant major photo is deleted for good, with any saved clip, and stops being any species\' picture. Any sighting in the recycle bin that uses it loses it for good, even if it is restored later. This cannot be undone.');
   assert.equal(confirm.confirm, 'Delete permanently');
   assert.equal(visibilityOutcome(21, { media_id: 21, is_public: false }, true), 'Media 21 is hidden from the site.');
   assert.equal(visibilityOutcome(21, { media_id: 21, is_public: true }, false), 'Media 21 shows on the site again.');
   assert.equal(visibilityOutcome(21, null, false), 'Media 21 is hidden from the site.', 'no answer: what was asked');
+  assert.equal(visibilityOutcome(23, { media_id: 23, is_public: true }, true, false), 'Media 23 is no longer hidden. It shows on the site once a sighting with it is approved.');
   assert.equal(MEDIA_EMPTY, 'No approved media yet.');
   assert.equal(mediaEmpty({ folder: 'all', q: '' }), MEDIA_EMPTY);
   assert.equal(mediaEmpty({ folder: 'hidden', q: '' }), 'No media in this folder.');
@@ -602,6 +623,8 @@ test('the catalogue screens: every API failure goes to notify; media only throug
   for (const kind of ['merge', 'move', 'delete']) assert.match(detail, new RegExp(`SPECIES_CONFIRM\\.${kind}\\(`), `the ${kind} asks first`);
   assert.match(detail, /failureNotice\(/, 'a refused delete says why');
   assert.match(detail, /speciesActions\(/);
+  assert.match(detail, /refreshedFields\(/, 'a reload keeps the edits not yet saved');
+  assert.match(detail, /notify\(\{ tone: 'error', text: speciesLoadFailure\(id, error\)\.text \}\)/, 'a reload that fails once the species shows is a notice, not dropped');
   const media = source('src/islands/admin/Media.tsx');
   assert.match(media, /MEDIA_CONFIRM\.delete\(/);
   assert.match(media, /failureNotice\(/, 'a 409 names the sightings');

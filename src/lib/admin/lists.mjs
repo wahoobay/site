@@ -102,9 +102,17 @@ export function idsText(ids) {
 export const plural = (n, one, many) => `${Number(n).toLocaleString('en-US')} ${n === 1 ? one : many}`;
 
 /**
+ * What deleting media does to the recycle bin: only a live sighting blocks the delete
+ * (MediaDeletionService.liveSightingsUsing checks recycled_at IS NULL), and deleteMedia then takes it off every
+ * sighting, recycled ones too (their media_id nulled, their sighting_media rows gone), for good.
+ */
+export const RECYCLED_LOSE_IT = 'Any sighting in the recycle bin that uses it loses it for good, even if it is restored later.';
+
+/**
  * Why a delete did not happen, in a notice's words: a 409 whose body names the sightings still using `subject`
- * (AdminMediaController.delete answers { error, linked_sightings }) says which and what to do; anything else is the
- * shell's errorText (the API's own words when it gave some).
+ * (AdminMediaController.delete answers { error, linked_sightings }) says which, what to do, and what that costs the
+ * recycled sightings (RECYCLED_LOSE_IT); anything else is the shell's errorText (the API's own words when it gave
+ * some).
  * @param {unknown} error
  * @param {string} subject what was to be deleted ("Media 21", a species' name)
  */
@@ -112,7 +120,7 @@ export function failureText(error, subject) {
   const linked = error instanceof ApiError && error.status === 409 && Array.isArray(error.body?.linked_sightings) ? error.body.linked_sightings : [];
   if (linked.length) {
     const one = linked.length === 1;
-    return `${subject} is still used by ${one ? 'sighting' : 'sightings'} ${idsText(linked)}, so nothing was deleted. Move ${one ? 'it' : 'them'} to the recycle bin first.`;
+    return `${subject} is still used by ${one ? 'sighting' : 'sightings'} ${idsText(linked)}, so nothing was deleted. Move ${one ? 'it' : 'them'} to the recycle bin first. ${RECYCLED_LOSE_IT}`;
   }
   return errorText(error);
 }

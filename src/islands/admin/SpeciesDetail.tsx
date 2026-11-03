@@ -3,7 +3,7 @@
 // the species' picture, any of them movable to another species), and a merge into another species or a delete. The
 // move, the merge and the delete each ask first in a .wb-dialog that says what they will do. What shows and what is
 // sent is src/lib/admin/catalogue.mjs's; a 401 on any call, and any failed action, goes to the shell's notify.
-import { useEffect, useState, type SubmitEvent } from 'react';
+import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import arrowLeft from '@wahoobay/design/icons/arrow-left.svg?raw';
 import type { ScreenProps } from '../AdminApp';
 import { toReact } from '../vdom-react';
@@ -19,6 +19,7 @@ import {
   heroRequest,
   mergeRequest,
   moveRequest,
+  refreshedFields,
   speciesActions,
   speciesChoices,
   speciesDeleteRequest,
@@ -27,7 +28,6 @@ import {
   speciesEditPayload,
   speciesEditRequest,
   speciesFacts,
-  speciesFields,
   speciesHref,
   speciesListRequest,
   speciesLoadFailure,
@@ -60,6 +60,9 @@ export default function SpeciesDetail({ session, params, navigate, notify }: Scr
   const { busy, run } = useOneAtATime();
   const list = usePagedList(speciesSightingsRequest(id, { limit, offset }), token, notify);
   const others = useAnswer(speciesListRequest().path, token, notify);
+  // The species the form was last filled from, and whether the next load follows a save (refreshedFields).
+  const shown = useRef<any>(null);
+  const saved = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -67,12 +70,19 @@ export default function SpeciesDetail({ session, params, navigate, notify }: Scr
     send(speciesDetailRequest(id), token)
       .then((d) => {
         if (!alive) return;
+        const before = shown.current;
+        const afterSave = saved.current;
+        saved.current = false;
+        shown.current = d;
         setDetail(d);
-        setFields(speciesFields(d));
+        setFields((was) => refreshedFields(before, was, d, afterSave));
       })
       .catch((error: unknown) => {
         if (!alive) return;
+        saved.current = false;
         if (error instanceof SessionExpired) notify(error);
+        // Once the species shows, a reload that fails (after a save, a pin or a move) is a notice; the page stays.
+        else if (shown.current) notify({ tone: 'error', text: speciesLoadFailure(id, error).text });
         else setFailure(error);
       });
     return () => {
@@ -151,6 +161,7 @@ export default function SpeciesDetail({ session, params, navigate, notify }: Scr
           notify({ tone: 'error', text: outcome.text });
           return;
         }
+        saved.current = true;
         setRound((n) => n + 1);
         notify(outcome.text);
       },

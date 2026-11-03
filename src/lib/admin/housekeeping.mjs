@@ -144,15 +144,18 @@ export function recycleActions(user, selected, busy) {
   return { restore: { shown, enabled }, purge: { shown, enabled } };
 }
 
-/** The confirm dialogs (.wb-dialog) before a restore and a purge, each naming the count. */
+/**
+ * The confirm dialogs (.wb-dialog) before a restore and a purge, each naming the count. A restore's undo (AuditService
+ * "recycle_ids") recycles again but does not put back a rejected status, so the restore says so.
+ */
 export const RECYCLE_CONFIRM = Object.freeze({
   /** @param {number} n */
   restore: (n) => ({
     title: `Restore ${plural(n, 'sighting', 'sightings')}?`,
     body:
       n === 1
-        ? 'It leaves the recycle bin. If it was rejected, it goes back to the review queue as pending; otherwise it keeps its status. You can undo this in the activity log.'
-        : 'They leave the recycle bin. A rejected one goes back to the review queue as pending; the others keep their status. You can undo this in the activity log.',
+        ? 'It leaves the recycle bin. If it was rejected, it goes back to the review queue as pending; otherwise it keeps its status. An undo in the activity log puts it back in the bin, but if it was rejected it stays pending.'
+        : 'They leave the recycle bin. A rejected one goes back to the review queue as pending; the others keep their status. An undo in the activity log puts them back in the bin, but a rejected one stays pending.',
     confirm: `Restore ${plural(n, 'sighting', 'sightings')}`,
   }),
   /** @param {number} n */

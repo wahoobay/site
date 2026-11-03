@@ -80,7 +80,7 @@ export default function Media({ session, notify }: ScreenProps) {
       async () => {
         if (row.id === null) return;
         const answer = await send(visibilityRequest(row.id, isPublic), session.token);
-        notify(visibilityOutcome(row.id, answer, isPublic));
+        notify(visibilityOutcome(row.id, answer, isPublic, row.state !== 'hidden-unapproved'));
         list.reload();
       },
       notify,

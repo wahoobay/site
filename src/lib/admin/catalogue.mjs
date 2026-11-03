@@ -12,15 +12,17 @@
 //   a scientific name another species has saves nothing at all and answers { needs_merge, target }.
 // - POST /admin/species/{id}/move moves the sightings INTO species {id}; their media keep their species.
 // - POST …/merge moves every sighting (recycled ones too) and the media, then deletes the species; it has no undo.
-// - DELETE /admin/species/{id}?mode=unsorted detaches its sightings and media; mode=delete recycles its sightings,
-//   which keep the deleted species' id. Neither has an undo.
+// - DELETE /admin/species/{id}?mode=unsorted detaches all its sightings (recycled ones too) and its media;
+//   mode=delete recycles its live sightings, and they, the ones already recycled and its media all keep the deleted
+//   species' id (the media library shows them as "No species"). Neither has an undo.
 // - DELETE /admin/media/{id} is refused with 409 + linked_sightings while a live sighting uses it; ?force=true would
-//   detach it from those sightings first, and is never sent.
+//   detach it from those sightings first, and is never sent. A recycled sighting does not block it, and loses the
+//   media for good (deleteMedia nulls its pointer and drops its sighting_media rows).
 import { can } from './permissions.mjs';
 import { ROUTES, hashFor } from './routes.mjs';
 import { errorText } from './shell.mjs';
 import { NOT_GIVEN, SPECIES_CATEGORIES, formatWhen, sightingRow, statusChip, thumbOf } from './sightings.mjs';
-import { checkNode, idOf, idsOf, plural, recordsTable, thumbNode } from './lists.mjs';
+import { RECYCLED_LOSE_IT, checkNode, idOf, idsOf, plural, recordsTable, thumbNode } from './lists.mjs';
 import { ApiError, pageQuery } from '../java-api.mjs';
 import { h } from '../vdom.mjs';
 
@@ -397,6 +399,20 @@ export function speciesEditPayload(detail, fields) {
 }
 
 /**
+ * The form after the species is loaded again (a save, a pinned picture and a move each reload it): the server's values
+ * on the first load, after a save, or while nothing is changed; otherwise the reviewer's unsaved changes stay.
+ * @param {any} before the species the form was last filled from (null before the first load)
+ * @param {Record<string, string>} fields the form now
+ * @param {any} after the species as it loaded
+ * @param {boolean} saved whether this load follows a save
+ * @returns {Record<string, string>}
+ */
+export function refreshedFields(before, fields, after, saved) {
+  if (saved || !before || speciesEditPayload(before, fields) === null) return speciesFields(after);
+  return fields;
+}
+
+/**
  * What the edit's answer means: { needs_merge, target } is that another species has the scientific name asked for, and
  * nothing was saved; anything else is saved.
  * @param {any} answer
@@ -481,15 +497,19 @@ export const SPECIES_CONFIRM = Object.freeze({
   delete: (name, mode, count) => {
     let body;
     if (mode === 'delete') {
+      // AdminSpeciesService.delete recycles only the live sightings and touches neither the recycled ones nor the
+      // media: all of them keep the deleted species' id.
+      const media = 'Its media stay, pointing at the deleted species, and show as “No species” in the media library. This cannot be undone.';
       body =
         count === 0
-          ? `${name} is deleted. It has no sightings outside the recycle bin. This cannot be undone.`
-          : `${name} is deleted and its ${plural(count, 'sighting', 'sightings')} ${count === 1 ? 'goes' : 'go'} to the recycle bin; restored, ${count === 1 ? 'it has' : 'they have'} no species. This cannot be undone.`;
+          ? `${name} is deleted. It has no sightings outside the recycle bin; any in it have no species if restored. ${media}`
+          : `${name} is deleted and its ${plural(count, 'sighting', 'sightings')} ${count === 1 ? 'goes' : 'go'} to the recycle bin. Restored, ${count === 1 ? 'it has' : 'they have'} no species, nor does any of its sightings already in the bin. ${media}`;
     } else {
+      // mode=unsorted detaches every sighting of the species, recycled ones too, and its media.
       body =
         count === 0
-          ? `${name} is deleted. Its media stay, with no species. This cannot be undone.`
-          : `${name} is deleted. Its ${plural(count, 'sighting', 'sightings')} and its media stay, with no species. This cannot be undone.`;
+          ? `${name} is deleted. Any of its sightings in the recycle bin, and its media, stay with no species. This cannot be undone.`
+          : `${name} is deleted. Its ${plural(count, 'sighting', 'sightings')} (and any in the recycle bin) and its media stay, with no species. This cannot be undone.`;
     }
     return { title: `Delete ${name}?`, body, confirm: 'Delete species' };
   },
@@ -624,7 +644,7 @@ export const visibilityRequest = (id, isPublic) => ({ path: mediaPath(id), metho
 export const mediaDeleteRequest = (id) => ({ path: mediaPath(id), method: 'DELETE' });
 
 const KIND_LABELS = Object.freeze({ photo: 'Photo', video: 'Video', frame: 'Still from a video' });
-const STATE_LABELS = Object.freeze({ public: 'Shown', hidden: 'Hidden', unapproved: 'Not approved' });
+const STATE_LABELS = Object.freeze({ public: 'Shown', hidden: 'Hidden', unapproved: 'Not approved', 'hidden-unapproved': 'Hidden, not approved' });
 const NO_SPECIES = 'No species';
 
 /** The API's flag as a boolean: MySQL answers a TINYINT as 0 or 1. @param {unknown} v */
@@ -633,15 +653,16 @@ const flag = (v) => v === true || v === 1 || v === '1' || v === 'true';
 /**
  * @typedef {{
  *   id: number | null, species: string, scientific: string | null, when: string, kind: 'photo' | 'video' | 'frame',
- *   kindLabel: string, state: 'public' | 'hidden' | 'unapproved', stateLabel: string,
+ *   kindLabel: string, state: 'public' | 'hidden' | 'unapproved' | 'hidden-unapproved', stateLabel: string,
  *   thumb: { src: string, video: boolean } | null,
  * }} MediaRow
  */
 
 /**
  * A media item as the library shows it: its species, its date, what kind it is, and where it stands on the public site:
- * shown, hidden (a reviewer took it down), or not approved (on no verified sighting, so not on the site whatever
- * is_public says; publishing it is the review's decision).
+ * shown, hidden (a reviewer took it down), not approved (on no verified sighting, so not on the site whatever
+ * is_public says; publishing it is the review's decision), or hidden and not approved (taken down before its
+ * sighting was decided: it stays off the site even once that is approved, until it is unhidden).
  * @param {any} m a row of GET /admin/media
  * @param {string | null} [token]
  * @returns {MediaRow}
@@ -651,7 +672,10 @@ export function mediaRow(m, token) {
   const kind = /** @type {'photo' | 'video' | 'frame'} */ (
     ['photo', 'video', 'frame'].includes(plain(m?.media_kind)) ? plain(m.media_kind) : stored === 'youtube' ? 'video' : stored === 'frame' ? 'frame' : 'photo'
   );
-  const state = !flag(m?.is_approved) ? 'unapproved' : flag(m?.is_public) || m?.is_public === null || m?.is_public === undefined ? 'public' : 'hidden';
+  const hidden = !(flag(m?.is_public) || m?.is_public === null || m?.is_public === undefined);
+  const approved = flag(m?.is_approved);
+  /** @type {MediaRow['state']} */
+  const state = approved ? (hidden ? 'hidden' : 'public') : hidden ? 'hidden-unapproved' : 'unapproved';
   const src = thumbOf(m, token);
   return {
     id: idOf(m?.media_id),
@@ -668,7 +692,9 @@ export function mediaRow(m, token) {
 
 /**
  * Which of a media item's actions show and can be pressed: showing or hiding it needs hideMedia (PATCH's METHOD_RULE)
- * and an approved item; deleting it needs editMedia and hideMedia (DELETE's). None while a request is in flight.
+ * and an approved item, or a hidden one (which can always be unhidden, approved or not: hiding one waiting for review
+ * stays the review's decision); deleting it needs editMedia and hideMedia (DELETE's). None while a request is in
+ * flight.
  * @param {any} user
  * @param {MediaRow} row
  * @param {boolean} busy
@@ -677,9 +703,10 @@ export function mediaRow(m, token) {
 export function mediaActions(user, row, busy) {
   const hide = can(user, 'hideMedia') && row.state !== 'unapproved';
   const del = can(user, 'editMedia') && can(user, 'hideMedia');
-  const next = row.state === 'hidden';
+  const next = row.state === 'hidden' || row.state === 'hidden-unapproved';
+  const label = row.state === 'hidden-unapproved' ? 'Unhide' : next ? 'Show on the site' : 'Hide from the site';
   return {
-    visibility: { shown: hide, enabled: hide && !busy, label: next ? 'Show on the site' : 'Hide from the site', next },
+    visibility: { shown: hide, enabled: hide && !busy, label, next },
     delete: { shown: del, enabled: del && !busy },
   };
 }
@@ -737,25 +764,28 @@ export function mediaTable(rows, { actionsFor, onVisibility, onDelete }) {
   return recordsTable(rows, { caption: 'Media', key: (r) => r.id, columns });
 }
 
-/** The confirm dialog (.wb-dialog) before a media item's delete. */
+/** The confirm dialog (.wb-dialog) before a media item's delete; recycled sightings lose it too (RECYCLED_LOSE_IT). */
 export const MEDIA_CONFIRM = Object.freeze({
   /** @param {MediaRow} row */
   delete: (row) => ({
     title: `Delete media ${row.id} permanently?`,
-    body: `${row.species === NO_SPECIES ? 'This' : `The ${row.species}`} ${row.kindLabel.toLowerCase()} is deleted for good, with any saved clip, and stops being any species' picture. This cannot be undone.`,
+    body: `${row.species === NO_SPECIES ? 'This' : `The ${row.species}`} ${row.kindLabel.toLowerCase()} is deleted for good, with any saved clip, and stops being any species' picture. ${RECYCLED_LOSE_IT} This cannot be undone.`,
     confirm: 'Delete permanently',
   }),
 });
 
 /**
- * What a show or hide did, from the server's answer ({ media_id, is_public }), else what was asked.
+ * What a show or hide did, from the server's answer ({ media_id, is_public }), else what was asked. Unhidden but not
+ * approved, it is not on the site yet.
  * @param {string | number} id
  * @param {any} answer
  * @param {boolean} asked
+ * @param {boolean} [approved]
  */
-export function visibilityOutcome(id, answer, asked) {
+export function visibilityOutcome(id, answer, asked, approved = true) {
   const shown = typeof answer?.is_public === 'boolean' ? answer.is_public : asked;
-  return shown ? `Media ${id} shows on the site again.` : `Media ${id} is hidden from the site.`;
+  if (!shown) return `Media ${id} is hidden from the site.`;
+  return approved ? `Media ${id} shows on the site again.` : `Media ${id} is no longer hidden. It shows on the site once a sighting with it is approved.`;
 }
 
 /**
