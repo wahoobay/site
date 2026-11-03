@@ -12,6 +12,8 @@ import { QUEUE_EMPTY } from '../src/lib/admin/sightings.mjs';
 import {
   ACTIVITY_EMPTY,
   CAPABILITY_LABELS,
+  NOT_USED_HERE,
+  capabilityLabel,
   INTAKE_CONFIRM,
   RECYCLE_CONFIRM,
   RECYCLE_EMPTY,
@@ -331,6 +333,20 @@ test('the role editor: a role resets the capabilities to its own; PATCH sends on
   assert.deepEqual(userPatchPayload(roy, withCapability(owner, 'recycle', false)), { role: 'owner', revokes: [] }, 'an owner has everything: no overrides');
   assert.deepEqual(withCapability(editor, 'viewData', false).caps.includes('viewData'), false);
   assert.deepEqual(Object.keys(CAPABILITY_LABELS), [...CAPABILITIES]);
+});
+
+test('capabilityLabel: the role editor marks the three capabilities no screen here uses', () => {
+  // CapabilityFilter: manageCameras gates /admin/datasource and /admin/cameras, manageSchools /admin/schools (both
+  // dropped, plan 9 Ruling 2); inviteTeam gates nothing (the users screen, invites too, is manageUsers).
+  assert.deepEqual([...NOT_USED_HERE], ['manageCameras', 'manageSchools', 'inviteTeam']);
+  assert.equal(capabilityLabel('manageCameras'), 'Manage cameras (not used here)');
+  assert.equal(capabilityLabel('manageSchools'), 'Manage school fundraising (not used here)');
+  assert.equal(capabilityLabel('inviteTeam'), 'Invite team members (not used here)');
+  for (const cap of CAPABILITIES.filter((c) => !NOT_USED_HERE.includes(c))) {
+    assert.equal(capabilityLabel(cap), CAPABILITY_LABELS[cap], cap);
+    assert.doesNotMatch(capabilityLabel(cap), /not used/, cap);
+  }
+  assert.match(readFileSync('src/islands/admin/Users.tsx', 'utf8'), /\{capabilityLabel\(cap\)\}/, 'the editor\'s boxes use it');
 });
 
 test('USER_CONFIRM.disable says what disabling does', () => {

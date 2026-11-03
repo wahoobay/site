@@ -5,6 +5,7 @@
 // (src/lib/admin/sightings.mjs, catalogue.mjs, housekeeping.mjs, lists.mjs).
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { SessionExpired, apiFetch } from '../../lib/java-api.mjs';
+import { oneAtATime } from '../../lib/admin/gate.mjs';
 import { pageOf } from '../../lib/admin/sightings.mjs';
 
 /** A request as sightings.mjs builds it. */
@@ -104,25 +105,28 @@ export function useAnswer(path: string, token: string, notify: Notify, round = 0
 }
 
 /**
- * One action at a time: `busy` names the one in flight (null when none). A press while one is in flight does nothing;
- * the check is a ref, not the state, so a double click inside one frame is caught too.
+ * One action at a time: `busy` names the one in flight (null when none). A press while one is in flight does nothing:
+ * the gate (src/lib/admin/gate.mjs, one per screen, made once) decides, not the state, so a double click inside one
+ * frame is caught too.
  */
 export function useOneAtATime() {
-  const flying = useRef(false);
+  const [gate] = useState(oneAtATime);
   const [busy, setBusy] = useState<string | null>(null);
-  const run = useCallback(async (name: string, work: () => Promise<void>, failed: (error: unknown) => void) => {
-    if (flying.current) return;
-    flying.current = true;
-    setBusy(name);
-    try {
-      await work();
-    } catch (error) {
-      failed(error);
-    } finally {
-      flying.current = false;
-      setBusy(null);
-    }
-  }, []);
+  const run = useCallback(
+    async (name: string, work: () => Promise<void>, failed: (error: unknown) => void) => {
+      if (!gate.take()) return;
+      setBusy(name);
+      try {
+        await work();
+      } catch (error) {
+        failed(error);
+      } finally {
+        gate.release();
+        setBusy(null);
+      }
+    },
+    [gate],
+  );
   return { busy, run };
 }
 

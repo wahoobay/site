@@ -1,7 +1,8 @@
 // The review of one sighting (#/review/:id): its media (the saved clip, the photos; with several, which to keep), the
-// clip's state, its facts, the conditions at its time, the species and sighting fields a reviewer may correct, and
-// approve, reject and move to the recycle bin (reject and the move after a confirm). Approving with unsaved changes
-// saves them first. While a request is in flight every action is off. What shows and what is sent is
+// clip's state, its facts, the conditions at its time (each asked for again on "Try again" when it failed), the
+// species and sighting fields a reviewer may correct, and approve, reject and move to the recycle bin (reject, the
+// move, and an approve that drops media after a confirm: a dropped item is deleted for good). Approving with unsaved
+// changes saves them first. While a request is in flight every action is off. What shows and what is sent is
 // src/lib/admin/sightings.mjs's; a 401 on any call, and any failed action, goes to the shell's notify.
 import { useEffect, useState, type SubmitEvent } from 'react';
 import arrowLeft from '@wahoobay/design/icons/arrow-left.svg?raw';
@@ -15,6 +16,7 @@ import {
   clipStatusRequest,
   clipSummary,
   deleteRequest,
+  discardCount,
   editOutcome,
   editPayload,
   editRequest,
@@ -53,10 +55,12 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
   const [fields, setFields] = useState<Record<string, string>>({});
   const [keep, setKeep] = useState<Record<string, boolean>>({});
   const [shown, setShown] = useState<string | number | null>(null);
-  const [confirm, setConfirm] = useState<'reject' | 'delete' | null>(null);
+  const [confirm, setConfirm] = useState<'approve' | 'reject' | 'delete' | null>(null);
+  const [envRound, setEnvRound] = useState(0);
+  const [clipRound, setClipRound] = useState(0);
   const { busy, run } = useOneAtATime();
-  const environment = useAnswer(environmentRequest(id).path, token, notify);
-  const clip = useAnswer(clipStatusRequest(id).path, token, notify, 0, clipPending);
+  const environment = useAnswer(environmentRequest(id).path, token, notify, envRound);
+  const clip = useAnswer(clipStatusRequest(id).path, token, notify, clipRound, clipPending);
 
   useEffect(() => {
     let alive = true;
@@ -93,26 +97,42 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
     return outcome;
   };
 
-  const approve = () =>
-    void run(
-      'approve',
-      async () => {
-        // Changes the server did not take are not approved over: the reviewer looks again first.
-        const outcome = await saveChanges();
-        if (outcome && !outcome.saved) {
-          notify({ tone: 'error', text: `${outcome.text} It is not approved yet: check the fields, then approve again.` });
-          return;
-        }
-        await send(approveRequest(sighting, keep), token);
-        navigate(QUEUE);
-        notify(`Sighting ${id} is approved.`);
-      },
-      notify,
-    );
+  /** How many media this approve would drop: any, and it asks first (CONFIRM.approveDiscard). */
+  const drops = sighting ? discardCount(sighting, keep) : 0;
+
+  const approving = async () => {
+    // Changes the server did not take are not approved over: the reviewer looks again first.
+    const outcome = await saveChanges();
+    if (outcome && !outcome.saved) {
+      setConfirm(null);
+      notify({ tone: 'error', text: `${outcome.text} It is not approved yet: check the fields, then approve again.` });
+      return;
+    }
+    await send(approveRequest(sighting, keep), token);
+    setConfirm(null);
+    navigate(QUEUE);
+    notify(`Sighting ${id} is approved.`);
+  };
+
+  /** Approve: at once when it drops nothing, else after the confirm (decide). */
+  const approve = () => {
+    if (drops > 0) {
+      setConfirm('approve');
+      return;
+    }
+    void run('approve', approving, notify);
+  };
 
   const decide = () => {
     const kind = confirm;
     if (!kind) return;
+    if (kind === 'approve') {
+      void run('approve', approving, (error) => {
+        setConfirm(null);
+        notify(error);
+      });
+      return;
+    }
     void run(
       kind,
       async () => {
@@ -172,7 +192,6 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
   const row = sightingRow(sighting, token);
   const media = mediaOf(sighting);
   const hero = media.find((m) => String(m.media_id) === String(shown)) ?? media[0] ?? null;
-  const clipText = clip.state === 'done' ? clipSummary(clip.value)?.text : clip.state === 'failed' ? 'The clip\'s state did not load.' : 'Checking the clip…';
   const hasSpecies = sighting.species_id !== null && sighting.species_id !== undefined;
   const off = !actions.edit.enabled;
 
@@ -225,7 +244,16 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
               onKeep: (mediaId, on) => setKeep((was) => ({ ...was, [String(mediaId)]: on })),
             }),
           )}
-          <p role="status">{clipText}</p>
+          {clip.state === 'failed' ? (
+            <div className="wb-notice wb-notice--error site-admin__notice" role="alert">
+              <p>The clip's state did not load.</p>
+              <button className="wb-btn wb-btn--action" type="button" onClick={() => setClipRound((n) => n + 1)}>
+                Try again<span className="wb-sr-only"> to check the clip</span>
+              </button>
+            </div>
+          ) : (
+            <p role="status">{clip.state === 'done' ? clipSummary(clip.value)?.text : 'Checking the clip…'}</p>
+          )}
         </div>
         <div className="site-admin__column">
           <h3>Details</h3>
@@ -233,8 +261,15 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
           <h3>Conditions at the time</h3>
           {environment.state === 'done' ? (
             toReact(environmentNode(environmentSummary(environment.value)))
+          ) : environment.state === 'failed' ? (
+            <div className="wb-notice wb-notice--error site-admin__notice" role="alert">
+              <p>The conditions did not load.</p>
+              <button className="wb-btn wb-btn--action" type="button" onClick={() => setEnvRound((n) => n + 1)}>
+                Try again<span className="wb-sr-only"> to load the conditions</span>
+              </button>
+            </div>
           ) : (
-            <p role="status">{environment.state === 'failed' ? 'The conditions did not load.' : 'Checking the sensors…'}</p>
+            <p role="status">Checking the sensors…</p>
           )}
         </div>
       </div>
@@ -289,7 +324,9 @@ export default function Review({ session, params, navigate, notify }: ScreenProp
 
       <ConfirmDialog
         id="review-confirm"
-        confirm={confirm === 'reject' ? CONFIRM.reject(id) : confirm === 'delete' ? CONFIRM.delete(id) : null}
+        confirm={
+          confirm === 'approve' ? CONFIRM.approveDiscard(id, drops) : confirm === 'reject' ? CONFIRM.reject(id) : confirm === 'delete' ? CONFIRM.delete(id) : null
+        }
         busy={busy !== null}
         onConfirm={decide}
         onCancel={() => setConfirm(null)}

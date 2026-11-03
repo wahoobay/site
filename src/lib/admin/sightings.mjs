@@ -406,7 +406,7 @@ export const hideBroken = (event) => {
   if (event?.currentTarget) event.currentTarget.hidden = true;
 };
 
-/** Media whose address carries the token never sends a Referer (plan 9, Ruling 5). */
+/** A picture whose address carries the token never sends a Referer (plan 9, Ruling 5); <video> has no such attribute. */
 const NO_REFERRER = 'no-referrer';
 
 // --- the rows -------------------------------------------------------------------------------------------------------
@@ -582,6 +582,15 @@ export function approvePayload(sighting, keepMap = {}) {
 }
 
 /**
+ * How many of the sighting's media an approve with `keepMap` drops (the false entries of approvePayload). More than
+ * none asks first (CONFIRM.approveDiscard): discardUnkept deletes a dropped item's junction row and, when no other
+ * sighting uses it, the media row and its saved clip; the audit log's undo of an approve restores only the status.
+ * @param {any} sighting
+ * @param {Record<string, boolean>} [keepMap]
+ */
+export const discardCount = (sighting, keepMap) => Object.values(approvePayload(sighting, keepMap).keep).filter((kept) => kept === false).length;
+
+/**
  * @typedef {{ shown: boolean, enabled: boolean }} Action
  * @typedef {{ approve: Action, reject: Action, delete: Action, edit: Action }} ReviewActions
  */
@@ -609,8 +618,24 @@ export function reviewActions(user, sighting, busy) {
   };
 }
 
-/** The confirm dialogs (.wb-dialog) before a reject and a delete. */
+/** The confirm dialogs (.wb-dialog) before a reject, a delete, and an approve that drops media (discardCount). */
 export const CONFIRM = Object.freeze({
+  /**
+   * @param {string | number} id
+   * @param {number} count how many media the approve drops (one or more)
+   */
+  approveDiscard: (id, count) =>
+    count === 1
+      ? {
+          title: `Approve sighting ${id} and drop one of its media?`,
+          body: 'The dropped item leaves this sighting and is deleted for good unless another sighting uses it. This cannot be undone: undo in the activity log brings back the status, not the media.',
+          confirm: 'Approve and drop it',
+        }
+      : {
+          title: `Approve sighting ${id} and drop ${count} of its media?`,
+          body: `The ${count} dropped items leave this sighting and are deleted for good unless another sighting uses them. This cannot be undone: undo in the activity log brings back the status, not the media.`,
+          confirm: 'Approve and drop them',
+        },
   /** @param {string | number} id */
   reject: (id) => ({
     title: `Reject sighting ${id}?`,
@@ -837,7 +862,8 @@ export function clipSummary(status) {
 
 /**
  * A media item large (mediaView): the saved clip with its poster and controls, a YouTube still with a link to the
- * video, a photo, or "No media attached". Every picture and the clip carry referrerPolicy no-referrer. The frame is
+ * video, a photo, or "No media attached". Every picture carries referrerPolicy no-referrer (the clip cannot: no media
+ * element has the attribute). The frame is
  * keyed by its source: hideBroken hides the element itself, so another source must be another element, or every
  * picture shown after a broken one would stay hidden.
  * @param {ReturnType<typeof mediaView>} view
@@ -848,7 +874,9 @@ export function mediaNode(view) {
       return h(
         'div',
         { key: view.src, className: 'wb-video site-admin__hero' },
-        h('video', { src: view.src, poster: view.poster, controls: true, preload: 'metadata', playsInline: true, referrerPolicy: NO_REFERRER }, 'This browser cannot play the clip.'),
+        // No referrerPolicy: <video> has no such attribute. The token sits in the clip's own URL, so a Referer could only
+        // ever carry the admin page's address, and only to the API itself.
+        h('video', { src: view.src, poster: view.poster, controls: true, preload: 'metadata', playsInline: true }, 'This browser cannot play the clip.'),
       );
     case 'youtube':
       return h(

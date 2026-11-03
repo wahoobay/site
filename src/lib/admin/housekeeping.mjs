@@ -289,6 +289,23 @@ export const CAPABILITY_LABELS = Object.freeze({
   settings: 'Settings',
 });
 
+/**
+ * The capabilities no screen of this admin uses (CapabilityFilter: manageCameras gates /admin/datasource and
+ * /admin/cameras, manageSchools /admin/schools, both dropped by plan 9 Ruling 2; inviteTeam gates no route, the users
+ * screen and its invites being manageUsers'). The server still keeps them, so the role editor shows them, marked.
+ */
+export const NOT_USED_HERE = Object.freeze(['manageCameras', 'manageSchools', 'inviteTeam']);
+
+/**
+ * A capability's words in the role editor: CAPABILITY_LABELS', with "(not used here)" after one of NOT_USED_HERE, so
+ * an owner is not led to think it opens something.
+ * @param {string} cap
+ */
+export const capabilityLabel = (cap) => {
+  const label = CAPABILITY_LABELS[/** @type {keyof typeof CAPABILITY_LABELS} */ (cap)] ?? cap;
+  return NOT_USED_HERE.includes(cap) ? `${label} (not used here)` : label;
+};
+
 /** GET /admin/users: every account, disabled ones too (AdminUserController.list). */
 export const usersRequest = () => ({ path: '/admin/users' });
 

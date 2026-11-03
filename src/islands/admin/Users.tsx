@@ -9,10 +9,10 @@ import { toReact } from '../vdom-react';
 import { CAPABILITIES } from '../../lib/admin/permissions.mjs';
 import { listBody, listState } from '../../lib/admin/sightings.mjs';
 import {
-  CAPABILITY_LABELS,
   ROLE_LABELS,
   USERS_EMPTY,
   USER_CONFIRM,
+  capabilityLabel,
   disableRequest,
   editorFor,
   enableRequest,
@@ -260,7 +260,7 @@ export default function Users({ session, notify }: ScreenProps) {
                   disabled={owner || !editing.editor.role}
                   onChange={(e) => setEditing({ ...editing, editor: withCapability(editing.editor, cap, e.target.checked) })}
                 />
-                <label htmlFor={`user-cap-${cap}`}>{CAPABILITY_LABELS[cap as keyof typeof CAPABILITY_LABELS]}</label>
+                <label htmlFor={`user-cap-${cap}`}>{capabilityLabel(cap)}</label>
               </span>
             ))}
           </div>

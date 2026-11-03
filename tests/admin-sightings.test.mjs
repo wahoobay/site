@@ -22,6 +22,7 @@ import {
   clipStatusRequest,
   clipSummary,
   deleteRequest,
+  discardCount,
   editOutcome,
   editPayload,
   editRequest,
@@ -473,6 +474,27 @@ test('reviewActions: approve and reject hide once the sighting is not pending; a
   assert.equal(rejected.edit.shown, true);
 });
 
+test('discardCount: how many media an approve would drop (the confirm asks only then)', () => {
+  const s = { sighting_id: 42, media_list: MEDIA_TWO };
+  assert.equal(discardCount(s, {}), 0);
+  assert.equal(discardCount(s, { 11: true }), 0);
+  assert.equal(discardCount(s, { 99: false }), 0, 'media it does not have');
+  assert.equal(discardCount(s, { 12: false }), 1);
+  assert.equal(discardCount(s, { 11: false, 12: false }), 2);
+  assert.equal(discardCount(null, { 12: false }), 0);
+});
+
+test('CONFIRM.approveDiscard: dropping media cannot be undone, said in the singular and the plural', () => {
+  const one = CONFIRM.approveDiscard(42, 1);
+  assert.equal(one.title, 'Approve sighting 42 and drop one of its media?');
+  assert.equal(one.body, 'The dropped item leaves this sighting and is deleted for good unless another sighting uses it. This cannot be undone: undo in the activity log brings back the status, not the media.');
+  assert.equal(one.confirm, 'Approve and drop it');
+  const two = CONFIRM.approveDiscard(42, 2);
+  assert.equal(two.title, 'Approve sighting 42 and drop 2 of its media?');
+  assert.equal(two.body, 'The 2 dropped items leave this sighting and are deleted for good unless another sighting uses them. This cannot be undone: undo in the activity log brings back the status, not the media.');
+  assert.equal(two.confirm, 'Approve and drop them');
+});
+
 test('CONFIRM: reject and delete each ask first, naming the sighting and where it goes', () => {
   const reject = CONFIRM.reject(42);
   assert.equal(reject.title, 'Reject sighting 42?');
@@ -590,13 +612,15 @@ test('mediaView: an archived clip plays from the API; YouTube links out; a photo
   assert.deepEqual(mediaView({ media_id: 4 }), { type: 'none' });
 });
 
-test('mediaNode: every picture and the clip carry referrerPolicy no-referrer', () => {
-  for (const view of [mediaView(ROW.media_list[0], 'jwt'), mediaView({ ...ROW.media_list[0], archive_uri: null, archived: false }, 'jwt'), mediaView(MEDIA_TWO[0], 'jwt')]) {
-    const tree = mediaNode(view);
-    const media = find(tree, (n) => n.type === 'img' || n.type === 'video');
-    assert.equal(media.length, 1, view.type);
-    assert.equal(media[0].props.referrerPolicy, 'no-referrer', view.type);
+test('mediaNode: every picture carries referrerPolicy no-referrer; the clip has none (no media element has it)', () => {
+  for (const view of [mediaView({ ...ROW.media_list[0], archive_uri: null, archived: false }, 'jwt'), mediaView(MEDIA_TWO[0], 'jwt')]) {
+    const imgs = find(mediaNode(view), (n) => n.type === 'img');
+    assert.equal(imgs.length, 1, view.type);
+    assert.equal(imgs[0].props.referrerPolicy, 'no-referrer', view.type);
   }
+  const clip = find(mediaNode(mediaView(ROW.media_list[0], 'jwt')), (n) => n.type === 'video');
+  assert.equal(clip.length, 1);
+  assert.ok(!('referrerPolicy' in clip[0].props), 'not an attribute of <video>');
   const frames = find(mediaNode(mediaView(MEDIA_TWO[0], 'jwt')), (n) => classes(n).includes('wb-video'));
   // hideBroken hides the element itself: a new source must be a new element, or a picture after a broken one stays hidden.
   const keys = [MEDIA_TWO[0], MEDIA_TWO[1], ROW.media_list[0], { ...ROW.media_list[0], archive_uri: null, archived: false }].map((m) => mediaNode(mediaView(m, 'jwt')).props.key);
@@ -724,4 +748,10 @@ test('the screens: every API failure they do not show themselves goes to notify;
   assert.match(sightings, /<h2 id="sightings-title" tabIndex=\{-1\} ref=\{heading\}>/, 'the heading can take the focus');
   assert.match(sightings, /heading\.current\?\.focus\(\)/, 'after a recycle the focus goes to the heading, not to a removed row');
   assert.match(review, /editOutcome\(/, 'the review reads the edit endpoint\'s updated');
+  assert.match(review, /CONFIRM\.approveDiscard\(/, 'an approve that drops media asks first');
+  assert.match(review, /if \(drops > 0\) \{\s*setConfirm\('approve'\);/, 'only then: an approve that drops nothing stays one click');
+  assert.match(review, /useAnswer\(environmentRequest\(id\)\.path, token, notify, envRound\)/, 'the conditions can be asked for again');
+  assert.match(review, /useAnswer\(clipStatusRequest\(id\)\.path, token, notify, clipRound, clipPending\)/, 'and the clip\'s state');
+  assert.match(review, /setEnvRound\(\(n\) => n \+ 1\)/);
+  assert.match(review, /setClipRound\(\(n\) => n \+ 1\)/);
 });
