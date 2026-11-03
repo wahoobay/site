@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { AI_URL_DEFAULT, aiUrl, liveNav, mainNav } from '../src/lib/nav.mjs';
+import { AI_URL_DEFAULT, aiUrl, liveNav, mainNav, signInLink } from '../src/lib/nav.mjs';
+import { ADMIN_BASE } from '../src/lib/admin/routes.mjs';
 
 const STAGING = 'https://staging-ai.wahoobay.net/';
 const PRODUCTION = 'https://ai.wahoobay.net/';
@@ -48,17 +49,19 @@ test('the built nav links Fish ID to this build\'s address, in a new tab with th
 });
 
 // Dan's staging review (2026-10-30): at 390px the nav's links row scrolled sideways and About started off-screen.
-// @wahoobay/design 0.1.4 wraps the row onto as many rows as it needs up to 30rem (480px). The pin is 0.3.2 since the
+// @wahoobay/design 0.1.4 wraps the row onto as many rows as it needs up to 30rem (480px). The pin was 0.3.2 from the
 // step-2b fix wave: 0.3.0 brought its chart series, axes and bars, the offline live badge and the segmented control;
 // 0.3.1 the detection boxes' fade-in and inside label, and the positioned video frame the live page draws them in;
 // 0.3.2 the scrims at 4.5:1, the right-edge detection label, .wb-as-is, the "other" series and the charts' 140px
 // minimum (0.2.2 brought the section navigation, map markers, file button and button states, and the deeper scrims).
-test('on phones the nav\'s links wrap onto rows instead of scrolling (@wahoobay/design 0.1.4 or later; pinned 0.3.2)', () => {
+// The pin was 0.4.0 for plan 9 (the sighting review): its table, pager, dialog, toolbar and status chip. It is 0.4.1 since
+// that review's finish: the status chip that never wraps (shown and hidden too), the long-text cell, the grave button.
+test('on phones the nav\'s links wrap onto rows instead of scrolling (@wahoobay/design 0.1.4 or later; pinned 0.4.1)', () => {
   const design = readFileSync('node_modules/@wahoobay/design/dist/components.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const phone = design.match(/@media \(max-width: 30rem\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
   assert.match(phone, /\.wb-nav__links\s*\{[^}]*flex-wrap:\s*wrap[^}]*overflow:\s*visible/, '@wahoobay/design 0.1.4 or later');
-  assert.match(readFileSync('package.json', 'utf8'), /"@wahoobay\/design": "github:wahoobay\/design#v0\.3\.2"/);
-  assert.equal(JSON.parse(readFileSync('node_modules/@wahoobay/design/package.json', 'utf8')).version, '0.3.2', 'npm install after the bump');
+  assert.match(readFileSync('package.json', 'utf8'), /"@wahoobay\/design": "github:wahoobay\/design#v0\.4\.1"/);
+  assert.equal(JSON.parse(readFileSync('node_modules/@wahoobay/design/package.json', 'utf8')).version, '0.4.1', 'npm install after the bump');
 });
 
 // The home page's stage (Task 2): the nav lies over the top of the photograph, transparent, its links white
@@ -139,4 +142,23 @@ test('every section navigation is the design\'s wb-subnav; every external link i
   assert.ok(external >= 5, `${external} external links, one on each live page`);
   const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.doesNotMatch(css, /\.site-subnav (ul|li)\b/, 'the row is the design\'s, not site layout');
+});
+
+// Finish review of the sighting review, fix 11: on /admin/ the nav said "Sign in" on every signed-in screen. The admin's
+// island has its own sign-in and Sign out, so the nav's link to /sign-in/ is left out there, and only there.
+test('signInLink: the nav\'s Sign in, except on the sighting review, which has its own', () => {
+  assert.deepEqual(signInLink('/about/'), { label: 'Sign in', href: '/sign-in/' });
+  assert.deepEqual(signInLink('/'), { label: 'Sign in', href: '/sign-in/' });
+  assert.deepEqual(signInLink('/sign-in/'), { label: 'Sign in', href: '/sign-in/' });
+  assert.equal(signInLink(ADMIN_BASE), null);
+  assert.equal(signInLink(`${ADMIN_BASE}index.html`), null);
+  assert.deepEqual(signInLink('/administration/'), { label: 'Sign in', href: '/sign-in/' }, 'only the admin itself');
+  assert.match(readFileSync('src/components/Nav.astro', 'utf8'), /\bsignInLink\(path\)/);
+});
+
+test('the built nav has no Sign in on /admin/; every other page keeps it', () => {
+  const nav = (file) => readFileSync(file, 'utf8').match(/<nav\b[^>]*aria-label="Main"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? '';
+  assert.doesNotMatch(nav('dist/admin/index.html'), /href="\/sign-in\/"|>Sign in</);
+  assert.match(nav('dist/admin/index.html'), /Donate/, 'the rest of the nav is there');
+  for (const file of ['dist/index.html', 'dist/about/index.html', 'dist/sign-in/index.html']) assert.match(nav(file), /<a\b[^>]*href="\/sign-in\/"[^>]*>Sign in<\/a>/, file);
 });

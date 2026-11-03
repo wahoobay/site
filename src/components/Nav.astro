@@ -1,6 +1,6 @@
 ---
 // The one navigation bar: the five sections with Fish ID after Live reef (src/lib/nav.mjs), Donate (the old site's
-// Zeffy form), then sign-in.
+// Zeffy form), then sign-in (signInLink: not on the sighting review, which has its own sign-in and Sign out).
 // `over` lays it over the top of the home page's stage photograph (the design's wb-nav--over: transparent, the logo
 // and links white). Its links then carry the low-contrast waiver, as in the design's docs (Ruling A): the detector sees
 // neither the photograph nor the scrim's top band under them and measures white on the page ground.
@@ -8,7 +8,7 @@
 // screen reader.
 import external from '@wahoobay/design/icons/external.svg?raw';
 import Logo from './Logo.astro';
-import { aiUrl, mainNav } from '../lib/nav.mjs';
+import { aiUrl, mainNav, signInLink } from '../lib/nav.mjs';
 
 interface Props {
   over?: boolean;
@@ -20,12 +20,12 @@ const waiver = over ? { 'data-impeccable-ignore': 'low-contrast' } : {};
 
 // The fish-ID app's address differs per environment: the deploy workflow sets PUBLIC_AI_URL at build time.
 const items = mainNav(aiUrl(import.meta.env.PUBLIC_AI_URL));
-const signIn = { label: 'Sign in', href: '/sign-in/' };
 const donate = 'https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2';
 
 // A section is current on its own page and every page below it; the home page marks none.
 // aria-current is "page" on the section's own page and "true" on a page below it.
 const path = Astro.url.pathname;
+const signIn = signInLink(path);
 const isOn = (href: string) => path.startsWith(href);
 const current = (href: string) => (path === href ? 'page' : isOn(href) ? 'true' : undefined);
 ---
@@ -43,5 +43,5 @@ const current = (href: string) => (path === href ? 'page' : isOn(href) ? 'true' 
     ))}
   </ul>
   <a class="wb-btn wb-btn--accent wb-nav__cta" href={donate} target="_blank" rel="noopener">Donate<span class="wb-sr-only"> (opens in a new tab)</span></a>
-  <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(signIn.href) }]} {...waiver} href={signIn.href} aria-current={current(signIn.href)}>{signIn.label}</a>
+  {signIn && <a class:list={['wb-nav__link', { 'wb-nav__link--on': isOn(signIn.href) }]} {...waiver} href={signIn.href} aria-current={current(signIn.href)}>{signIn.label}</a>}
 </nav>

@@ -678,3 +678,182 @@ main { flex: 1 0 auto; }
 @media (scripting: none) {
   .site-sighting { display: none; }
 }
+
+/* The sighting review (/admin/, src/islands/AdminApp.tsx): the Test ribbon across the top on every build but
+   production's, then the screen. Signed in, the sidebar (who is signed in, the screens they may open, change password
+   and sign out) is above the screen on narrow screens and beside it from 48rem, where its lists, the design's section
+   navigation (.wb-subnav, a row that wraps), stand as columns. A notice is above the screen, its words and Dismiss on
+   one row while they fit. The forms are a column of the design's fields, no wider than they need. */
+.site-admin-page {
+  /* A data tool, not a reading page: wider than the site's 72rem container, so its tables (a status chip that never
+     wraps, a whole date, a worded action) fit beside the sidebar at 1280 and 1440 instead of scrolling inside it. */
+  max-width: 90rem;
+  padding-top: var(--wb-space-6);
+  padding-bottom: var(--wb-space-8);
+}
+.site-admin,
+.site-admin__body,
+.site-admin__main,
+.site-admin__nav,
+.site-admin__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+}
+.site-admin { gap: var(--wb-space-5); margin-top: var(--wb-space-5); }
+.site-admin__body { gap: var(--wb-space-6); }
+.site-admin__main { gap: var(--wb-space-5); }
+.site-admin__nav { gap: var(--wb-space-4); }
+.site-admin__form {
+  gap: var(--wb-space-5);
+  max-width: 28rem;
+}
+.site-admin__form > h2 { margin: 0; }
+.site-admin__account { align-items: center; }
+@media (min-width: 48rem) {
+  .site-admin__body--nav {
+    grid-template-columns: 14rem minmax(0, 1fr);
+    align-items: start;
+  }
+  .site-admin__menu {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .site-admin__account { row-gap: var(--wb-space-3); }
+}
+.site-admin__notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wb-space-3);
+}
+
+/* The sighting screens (src/islands/admin/{Queue,Sightings,Review}.tsx): a column of the heading, a line about the
+   screen, the toolbar and the list (the design's table, which stacks into cards where it is narrow, then its pager).
+   A row's scientific name and "New species" sit under its name. A time in a table is its day over its time (each kept
+   whole by no-break spaces, src/lib/admin/sightings.mjs whenNode). A thumbnail is a small 4:3 picture. The review's
+   title line is a row of the status chip, the species and its sub-lines, spaced. The review is a container: from 50rem
+   wide its media and its facts stand side by side; the facts (and every group of conditions) share one term track, so
+   their values line up, and stack to one column on a screen under 36rem; the form's fields go two by two where the
+   form is 32rem wide; the decision's buttons wrap in a row. A clip or a photo shows whole in the design's 16:9 video
+   frame (.wb-video crops to fill it). A value that is free text breaks anywhere by the design's .wb-table__long, not
+   here (this file is layout only). */
+.site-admin__screen,
+.site-admin__column,
+.site-admin__edit,
+.site-admin__decide,
+.site-admin__media,
+.site-admin__picker,
+.site-admin__conditions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+}
+.site-admin__screen {
+  container-type: inline-size;
+  gap: var(--wb-space-5);
+}
+.site-admin__screen > :is(h2, p),
+.site-admin__column > :is(h3, p),
+.site-admin__edit > :is(h3, p),
+.site-admin__decide > :is(h3, p),
+.site-admin__media > p,
+.site-admin__picker > p,
+.site-admin__conditions :is(p, h4, dl) { margin: 0; }
+.site-admin__screen > .wb-back {
+  justify-self: start;
+  margin-block-end: 0;
+}
+.site-admin__screen > .wb-toolbar { margin-bottom: 0; }
+.site-admin__column,
+.site-admin__edit,
+.site-admin__decide,
+.site-admin__media,
+.site-admin__picker { gap: var(--wb-space-4); }
+.site-admin__conditions { gap: var(--wb-space-3); }
+.site-admin__sub { display: block; }
+.site-admin__when > span { display: block; }
+.site-admin__title-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wb-space-3);
+}
+.wb-media.site-admin__thumb {
+  width: 5rem;
+  height: auto;
+  aspect-ratio: 4 / 3;
+}
+.site-admin__review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wb-space-6);
+  align-items: start;
+}
+@container (min-width: 50rem) {
+  .site-admin__review { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+}
+.site-admin__hero > :is(img, video) { object-fit: contain; }
+/* A picture that did not load is hidden (hideBroken), which the design's display: block would otherwise undo. */
+.wb-media.site-admin__thumb[hidden],
+.site-admin__hero > img[hidden] { display: none; }
+.site-admin__media-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wb-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-admin__media-item {
+  display: grid;
+  justify-items: start;
+  gap: var(--wb-space-1);
+}
+.site-admin__media-button { padding: var(--wb-space-1); }
+.site-admin__check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wb-space-2);
+  min-height: 2.75rem;
+}
+.site-admin__check > input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+}
+.site-admin__facts {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  gap: var(--wb-space-2) var(--wb-space-4);
+  margin: 0;
+}
+.site-admin__facts > dd { margin: 0; }
+@container (max-width: 36rem) {
+  .site-admin__facts {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--wb-space-1);
+  }
+  .site-admin__facts > dt:not(:first-child) { margin-top: var(--wb-space-3); }
+}
+.site-admin__edit { container-type: inline-size; }
+.site-admin__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--wb-space-4);
+}
+.site-admin__fields > :is(h4, p) { margin: 0; }
+@container (min-width: 32rem) {
+  .site-admin__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.site-admin__wide { grid-column: 1 / -1; }
+/* A row of buttons, and the recycle bin's selection (its page's check box and how many are checked), on one line while
+   they fit, centred on it. */
+.site-admin__actions,
+.site-admin__selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wb-space-3);
+}

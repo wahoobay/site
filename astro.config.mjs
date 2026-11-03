@@ -4,6 +4,7 @@ import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
 import { satteri } from '@astrojs/markdown-satteri';
 import publicImages from './src/lib/markdown-public-images.mjs';
+import { sitemapFilter } from './src/lib/sitemap-filter.mjs';
 
 // Why this plugin exists: with trailingSlash: 'always', Astro's dev server answers any path with no trailing slash and
 // no file extension with its own trailing-slash 404, from middleware it puts at the front of the stack, so the
@@ -38,7 +39,8 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'always',
   build: { format: 'directory' },
-  integrations: [react(), sitemap()],
+  // The sitemap leaves out the sighting review (/admin/), which is noindex and disallowed in robots.txt too.
+  integrations: [react(), sitemap({ filter: sitemapFilter })],
   // Astro's default Markdown processor, with the size and lazy loading of the pages' photos.
   markdown: { processor: satteri({ hastPlugins: [publicImages()] }) },
   // `npm run dev` only (the build is static): the islands fetch /api/public/... on the site's own origin, which the
