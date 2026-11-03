@@ -12,6 +12,9 @@ import { toReact } from './vdom-react';
 import { SessionExpired } from '../lib/java-api.mjs';
 import { changePassword, clear, load, save, signIn } from '../lib/admin/session.mjs';
 import { NO_ACCESS, errorText, noticeNode, passwordErrors, reduce, ribbonNode, sidebar, signInErrors, start, view } from '../lib/admin/shell.mjs';
+import Queue from './admin/Queue';
+import Sightings from './admin/Sightings';
+import Review from './admin/Review';
 
 /** A signed-in reviewer, as POST /auth/signin answers (session.mjs keeps it). */
 export interface Session {
@@ -34,7 +37,7 @@ export interface ScreenProps {
  * The screens, by their route's screen name (src/lib/admin/routes.mjs). The later tasks add their screens here, and
  * nothing else in the shell changes. A route whose screen is not here yet says so.
  */
-const SCREENS: Partial<Record<string, ComponentType<ScreenProps>>> = {};
+const SCREENS: Partial<Record<string, ComponentType<ScreenProps>>> = { queue: Queue, sightings: Sightings, review: Review };
 
 const NOT_READY = 'This screen is not ready yet.';
 

@@ -117,12 +117,20 @@ export async function apiFetch(path, { method = 'GET', body, token, timeoutMs = 
  * - `clip`: the archived clip or frame of media `idOrUrl` (GET /clips/{id}).
  * - `poster`: its poster frame (GET /clips/{id}?poster=1).
  * - `thumb`: an image on an allowed host (Drive, YouTube) through the API's proxy, for the page's COEP (GET /thumb?u=).
- * @param {'clip' | 'poster' | 'thumb'} kind
+ * - `upload`: a photo the sighting form uploaded, its media `url` ("/uploads/<key>") or the key alone. Served at
+ *   /api/uploads/{key}, outside the version prefix (UploadServeController), to anyone: its key cannot be guessed, so no
+ *   token goes in it. A key that is no flat file name is a RangeError.
+ * @param {'clip' | 'poster' | 'thumb' | 'upload'} kind
  * @param {string | number} idOrUrl
  * @param {string | null} [token]
  */
 export const mediaUrl = (kind, idOrUrl, token) => {
   if (kind === 'thumb') return `${API_BASE}${withQuery('/thumb', { u: idOrUrl, token })}`;
+  if (kind === 'upload') {
+    const key = String(idOrUrl).replace(/^\/uploads\//, '');
+    if (!key || key === '.' || key === '..' || /[/\\]/.test(key)) throw new RangeError(`mediaUrl: "${idOrUrl}" is no uploaded file`);
+    return `${API_BASE.replace(/\/v1$/, '')}/uploads/${encodeURIComponent(key)}`;
+  }
   if (kind === 'clip' || kind === 'poster') {
     return `${API_BASE}${withQuery(`/clips/${encodeURIComponent(String(idOrUrl))}`, { token, poster: kind === 'poster' ? 1 : undefined })}`;
   }

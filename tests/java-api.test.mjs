@@ -104,6 +104,14 @@ test('mediaUrl builds a clip, a poster and a thumb address, encoding the thumb U
   assert.throws(() => mediaUrl('video', 1), RangeError);
 });
 
+test('mediaUrl: an uploaded photo is served at /api/uploads/{key}, outside the version prefix, with no token', () => {
+  const api = API_BASE.replace(/\/v1$/, '');
+  assert.equal(mediaUrl('upload', '/uploads/1730-abc.jpg', 'tk'), `${api}/uploads/1730-abc.jpg`, 'public: the token stays out of it');
+  assert.equal(mediaUrl('upload', '1730-abc.jpg'), `${api}/uploads/1730-abc.jpg`);
+  assert.equal(mediaUrl('upload', '/uploads/a b.jpg'), `${api}/uploads/a%20b.jpg`);
+  for (const bad of ['', '/uploads/', '/uploads/..', '/uploads/a/b.jpg', '../x']) assert.throws(() => mediaUrl('upload', bad), RangeError, bad);
+});
+
 test('pageQuery builds limit and offset, with extras that are set', () => {
   assert.deepEqual(pageQuery(50, 100), { limit: 50, offset: 100 });
   assert.deepEqual(pageQuery(25, 0, { status: 'pending', q: '' }), { limit: 25, offset: 0, status: 'pending' });
