@@ -17,6 +17,19 @@ if [ "$ENV_NAME" = "staging" ]; then
     exit 1
   fi
   printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
+
+  # Pages under staging-only/ are prototypes for review (README "Staging-only pages"): they join the build
+  # output here, after the build, tests, design check and link check have run on the site alone, so they
+  # reach staging and never production. None may take the path of a built file (a page, or robots.txt).
+  if [ -d staging-only ]; then
+    while IFS= read -r -d '' f; do
+      if [ -e "dist/${f#staging-only/}" ]; then
+        echo "$f has the same path as a file the site builds; staging-only pages must not replace one" >&2
+        exit 1
+      fi
+    done < <(find staging-only -type f -print0)
+    cp -R staging-only/. dist/
+  fi
 fi
 
 # Long-lived assets first (excluding the short-lived document types), then the documents. Both passes
