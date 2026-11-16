@@ -30,3 +30,11 @@ test('staging-only pages load no script, style, font or image from another origi
 test('the reef-logbook mockup is a staging-only page', () => {
   assert.ok(pages.includes(join(root, 'reef-logbook/index.html')), pages.join(', '));
 });
+
+test('each staging-only page sits in a top-level folder with a plain name, the only kind staging serves without the password', () => {
+  const entries = existsSync(root) ? readdirSync(root, { withFileTypes: true }).filter((e) => !e.name.startsWith('.')) : [];
+  for (const e of entries) {
+    assert.ok(e.isDirectory(), `${e.name}: put each page in a folder of its own`);
+    assert.match(e.name, /^[A-Za-z0-9_-]+$/, `${e.name}: letters, digits, - and _ only`);
+  }
+});

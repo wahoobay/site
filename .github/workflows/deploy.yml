@@ -44,6 +44,10 @@ jobs:
           for page in / /about/ /learn/; do
             test "$(curl -s -o /dev/null -w '%{http_code}' "https://$HOST$page")" = "401"
           done
+          for dir in staging-only/*/; do
+            [ -d "$dir" ] || continue
+            test "$(curl -s -o /dev/null -w '%{http_code}' "https://$HOST/${dir#staging-only/}")" = "200"
+          done
           BASIC_AUTH="wahoobay:$AUTH" node scripts/check-robots.mjs "https://$HOST/robots.txt" disallow
           curl -sf -u "wahoobay:$AUTH" "https://$HOST/" | grep -q '<title>'
   production:

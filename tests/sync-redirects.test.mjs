@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { toKvsEntries, planKvsChanges, applyPlan } from '../scripts/sync-redirects.mjs';
+import { toKvsEntries, toPublicEntries, parseFolders, planKvsChanges, applyPlan } from '../scripts/sync-redirects.mjs';
 
 test('entries derive keys from paths and queries', () => {
   assert.deepEqual(
@@ -51,4 +51,24 @@ test('apply writes in batches of 50 operations, re-reading the ETag before each'
   assert.equal(count(second, '--puts') + count(second, '--deletes'), 5);
   assert.equal(count(first, '--puts') + count(second, '--puts'), 53);
   assert.equal(count(first, '--deletes') + count(second, '--deletes'), 2);
+});
+
+test('each staging-only folder becomes a public key, which the staging router serves without the password', () => {
+  assert.deepEqual(toPublicEntries(['reef-logbook', 'tide_chart-2']), { 'public:/reef-logbook': '1', 'public:/tide_chart-2': '1' });
+  assert.deepEqual(toPublicEntries([]), {});
+});
+
+test('a folder name the router would not open stops the sync', () => {
+  for (const bad of ['a b', 'x.y', '..', 'a/b', '%2e', '']) assert.throws(() => toPublicEntries([bad]), /staging-only/, bad);
+});
+
+test('the folder list is a space-separated variable, empty in production', () => {
+  assert.deepEqual(parseFolders(' reef-logbook  other \n'), ['reef-logbook', 'other']);
+  assert.deepEqual(parseFolders(''), []);
+  assert.deepEqual(parseFolders(undefined), []);
+});
+
+test('plan deletes the public key of a folder that is gone, and never touches auth', () => {
+  const plan = planKvsChanges({ 'public:/a': '1' }, { 'public:/a': '1', 'public:/old': '1', auth: 'Basic q' });
+  assert.deepEqual(plan, { puts: [], deletes: [{ key: 'public:/old' }] });
 });
