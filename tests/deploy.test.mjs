@@ -118,3 +118,13 @@ test('the staging-only copy happens inside the staging branch, after the robots 
   assert.ok(stagingBlock.indexOf('robots.txt') < stagingBlock.indexOf('cp -R staging-only'));
   assert.equal(src.split('cp -R staging-only').length - 1, 1, 'one copy, inside the staging branch');
 });
+
+// The public keys deploy.sh asked the key-value store to put, in order.
+const publicKeys = (lines) => lines.filter((l) => l.includes('update-keys')).flatMap((l) => [...l.matchAll(/"Key":"(public:[^"]*)"/g)].map((m) => m[1]));
+
+test('staging opens each staging-only folder to visitors without the password; production opens nothing', () => {
+  const pages = { 'reef-logbook/index.html': '<title>mockup</title>', 'tide-chart/index.html': '<title>t</title>' };
+  assert.deepEqual(publicKeys(runDeploy('staging', { stagingOnly: pages })), ['public:/reef-logbook', 'public:/tide-chart']);
+  assert.deepEqual(publicKeys(runDeploy('prod', { stagingOnly: pages })), []);
+  assert.deepEqual(publicKeys(runDeploy('staging')), []);
+});
