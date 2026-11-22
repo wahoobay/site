@@ -211,7 +211,7 @@ const STREAM = 'https://staging-ai.wahoobay.net/stream/stream_raw.mjpeg';
 
 test('frameOf: the answer\'s frame when it has one, else the stream image\'s own size once it shows the stream, never the still\'s', () => {
   const streaming = { currentSrc: STREAM, naturalWidth: 1280, naturalHeight: 720 };
-  const still = { currentSrc: 'https://staging.wahoobay.net/images/learn/wb-camera.jpg', naturalWidth: 1600, naturalHeight: 1066 };
+  const still = { currentSrc: 'https://staging.wahoobay.org/images/learn/wb-camera.jpg', naturalWidth: 1600, naturalHeight: 1066 };
   assert.deepEqual(frameOf({ frame: { width: 1920, height: 1080 } }, still, STREAM), { width: 1920, height: 1080 });
   assert.deepEqual(frameOf({ frame: null }, streaming, STREAM), { width: 1280, height: 720 });
   assert.equal(frameOf({ frame: null }, still, STREAM), null, 'the still is still showing: no frame yet');

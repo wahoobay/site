@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sitemapFilter } from '../src/lib/sitemap-filter.mjs';
 
-const SITE = 'https://wahoobay.net';
+const SITE = 'https://wahoobay.org';
 
 test('the filter leaves out every page under /admin/', () => {
   for (const path of ['/admin/', '/admin/anything/', '/admin/a/b/', '/admin']) {
@@ -28,7 +28,7 @@ test('astro.config.mjs gives the filter to the sitemap', () => {
 test('dist: the built sitemap names no /admin/ page and still names the others', () => {
   const xml = readFileSync('dist/sitemap-0.xml', 'utf8');
   assert.equal(xml.match(/\/admin\//g)?.length ?? 0, 0);
-  assert.match(xml, /<loc>https:\/\/wahoobay\.net\/<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/wahoobay\.net\/sign-in\/<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/wahoobay\.org\/<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/wahoobay\.org\/sign-in\/<\/loc>/);
   assert.ok((xml.match(/<loc>/g)?.length ?? 0) > 200, 'the other pages are all still there');
 });

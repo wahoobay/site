@@ -7,6 +7,6 @@ test('the staging robots file blocks everything', () => {
 });
 
 test('the real robots file does not, even with a partial Disallow', () => {
-  assert.equal(robotsBlocksEverything('User-agent: *\nAllow: /\nSitemap: https://wahoobay.net/sitemap.xml\n'), false);
+  assert.equal(robotsBlocksEverything('User-agent: *\nAllow: /\nSitemap: https://wahoobay.org/sitemap.xml\n'), false);
   assert.equal(robotsBlocksEverything('User-agent: *\nDisallow: /wp-admin/\n'), false);
 });

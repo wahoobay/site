@@ -1,7 +1,7 @@
 // Run after `npm run build`: these tests read the built site in dist/.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
 const navOf = (html) => html.match(/<nav\b[\s\S]*?<\/nav>/)?.[0] ?? '';
 const DONATE = 'https://www.zeffy.com/en-US/donation-form/together-for-tomorrow-2';
@@ -50,8 +50,8 @@ test('every page starts with a skip link to the main content', () => {
 
 test('the home page has a canonical URL; the 404 page is noindex and names none', () => {
   const home = readFileSync('dist/index.html', 'utf8');
-  assert.match(home, /<link rel="canonical" href="https:\/\/wahoobay\.net\/">/);
-  assert.match(home, /<meta property="og:url" content="https:\/\/wahoobay\.net\/">/);
+  assert.match(home, /<link rel="canonical" href="https:\/\/wahoobay\.org\/">/);
+  assert.match(home, /<meta property="og:url" content="https:\/\/wahoobay\.org\/">/);
   assert.doesNotMatch(home, /name="robots"/);
   const notFound = readFileSync('dist/404.html', 'utf8');
   assert.match(notFound, /<meta name="robots" content="noindex">/);
@@ -75,5 +75,21 @@ test('dist/robots.txt is the allow version, naming the sitemap', () => {
   const text = readFileSync('dist/robots.txt', 'utf8');
   assert.doesNotMatch(text, /^Disallow:\s*\/\s*$/m);
   assert.match(text, /^Allow: \/$/m);
-  assert.match(text, /^Sitemap: https:\/\/wahoobay\.net\/sitemap-index\.xml$/m);
+  assert.match(text, /^Sitemap: https:\/\/wahoobay\.org\/sitemap-index\.xml$/m);
+});
+
+test('the site\'s address is wahoobay.org: the sitemap, and wahoobay.net only for the hosts that stay there', () => {
+  // Spec amendment 2026-11-02: wahoobay.net redirects to wahoobay.org from the cutover; the Java API (api.), the fish-ID
+  // app (ai., staging-ai.) stay on wahoobay.net, and the sighting page's no-script line names the old form's address.
+  // Lower case only: "WahooBay.net portal" in the About page's timeline is the old portal's name, history, not an address.
+  assert.match(readFileSync('dist/sitemap-0.xml', 'utf8'), /<loc>https:\/\/wahoobay\.org\/<\/loc>/);
+  assert.doesNotMatch(readFileSync('dist/sitemap-0.xml', 'utf8'), /wahoobay\.net/);
+  const stay = new Set(['api.wahoobay.net', 'ai.wahoobay.net', 'staging-ai.wahoobay.net']);
+  const OLD = 'https://wahoobay.net/pages/intake/report';
+  const stray = [];
+  for (const file of readdirSync('dist', { recursive: true }).filter((f) => /\.(html|xml|txt|js|json)$/.test(f))) {
+    const text = readFileSync(`dist/${file}`, 'utf8').replaceAll(OLD, '');
+    for (const [host] of text.matchAll(/[a-z0-9.-]*wahoobay\.net/g)) if (!stay.has(host)) stray.push(`${file}: ${host}`);
+  }
+  assert.deepEqual(stray, []);
 });

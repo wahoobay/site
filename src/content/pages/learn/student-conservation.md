@@ -24,7 +24,7 @@ No lab experience needed. A [standard protocol](/docs/oyster-search-sop.pdf), a 
 3. **Score abundance:** Rate each species' cover with simple Braun-Blanquet scores from 0.1 (very rare) to 5 (over 75% cover) using a visual key.
 4. **Photograph & submit:** Photos plus the one-page datasheet (site, coordinates, substrate, scores) go to the FGCU research team.
 
-<!-- katie: review: "Log a Sighting" now goes to this site's sighting form (/live/log-a-sighting/), which sends to the same review queue as the old site's form; the old form's address redirects there once wahoobay.net moves to this site. -->
+<!-- katie: review: "Log a Sighting" now goes to this site's sighting form (/live/log-a-sighting/), which sends to the same review queue as the old site's form; the old form's address redirects there from the cutover. -->
 - [Download the datasheet (PDF)](/docs/oyster-survey-datasheet.pdf)
 - [Species ID guide (PDF)](/docs/oyster-species-id-guide.pdf)
 - [Log a Sighting](/live/log-a-sighting/)
