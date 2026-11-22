@@ -15,6 +15,11 @@ test('staging verify expects 401 without credentials on three HTML pages', () =>
   assert.match(yml, /"https:\/\/\$HOST\$page"\)" = "401"/);
 });
 
+test('staging verify expects every staging-only folder to answer without credentials', () => {
+  assert.match(yml, /for dir in staging-only\/\*\/; do/);
+  assert.match(yml, /"https:\/\/\$HOST\/\$\{dir#staging-only\/\}"\)" = "200"/);
+});
+
 test('staging verify authenticates as wahoobay and keeps the secret out of the log', () => {
   assert.match(yml, /wahoobay:\$AUTH/);
   assert.doesNotMatch(yml, /shipwreck/i);

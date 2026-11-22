@@ -5,6 +5,8 @@ set -euo pipefail
 ENV_NAME="${1:?usage: deploy.sh staging|prod}"
 : "${BUCKET:?}" "${DISTRIBUTION_ID:?}" "${KVS_ARN:?}"
 test -f dist/index.html || { echo "dist/ is missing; run npm run build first" >&2; exit 1; }
+# Folders of staging-only/ pages, which the staging router serves without the password (filled in below).
+PUBLIC_FOLDERS=""
 
 # Staging must never be indexable: write its robots.txt into the build output BEFORE the syncs, so the
 # production file is never served from staging, not even briefly or after a failed later step.
@@ -17,6 +19,21 @@ if [ "$ENV_NAME" = "staging" ]; then
     exit 1
   fi
   printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
+
+  # Pages under staging-only/ are prototypes for review (README "Staging-only pages"): they join the build
+  # output here, after the build, tests, design check and link check have run on the site alone, so they
+  # reach staging and never production. None may take the path of a built file (a page, or robots.txt).
+  if [ -d staging-only ]; then
+    while IFS= read -r -d '' f; do
+      if [ -e "dist/${f#staging-only/}" ]; then
+        echo "$f has the same path as a file the site builds; staging-only pages must not replace one" >&2
+        exit 1
+      fi
+    done < <(find staging-only -type f -print0)
+    cp -R staging-only/. dist/
+    # The repository already publishes these pages, so staging serves their folders without the password too.
+    PUBLIC_FOLDERS="$(find staging-only -mindepth 1 -maxdepth 1 -type d ! -name '.*' -exec basename {} \; | sort | tr '\n' ' ')"
+  fi
 fi
 
 # Long-lived assets first (excluding the short-lived document types), then the documents. Both passes
@@ -28,5 +45,5 @@ aws s3 sync dist "s3://$BUCKET" --delete --only-show-errors \
   --exclude '*' --include '*.html' --include '*.xml' --include '*.txt' --include '*.json' \
   --cache-control 'public, max-age=300'
 
-KVS_ARN="$KVS_ARN" node scripts/sync-redirects.mjs
+KVS_ARN="$KVS_ARN" PUBLIC_FOLDERS="$PUBLIC_FOLDERS" node scripts/sync-redirects.mjs
 aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths '/*' --query 'Invalidation.Id' --output text
