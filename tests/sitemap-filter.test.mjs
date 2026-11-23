@@ -19,6 +19,11 @@ test('the filter keeps every other page, even one whose address only looks like 
   }
 });
 
+test('the filter leaves out the unlisted pages (src/lib/unlisted.mjs), the donors\' thank-you page among them', () => {
+  assert.equal(sitemapFilter(`${SITE}/get-involved/support/thank-you/`), false);
+  assert.equal(sitemapFilter(`${SITE}/get-involved/support/`), true);
+});
+
 test('astro.config.mjs gives the filter to the sitemap', () => {
   const config = readFileSync('astro.config.mjs', 'utf8');
   assert.match(config, /^import \{ sitemapFilter \} from '\.\/src\/lib\/sitemap-filter\.mjs';$/m);
