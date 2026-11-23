@@ -51,6 +51,7 @@
   {"from":"/pages/stories","to":"/about/"},
   {"from":"/pages/student-conservation","to":"/learn/student-conservation/"},
   {"from":"/pages/support-us","to":"/get-involved/support/"},
+  {"from":"/pages/thank-you","to":"/get-involved/support/thank-you/"},
   {"from":"/pages/underwater-camera","to":"/live/"},
   {"from":"/pages/ways-to-visit","to":"/visit/"},
   {"from":"/pages/what-is-ambassador","to":"/get-involved/ambassadors/"}
