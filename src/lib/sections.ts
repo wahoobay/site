@@ -1,5 +1,6 @@
 // The pages collection's addresses and its "In this section" lists.
 import { getCollection, type CollectionEntry } from 'astro:content';
+import { isUnlisted } from './unlisted.mjs';
 
 export type PageEntry = CollectionEntry<'pages'>;
 
@@ -14,9 +15,15 @@ export const sectionLead: Partial<Record<PageEntry['data']['section'], { href: s
   learn: { href: '/learn/', label: 'Educational resources' },
 };
 
-/** The pages of one section, in their `order` (pages without one go last, then by title). */
+/**
+ * The pages of one section, in their `order` (pages without one go last, then by title), less its unlisted pages
+ * (src/lib/unlisted.mjs).
+ */
 export async function sectionPages(section: PageEntry['data']['section']) {
-  const pages = await getCollection('pages', (entry) => entry.data.section === section);
+  const pages = await getCollection(
+    'pages',
+    (entry) => entry.data.section === section && !isUnlisted(urlOf(entry)),
+  );
   return pages.sort(
     (a, b) =>
       (a.data.order ?? Infinity) - (b.data.order ?? Infinity) || a.data.title.localeCompare(b.data.title),

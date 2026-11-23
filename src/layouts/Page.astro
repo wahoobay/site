@@ -8,6 +8,7 @@ import SectionNav from '../components/SectionNav.astro';
 import { urlOf, type PageEntry } from '../lib/sections';
 import { mediaClass } from '../lib/media.mjs';
 import { fillFigures } from '../lib/figures';
+import { isUnlisted, parentOf } from '../lib/unlisted.mjs';
 
 interface Props {
   entry: PageEntry;
@@ -16,6 +17,9 @@ interface Props {
 const { entry } = Astro.props;
 const { title, description, section, hero, heroPosition, actions = [] } = entry.data;
 const here = urlOf(entry);
+// An unlisted page (src/lib/unlisted.mjs) is noindex and, being in no list, has its section navigation mark the page
+// it sits under (the donors' thank-you page marks Support us).
+const unlisted = isUnlisted(here);
 
 // The description doubles as the lead paragraph, unless the body already says it (then it would read twice).
 const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
@@ -27,10 +31,10 @@ const html = hasBody ? fillFigures(await Astro.slots.render('default')) : '';
 // A button to another site opens in a new tab and says so, like the nav's Donate.
 const isExternal = (href: string) => /^https?:\/\//.test(href);
 ---
-<Base title={title} description={description} image={hero}>
+<Base title={title} description={description} image={hero} noindex={unlisted}>
   <div class="wb-container site-article">
     {hero && <img class={`${mediaClass(heroPosition)} site-article__hero`} src={hero} alt="" fetchpriority="high">}
-    <SectionNav section={section} here={here} />
+    <SectionNav section={section} here={here} under={unlisted ? parentOf(here) : undefined} />
     <h1>{title}</h1>
     {showLead && <p class="wb-lead">{description}</p>}
     {actions.length > 0 && (

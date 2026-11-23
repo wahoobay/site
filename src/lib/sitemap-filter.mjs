@@ -1,6 +1,8 @@
 // What @astrojs/sitemap lists (astro.config.mjs): every page but the sighting review's, which is noindex and
-// disallowed in public/robots.txt as well (tests/sitemap-filter.test.mjs).
+// disallowed in public/robots.txt as well, and the unlisted pages (src/lib/unlisted.mjs), which are noindex
+// (tests/sitemap-filter.test.mjs).
 import { ADMIN_BASE } from './admin/routes.mjs';
+import { isUnlisted } from './unlisted.mjs';
 
 /**
  * Whether the sitemap names the page at `page`, a full URL as the integration passes it.
@@ -8,5 +10,5 @@ import { ADMIN_BASE } from './admin/routes.mjs';
  */
 export const sitemapFilter = (page) => {
   const path = new URL(page).pathname;
-  return !(path.startsWith(ADMIN_BASE) || `${path}/` === ADMIN_BASE);
+  return !(path.startsWith(ADMIN_BASE) || `${path}/` === ADMIN_BASE || isUnlisted(path));
 };
