@@ -331,13 +331,19 @@ main { flex: 1 0 auto; }
   display: block;
   margin: var(--wb-space-1) 0 0;
 }
-/* The home band's: a grid item of the band, under the still from 48rem (the band's gap above it), its panels a step
-   apart and its four tiles two a row, so no row has an empty slot; four side by side only in a panel at least 36rem
-   wide, where a tile is some 8.25rem, enough for "Turbidity" and "2.8 FNU" at the largest value size. The panel is
-   the container: from 48rem it sits in the band's narrower column, where four tiles were 70 to 120px and overflowed. */
+/* The home band's: a grid item of the band, its panels a step apart and its four tiles two a row, so no row has an
+   empty slot; four side by side only in a panel at least 36rem wide, where a tile is some 8.25rem, enough for
+   "Turbidity" and "2.8 FNU" at the largest value size. The panel is the container. From 48rem it spans the band, under
+   the still and the words (the band's gap above it), as wide as the band: in the still's column it was 32.5rem at
+   1440 and its tiles two a row (Dan, 2026-11-24: four across). A descendant selector: the island's <astro-island>
+   wrapper is display: contents, so the panels are the band's grid item without being its child. */
 .site-live-now--compact {
   gap: var(--wb-space-5);
+  max-width: none;
   margin-top: 0;
+}
+@media (min-width: 48rem) {
+  .wb-band__inner .site-live-now--compact { grid-column: 1 / -1; }
 }
 .site-live-now--compact .site-live-now__panel { container-type: inline-size; }
 @container (min-width: 36rem) {

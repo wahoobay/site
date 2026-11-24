@@ -477,6 +477,19 @@ test('site.css: the band\'s tiles are two a row, four only in a panel at least 3
   for (const [, body] of css.matchAll(/@media[^{]*\{([\s\S]*?\})\s*\}/g)) assert.doesNotMatch(body, /--compact \.site-live-now__tiles/);
 });
 
+// Dan (2026-11-24): the band's water panel should be four across. In the still's column it was 32.5rem at 1440 (four
+// tiles of 121px, and "2.8 FNU" overflowed), so from 48rem the right-now panels take the band's whole width, under the
+// still and the words: the water panel is then wider than 36rem at every width from 48rem, and the rule above sets its
+// tiles four across. Phones keep two a row.
+test('site.css: from 48rem the band\'s right-now panels span the band, under the still and the words, as wide as it', () => {
+  const css = LIVE_CSS();
+  // A descendant, not a child: the island's <astro-island> wrapper is display: contents, so the panels are the band's
+  // grid item without being its child.
+  assert.match(css, /@media \(min-width: 48rem\)\s*\{\s*\.wb-band__inner \.site-live-now--compact\s*\{\s*grid-column:\s*1 \/ -1;\s*\}\s*\}/);
+  const compact = css.match(/(?:^|\})\s*\.site-live-now--compact\s*\{([^}]*)\}/)?.[1] ?? '';
+  assert.match(compact, /max-width:\s*none/, 'not held to the live page\'s 60rem');
+});
+
 test('video.mjs builds the nocookie address the YouTube component and the player share', () => {
   assert.equal(embedUrl('oBTGY6Ax870'), 'https://www.youtube-nocookie.com/embed/oBTGY6Ax870');
   assert.equal(embedUrl('PLDuZ7tdc3LUCZh0F45bTNuC-LkgCVjyTG', { playlist: true }), 'https://www.youtube-nocookie.com/embed/videoseries?list=PLDuZ7tdc3LUCZh0F45bTNuC-LkgCVjyTG&rel=0');
