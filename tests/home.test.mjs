@@ -118,7 +118,7 @@ const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // Katie in its component.
 const HEADLINE = 'The reef<br>is live.';
 const TAG = 'Live from the reef · Pompano Beach, FL';
-const LEAD = 'Swim and snorkel the Wahoo Bay reef in Pompano Beach, or watch it live from anywhere.';
+const LEAD = 'Swim and snorkel the Wahoo Bay reef in Pompano Beach, or watch and study it live from anywhere.';
 const TICKER = ['Visit', 'Swim', 'Snorkel', 'Jump in', 'Explore', 'Learn', 'Watch', 'Discover', 'Participate', 'Volunteer', 'Contribute', 'Protect'];
 // The six swimmers in the hero's water, by their Latin names, with their drawings (Dan, 2026-11-24: more and varied
 // species, only ones on our species list). Their labels are the site's species list's names (the explorer's,
