@@ -132,7 +132,7 @@ test('the home page is dark throughout; the reading pages stay light', () => {
   for (const file of ['dist/about/index.html', 'dist/visit/index.html', 'dist/learn/index.html', 'dist/404.html'])
     assert.doesNotMatch(readFileSync(file, 'utf8'), /<html\b[^>]*data-theme=/, file);
   const installed = JSON.parse(readFileSync('node_modules/@wahoobay/design/package.json', 'utf8')).version;
-  assert.equal(installed, '0.5.0', 'the Jump In brand is @wahoobay/design 0.5.0');
+  assert.match(installed, /^0\.5\.\d+$/, 'the Jump In brand is @wahoobay/design 0.5 (the pin itself: tests/nav.test.mjs)');
 });
 
 test('home opens on the hero: the tag, "The reef is live.", the lead, Plan your visit first, then Watch live', () => {

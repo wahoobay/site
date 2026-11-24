@@ -57,16 +57,16 @@ test('the built nav links Fish ID to this build\'s address, in a new tab with th
 // The pin was 0.4.0 for plan 9 (the sighting review): its table, pager, dialog, toolbar and status chip. It is 0.4.1 since
 // that review's finish: the status chip that never wraps (shown and hidden too), the long-text cell, the grave button.
 // It is 0.5.0, the Jump In brand (the dark theme, Inter and Bricolage Grotesque, the hero and the ticker), tagged
-// 2026-11-24 (design #2).
-test('on phones the nav\'s links wrap onto rows instead of scrolling (@wahoobay/design 0.1.4 or later; pinned 0.5.0)', () => {
+// 2026-11-24 (design #2), then 0.5.1, the logo 20% larger (design #3).
+test('on phones the nav\'s links wrap onto rows instead of scrolling (@wahoobay/design 0.1.4 or later; pinned 0.5.1)', () => {
   const design = readFileSync('node_modules/@wahoobay/design/dist/components.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const phone = design.match(/@media \(max-width: 30rem\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
   assert.match(phone, /\.wb-nav__links\s*\{[^}]*flex-wrap:\s*wrap[^}]*overflow:\s*visible/, '@wahoobay/design 0.1.4 or later');
-  assert.match(readFileSync('package.json', 'utf8'), /"@wahoobay\/design": "github:wahoobay\/design#v0\.5\.0"/);
+  assert.match(readFileSync('package.json', 'utf8'), /"@wahoobay\/design": "github:wahoobay\/design#v0\.5\.1"/);
   const lock = JSON.parse(readFileSync('package-lock.json', 'utf8')).packages['node_modules/@wahoobay/design'];
-  assert.equal(lock.version, '0.5.0', 'the lockfile names 0.5.0');
-  assert.match(lock.resolved, /^git\+ssh:\/\/git@github\.com\/wahoobay\/design\.git#3faa0f853c1680ffe1339f95983d66d545f93575$/, 'at the tag\'s commit');
-  assert.equal(JSON.parse(readFileSync('node_modules/@wahoobay/design/package.json', 'utf8')).version, '0.5.0', 'npm install after the bump');
+  assert.equal(lock.version, '0.5.1', 'the lockfile names 0.5.1');
+  assert.match(lock.resolved, /^git\+ssh:\/\/git@github\.com\/wahoobay\/design\.git#ca34ee97e6cac4295e9a2fd0c718fdfdb2df5db8$/, 'at the tag\'s commit');
+  assert.equal(JSON.parse(readFileSync('node_modules/@wahoobay/design/package.json', 'utf8')).version, '0.5.1', 'npm install after the bump');
 });
 
 // The home page's stage (Task 2): the nav lies over the top of the photograph, transparent, its links white
