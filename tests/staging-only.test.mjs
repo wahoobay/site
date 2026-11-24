@@ -39,6 +39,23 @@ test('the Jump In prototype plays the SeaHIVE camera\'s YouTube live stream in i
   assert.match(html, /<div class="site-band__still">\s*<div class="wb-video site-video">\s*<iframe\b/);
 });
 
+// A browser asks for /favicon.ico (Safari also /apple-touch-icon.png) unless the page names its icon, and on staging
+// those paths are behind the password: the browser then shows a login prompt over a page that needs none (Dan,
+// 2026-11-24). Each page names its icon inline.
+test('every staging-only page names its icon inline, so the browser never asks staging for one behind the password', () => {
+  for (const page of pages) {
+    const html = readFileSync(page, 'utf8');
+    assert.match(html, /<link rel="icon"[^>]*\shref="data:image\//, `${page}: an inline icon`);
+    assert.doesNotMatch(html, /<link rel="(?:icon|apple-touch-icon|shortcut icon)"[^>]*\shref="(?!data:)/, `${page}: no icon fetched from the site`);
+  }
+  assert.match(readFileSync(join(root, 'jump-in/index.html'), 'utf8'), /<link rel="apple-touch-icon" href="data:image\/png;base64,/, 'jump-in: Safari\'s touch icon inline too');
+});
+
+test('the Jump In prototype opens on the pier clip hero; ?hero=drawn shows the drawn one', () => {
+  const html = readFileSync(join(root, 'jump-in/index.html'), 'utf8');
+  assert.match(html, /r\.hero = p\.get\('hero'\) === 'drawn' \? 'drawn' : 'clip';/);
+});
+
 test('the reef-logbook mockup is a staging-only page', () => {
   assert.ok(pages.includes(join(root, 'reef-logbook/index.html')), pages.join(', '));
 });
