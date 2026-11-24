@@ -56,21 +56,6 @@ export function usePageHidden(): boolean {
 }
 
 /**
- * Whether an element is on screen (any of it in the viewport), as an IntersectionObserver reports it, and the callback
- * ref to put on the element; false until it is observed. The home band's player uses it to stream only while it shows.
- */
-export function useOnScreen(): [boolean, (element: Element | null) => (() => void) | undefined] {
-  const [onScreen, setOnScreen] = useState(false);
-  const ref = useCallback((element: Element | null) => {
-    if (!element) return undefined;
-    const observer = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting));
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  return [onScreen, ref];
-}
-
-/**
  * An element's size as a ResizeObserver reports it (a chart's SVG, drawn at the size it is shown so its axis text
  * keeps its token size), and the ref to put on the element; null until it is measured. No size (the element between
  * layouts) is not a measurement. Used by LiveNow and SpeciesLive.

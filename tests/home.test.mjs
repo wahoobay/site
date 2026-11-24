@@ -285,9 +285,9 @@ test('the live band, the Watch chapter, links to the camera, Fish ID and the ree
   assert.match(band, new RegExp(`href="${escapeRe(AI_URL)}"`));
   assert.match(band, /href="\/live\/highlights\/"/);
   assert.doesNotMatch(band, /min ago|°C/); // no sample data in production
-  // The band plays the live camera (LivePlayer, tests/live.test.mjs), which shows the still until it knows the status;
-  // the badge sits on its corner in the band's still box (layout CSS, .site-band__still).
-  assert.match(band, /<div class="site-band__still">[\s\S]*?<astro-island\b[^>]*LivePlayer[\s\S]*?\bsrc="\/images\/learn\/wb-camera\.jpg"[\s\S]*?<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>/);
+  // The band plays the SeaHIVE camera's YouTube live stream (tests/live.test.mjs); the badge sits on its corner in the
+  // band's still box (layout CSS, .site-band__still).
+  assert.match(band, /<div class="site-band__still">\s*<div class="wb-video site-video">\s*<iframe src="https:\/\/www\.youtube-nocookie\.com\/embed\/oBTGY6Ax870\?[\s\S]*?<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>/);
   const design = readFileSync('node_modules/@wahoobay/design/dist/components.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(design, /\.wb-video\s*\{[^}]*position:\s*relative/, '@wahoobay/design 0.3.0 positions .wb-video');
   const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');

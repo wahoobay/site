@@ -16,15 +16,44 @@ test('every staging-only page asks not to be indexed', () => {
   }
 });
 
-test('staging-only pages load no script, style, font or image from another origin', () => {
+// The one exception (Dan, 2026-11-24): a YouTube embed from youtube-nocookie.com, the privacy-enhanced embed the site's
+// live pages and home band use, so a prototype can show the SeaHIVE camera live.
+const NOCOOKIE_EMBED = /<iframe\b[^>]*\ssrc="https:\/\/www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]+(?:\?[^"]*)?"[^>]*>/gi;
+
+test('staging-only pages load no script, style, font or image from another origin; a nocookie YouTube embed is the one exception', () => {
   for (const page of pages) {
-    const html = readFileSync(page, 'utf8');
+    const html = readFileSync(page, 'utf8').replace(NOCOOKIE_EMBED, '');
     assert.doesNotMatch(html, /<script[^>]*\ssrc=/i, `${page}: inline scripts only`);
     assert.doesNotMatch(html, /<link[^>]*\shref="(?:https?:)?\/\//i, `${page}: no remote stylesheet or font`);
     assert.doesNotMatch(html, /<(?:img|source|iframe|video|audio)[^>]*\ssrc="(?:https?:)?\/\//i, `${page}: no remote media`);
     assert.doesNotMatch(html, /url\(\s*['"]?(?:https?:)?\/\//i, `${page}: no remote CSS url()`);
     assert.doesNotMatch(html, /@import/i, `${page}: no CSS @import`);
   }
+});
+
+test('the Jump In prototype plays the SeaHIVE camera\'s YouTube live stream in its live band, its one embed', () => {
+  const html = readFileSync(join(root, 'jump-in/index.html'), 'utf8');
+  const frames = html.match(/<iframe\b[^>]*>/gi) ?? [];
+  assert.equal(frames.length, 1, 'one embed');
+  assert.match(frames[0], /\ssrc="https:\/\/www\.youtube-nocookie\.com\/embed\/oBTGY6Ax870\?autoplay=1&amp;mute=1&amp;playsinline=1"/);
+  assert.match(html, /<div class="site-band__still">\s*<div class="wb-video site-video">\s*<iframe\b/);
+});
+
+// A browser asks for /favicon.ico (Safari also /apple-touch-icon.png) unless the page names its icon, and on staging
+// those paths are behind the password: the browser then shows a login prompt over a page that needs none (Dan,
+// 2026-11-24). Each page names its icon inline.
+test('every staging-only page names its icon inline, so the browser never asks staging for one behind the password', () => {
+  for (const page of pages) {
+    const html = readFileSync(page, 'utf8');
+    assert.match(html, /<link rel="icon"[^>]*\shref="data:image\//, `${page}: an inline icon`);
+    assert.doesNotMatch(html, /<link rel="(?:icon|apple-touch-icon|shortcut icon)"[^>]*\shref="(?!data:)/, `${page}: no icon fetched from the site`);
+  }
+  assert.match(readFileSync(join(root, 'jump-in/index.html'), 'utf8'), /<link rel="apple-touch-icon" href="data:image\/png;base64,/, 'jump-in: Safari\'s touch icon inline too');
+});
+
+test('the Jump In prototype opens on the pier clip hero; ?hero=drawn shows the drawn one', () => {
+  const html = readFileSync(join(root, 'jump-in/index.html'), 'utf8');
+  assert.match(html, /r\.hero = p\.get\('hero'\) === 'drawn' \? 'drawn' : 'clip';/);
 });
 
 test('the reef-logbook mockup is a staging-only page', () => {

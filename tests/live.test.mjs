@@ -20,7 +20,7 @@ import {
   statusOf,
   tiles,
 } from '../src/lib/live.mjs';
-import { embedUrl } from '../src/lib/video.mjs';
+import { embedUrl, EMBED_ALLOW, EMBED_ALLOW_AUTOPLAY } from '../src/lib/video.mjs';
 import { groupItems } from '../src/lib/prose-groups.mjs';
 import { emptyText } from '../src/lib/public-api.mjs';
 
@@ -494,6 +494,10 @@ test('video.mjs builds the nocookie address the YouTube component and the player
   assert.equal(embedUrl('oBTGY6Ax870'), 'https://www.youtube-nocookie.com/embed/oBTGY6Ax870');
   assert.equal(embedUrl('PLDuZ7tdc3LUCZh0F45bTNuC-LkgCVjyTG', { playlist: true }), 'https://www.youtube-nocookie.com/embed/videoseries?list=PLDuZ7tdc3LUCZh0F45bTNuC-LkgCVjyTG&rel=0');
   assert.equal(embedUrl('a b&c'), 'https://www.youtube-nocookie.com/embed/a%20b%26c');
+  // The home band's live stream (Dan, 2026-11-24): muted, inline, starting by itself, the one embed that does.
+  assert.equal(embedUrl('oBTGY6Ax870', { autoplay: true }), 'https://www.youtube-nocookie.com/embed/oBTGY6Ax870?autoplay=1&mute=1&playsinline=1');
+  assert.equal(EMBED_ALLOW_AUTOPLAY, `${EMBED_ALLOW}; autoplay`);
+  assert.doesNotMatch(EMBED_ALLOW, /autoplay/, 'every other embed waits to be played');
   assert.match(readFileSync('src/components/YouTube.astro', 'utf8'), /import \{[^}]*\bembedUrl\b[^}]*\} from '\.\.\/lib\/video\.mjs'/);
 });
 
@@ -591,43 +595,30 @@ test('/live/ is dark, has no map, and no longer says "Live" before it knows', ()
   assert.doesNotMatch(html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '', /class="wb-live/, 'the badge is drawn once the status is known');
 });
 
-// Dan (2026-11-24): the band plays the live camera, the fish-ID stream with its boxes, as /live/ does, in place of the
-// still. Only while the band is on screen (onScreenOnly) and the tab is showing: every home visit would otherwise stream
-// video from the fish-ID app, the budget line that grows with traffic (PRODUCT.md).
-test('home: the live band plays the live camera, on screen only, the badge on its corner, then LiveNow compact', () => {
+// Dan (2026-11-24): the band plays the SeaHIVE camera's live stream, the YouTube live (the camera page's video), muted
+// and starting by itself: the fish-ID stream's predictions were too slow, and on staging that stream replays the pier
+// clip. YouTube carries its bandwidth. The iframe loads lazily, so it starts as the band nears the screen; YouTube's
+// own controls pause it (WCAG 2.2.2). The badge stays on its corner; the panels follow the words.
+test('home: the live band plays the SeaHIVE YouTube live stream, muted, the badge on its corner, then LiveNow compact', () => {
   const html = home();
   const band = html.match(/<section class="wb-band[^"]*" data-theme="dark"[\s\S]*?<\/section>/)?.[0] ?? '';
   const islands = islandsOf(band);
-  assert.deepEqual(islands.map((i) => [i.name, i.client]), [['LivePlayer', 'visible'], ['LiveBadge', 'load'], ['LiveNow', 'visible']]);
-  assert.deepEqual(islands[0].props, { camera: REEF_CAMERA, ai: AI_URL, embedId: 'oBTGY6Ax870', title: 'SeaHIVE reef camera, live stream', onScreenOnly: true });
-  assert.deepEqual(islands[1].props, { camera: REEF_CAMERA });
-  assert.deepEqual(islands[2].props, { camera: REEF_CAMERA, compact: true });
-  assert.equal(islandsOf(html).filter((i) => i.name === 'LivePlayer').length, 1, 'one player on the page');
-  // Built, before the status is known, the player is the still in its frame: no stream, no embed.
-  assert.doesNotMatch(html, /stream_raw\.mjpeg|<iframe/);
-  // The player and the badge share the band's still box, the badge on its top left corner; without script, the still.
-  // Astro puts each client directive's loader before the first island that uses it.
-  assert.match(band, /<div class="site-band__still">\s*(?:<(script|style)>[\s\S]*?<\/\1>)*<astro-island\b[^>]*LivePlayer[\s\S]*?<\/astro-island>\s*(?:<script>[\s\S]*?<\/script>)*<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>\s*<noscript><div class="wb-video"><img src="\/images\/learn\/wb-camera\.jpg"[^>]*\balt="The SeaHIVE reef camera"[^>]*><\/div><\/noscript>\s*<\/div>/);
-  assert.ok(band.indexOf('site-band__words') < islands[2].at, 'LiveNow follows the words');
-  assert.doesNotMatch(band, /whether or not the stream is up/);
+  assert.deepEqual(islands.map((i) => [i.name, i.client]), [['LiveBadge', 'load'], ['LiveNow', 'visible']]);
+  assert.deepEqual(islands[0].props, { camera: REEF_CAMERA });
+  assert.deepEqual(islands[1].props, { camera: REEF_CAMERA, compact: true });
+  assert.equal(islandsOf(html).filter((i) => i.name === 'LivePlayer').length, 0, 'no fish-ID player on the home page');
+  assert.doesNotMatch(html, /stream_raw\.mjpeg/);
+  const still = band.match(/<div class="site-band__still">([\s\S]*?)<\/div>\s*<div class="site-band__words">/)?.[1] ?? '';
+  assert.match(still, /^<div class="wb-video site-video">\s*<iframe src="https:\/\/www\.youtube-nocookie\.com\/embed\/oBTGY6Ax870\?autoplay=1&amp;mute=1&amp;playsinline=1" title="SeaHIVE reef camera, live stream" loading="lazy" allow="[^"]*; autoplay" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"><\/iframe>\s*<\/div>/);
+  assert.match(still, /<astro-island\b[^>]*LiveBadge/, 'the badge on the player');
+  assert.equal(html.match(/<iframe\b/g)?.length, 1, 'one embed on the page');
+  assert.ok(band.indexOf('site-band__words') < islands[1].at, 'LiveNow follows the words');
   const css = LIVE_CSS();
   assert.match(css, /\.site-band__still\s*\{\s*position:\s*relative;\s*\}/, 'the badge is placed in the still box');
   assert.match(css, /\.site-band__still \.site-video\s*\{\s*max-width:\s*none;\s*margin-top:\s*0;\s*\}/, 'the player fills the box, with no gap above');
 });
 
-test('LivePlayer, with onScreenOnly, pauses off screen as it does in a hidden tab: the still, no stream, no polls (useOnScreen)', () => {
-  const src = read('src/islands/LivePlayer.tsx');
-  assert.match(src, /onScreenOnly\?: boolean;/);
-  assert.match(src, /const \[onScreen, observe\] = useOnScreen\(\);/);
-  assert.match(src, /const paused = hidden \|\| \(onScreenOnly === true && !onScreen\);/);
-  // Every place the hidden tab stopped the stream, the polls and the probe, the paused player stops them too.
-  const code = src.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, '');
-  assert.deepEqual(code.split('\n').filter((l) => /\bhidden\b/.test(l)).map((l) => l.trim()),
-    ['const hidden = usePageHidden();', 'const paused = hidden || (onScreenOnly === true && !onScreen);'], 'no other use of hidden');
-  assert.match(src, /paused: paused/);
-  // The observed box: a wrapper only where it is needed, so /live/'s player is as it was.
-  assert.match(src, /return onScreenOnly \? <div ref=\{observe\}>\{player\}<\/div> : player;/);
-  const shared = read('src/islands/live-shared.ts');
-  assert.match(shared, /export function useOnScreen\(\): \[boolean, \(element: Element \| null\) => \(\(\) => void\) \| undefined\]/);
-  assert.match(shared, /new IntersectionObserver\(/);
+test('LivePlayer and live-shared carry no on-screen option: only /live/ plays the fish-ID stream', () => {
+  assert.doesNotMatch(read('src/islands/LivePlayer.tsx'), /onScreenOnly|useOnScreen/);
+  assert.doesNotMatch(read('src/islands/live-shared.ts'), /useOnScreen|IntersectionObserver/);
 });

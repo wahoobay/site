@@ -1,8 +1,9 @@
 ---
 // A YouTube video, or with `playlist` a playlist, from youtube-nocookie.com: no cookies until it plays, and it never
-// starts by itself. In the design's 16:9 video frame. Only the Live reef pages embed video. The address is
-// src/lib/video.mjs's, which the live camera's player embeds too.
-import { EMBED_ALLOW, embedUrl } from '../lib/video.mjs';
+// starts by itself, except with `autoplay` (the home page's live band only: muted, starting as it nears the screen, the
+// frame loading lazily). In the design's 16:9 video frame. The address is src/lib/video.mjs's, which the live camera's
+// player embeds too.
+import { EMBED_ALLOW, EMBED_ALLOW_AUTOPLAY, embedUrl } from '../lib/video.mjs';
 
 interface Props {
   /** The video's id, or the playlist's with `playlist`. */
@@ -10,17 +11,19 @@ interface Props {
   /** What the frame shows, for screen readers. */
   title: string;
   playlist?: boolean;
+  /** Muted, starting by itself: the home band's live stream only. */
+  autoplay?: boolean;
 }
 
-const { id, title, playlist = false } = Astro.props;
-const src = embedUrl(id, { playlist });
+const { id, title, playlist = false, autoplay = false } = Astro.props;
+const src = embedUrl(id, { playlist, autoplay });
 ---
 <div class="wb-video site-video">
   <iframe
     src={src}
     title={title}
     loading="lazy"
-    allow={EMBED_ALLOW}
+    allow={autoplay ? EMBED_ALLOW_AUTOPLAY : EMBED_ALLOW}
     allowfullscreen
     referrerpolicy="strict-origin-when-cross-origin"
   ></iframe>
