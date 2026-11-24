@@ -71,3 +71,9 @@ test('the old interactive URLs and /pages/about, /pages/donate land on their new
   for (const [from, target] of Object.entries(required)) assert.equal(to(from), target, from);
   assert.equal(to('/pages/ai'), undefined, '/pages/ai awaits Katie');
 });
+
+test('the address Zeffy sends donors to, /pages/thank-you, lands on the new thank-you page', () => {
+  // Katie gives Zeffy https://wahoobay.net/pages/thank-you; after the cutover wahoobay.net keeps the path on its 301
+  // to wahoobay.org, and this entry takes it on to the page, so the Zeffy setting never changes.
+  assert.equal(to('/pages/thank-you'), '/get-involved/support/thank-you/');
+});
