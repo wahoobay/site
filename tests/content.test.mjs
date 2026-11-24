@@ -93,8 +93,9 @@ test('every design token used under src/ exists in the design system', () => {
   }
 });
 
-test('no built page embeds an iframe except the live pages and the data dashboards, and none uses onclick=', () => {
-  const allowed = new Set(['dist/live/index.html', 'dist/live/highlights/index.html', 'dist/live/data/index.html']);
+// The home page's live band embeds the SeaHIVE camera's YouTube live stream (Dan, 2026-11-24; tests/live.test.mjs).
+test('no built page embeds an iframe except the live pages, the data dashboards and the home band\'s live stream, and none uses onclick=', () => {
+  const allowed = new Set(['dist/index.html', 'dist/live/index.html', 'dist/live/highlights/index.html', 'dist/live/data/index.html']);
   const pages = filesUnder('dist').filter((file) => file.endsWith('.html'));
   assert.ok(pages.length > 0, 'dist/ has pages (build first)');
   for (const file of pages) {

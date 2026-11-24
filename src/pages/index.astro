@@ -16,7 +16,6 @@ import MapTeaser from '../components/MapTeaser.astro';
 import NewsTeaser from '../components/NewsTeaser.astro';
 import Instagram from '../components/Instagram.astro';
 import { aiUrl } from '../lib/nav.mjs';
-import { REEF_STILL } from '../lib/live.mjs';
 
 // The old home page's intro, verbatim (wahoobay-net-frontend, src/components/MainPage/HeroSection.js): the page's
 // description for search engines and link previews.
@@ -35,7 +34,6 @@ if (!camera) throw new Error('src/content/live/camera.md is missing');
   <VisitSection />
 
   <LiveBand
-    still={REEF_STILL.src}
     heading={camera.data.title}
     text={camera.data.description}
     ai={aiUrl(import.meta.env.PUBLIC_AI_URL)}
