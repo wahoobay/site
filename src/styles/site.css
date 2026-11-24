@@ -57,8 +57,13 @@ main { flex: 1 0 auto; }
   margin-top: var(--wb-space-5);
 }
 
-/* The live band: the badge on the still's top left corner (.wb-video clips its children and, from @wahoobay/design
-   0.3.0, is their containing block), the heading, lead and buttons stacked beside it. */
+/* The live band: the player (or, without script, the still) with the badge on its top left corner, the heading, lead
+   and buttons stacked beside it. The player fills the still box, without the camera page's 60rem cap or the gap above. */
+.site-band__still { position: relative; }
+.site-band__still .site-video {
+  max-width: none;
+  margin-top: 0;
+}
 .site-band__still .wb-live {
   position: absolute;
   inset: var(--wb-space-4) auto auto var(--wb-space-4);

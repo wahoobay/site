@@ -591,17 +591,43 @@ test('/live/ is dark, has no map, and no longer says "Live" before it knows', ()
   assert.doesNotMatch(html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '', /class="wb-live/, 'the badge is drawn once the status is known');
 });
 
-test('home: the live band carries LiveNow compact under the still and the badge island, and no second player', () => {
+// Dan (2026-11-24): the band plays the live camera, the fish-ID stream with its boxes, as /live/ does, in place of the
+// still. Only while the band is on screen (onScreenOnly) and the tab is showing: every home visit would otherwise stream
+// video from the fish-ID app, the budget line that grows with traffic (PRODUCT.md).
+test('home: the live band plays the live camera, on screen only, the badge on its corner, then LiveNow compact', () => {
   const html = home();
   const band = html.match(/<section class="wb-band[^"]*" data-theme="dark"[\s\S]*?<\/section>/)?.[0] ?? '';
   const islands = islandsOf(band);
-  assert.deepEqual(islands.map((i) => [i.name, i.client]), [['LiveBadge', 'load'], ['LiveNow', 'visible']]);
-  assert.deepEqual(islands[0].props, { camera: 'seahivecam' });
-  assert.deepEqual(islands[1].props, { camera: 'seahivecam', compact: true });
-  assert.equal(islandsOf(html).filter((i) => i.name === 'LivePlayer').length, 0, 'no second player');
+  assert.deepEqual(islands.map((i) => [i.name, i.client]), [['LivePlayer', 'visible'], ['LiveBadge', 'load'], ['LiveNow', 'visible']]);
+  assert.deepEqual(islands[0].props, { camera: REEF_CAMERA, ai: AI_URL, embedId: 'oBTGY6Ax870', title: 'SeaHIVE reef camera, live stream', onScreenOnly: true });
+  assert.deepEqual(islands[1].props, { camera: REEF_CAMERA });
+  assert.deepEqual(islands[2].props, { camera: REEF_CAMERA, compact: true });
+  assert.equal(islandsOf(html).filter((i) => i.name === 'LivePlayer').length, 1, 'one player on the page');
+  // Built, before the status is known, the player is the still in its frame: no stream, no embed.
   assert.doesNotMatch(html, /stream_raw\.mjpeg|<iframe/);
-  // The badge on the still; LiveNow after the words, which the band's grid places under the still from 48rem.
-  assert.match(band, /<div class="wb-video site-band__still">\s*<img\b[^>]*>\s*(?:<(script|style)>[\s\S]*?<\/\1>)*<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>\s*<\/div>/);
-  assert.ok(band.indexOf('site-band__words') < islands[1].at, 'LiveNow follows the words');
+  // The player and the badge share the band's still box, the badge on its top left corner; without script, the still.
+  // Astro puts each client directive's loader before the first island that uses it.
+  assert.match(band, /<div class="site-band__still">\s*(?:<(script|style)>[\s\S]*?<\/\1>)*<astro-island\b[^>]*LivePlayer[\s\S]*?<\/astro-island>\s*(?:<script>[\s\S]*?<\/script>)*<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>\s*<noscript><div class="wb-video"><img src="\/images\/learn\/wb-camera\.jpg"[^>]*\balt="The SeaHIVE reef camera"[^>]*><\/div><\/noscript>\s*<\/div>/);
+  assert.ok(band.indexOf('site-band__words') < islands[2].at, 'LiveNow follows the words');
   assert.doesNotMatch(band, /whether or not the stream is up/);
+  const css = LIVE_CSS();
+  assert.match(css, /\.site-band__still\s*\{\s*position:\s*relative;\s*\}/, 'the badge is placed in the still box');
+  assert.match(css, /\.site-band__still \.site-video\s*\{\s*max-width:\s*none;\s*margin-top:\s*0;\s*\}/, 'the player fills the box, with no gap above');
+});
+
+test('LivePlayer, with onScreenOnly, pauses off screen as it does in a hidden tab: the still, no stream, no polls (useOnScreen)', () => {
+  const src = read('src/islands/LivePlayer.tsx');
+  assert.match(src, /onScreenOnly\?: boolean;/);
+  assert.match(src, /const \[onScreen, observe\] = useOnScreen\(\);/);
+  assert.match(src, /const paused = hidden \|\| \(onScreenOnly === true && !onScreen\);/);
+  // Every place the hidden tab stopped the stream, the polls and the probe, the paused player stops them too.
+  const code = src.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, '');
+  assert.deepEqual(code.split('\n').filter((l) => /\bhidden\b/.test(l)).map((l) => l.trim()),
+    ['const hidden = usePageHidden();', 'const paused = hidden || (onScreenOnly === true && !onScreen);'], 'no other use of hidden');
+  assert.match(src, /paused: paused/);
+  // The observed box: a wrapper only where it is needed, so /live/'s player is as it was.
+  assert.match(src, /return onScreenOnly \? <div ref=\{observe\}>\{player\}<\/div> : player;/);
+  const shared = read('src/islands/live-shared.ts');
+  assert.match(shared, /export function useOnScreen\(\): \[boolean, \(element: Element \| null\) => \(\(\) => void\) \| undefined\]/);
+  assert.match(shared, /new IntersectionObserver\(/);
 });

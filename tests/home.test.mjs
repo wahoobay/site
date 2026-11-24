@@ -285,9 +285,9 @@ test('the live band, the Watch chapter, links to the camera, Fish ID and the ree
   assert.match(band, new RegExp(`href="${escapeRe(AI_URL)}"`));
   assert.match(band, /href="\/live\/highlights\/"/);
   assert.doesNotMatch(band, /min ago|°C/); // no sample data in production
-  // The badge sits on the still: .wb-video clips its children and, from @wahoobay/design 0.3.0, is their containing
-  // block (position: relative); the badge's corner is layout CSS (.site-band__still).
-  assert.match(band, /<div class="wb-video site-band__still">\s*<img\b[^>]*\bsrc="\/images\/learn\/wb-camera\.jpg"[^>]*>[\s\S]*?<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>\s*<\/div>/);
+  // The band plays the live camera (LivePlayer, tests/live.test.mjs), which shows the still until it knows the status;
+  // the badge sits on its corner in the band's still box (layout CSS, .site-band__still).
+  assert.match(band, /<div class="site-band__still">[\s\S]*?<astro-island\b[^>]*LivePlayer[\s\S]*?\bsrc="\/images\/learn\/wb-camera\.jpg"[\s\S]*?<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>/);
   const design = readFileSync('node_modules/@wahoobay/design/dist/components.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(design, /\.wb-video\s*\{[^}]*position:\s*relative/, '@wahoobay/design 0.3.0 positions .wb-video');
   const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');

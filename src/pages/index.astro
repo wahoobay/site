@@ -39,6 +39,7 @@ if (!camera) throw new Error('src/content/live/camera.md is missing');
     heading={camera.data.title}
     text={camera.data.description}
     ai={aiUrl(import.meta.env.PUBLIC_AI_URL)}
+    embedId={camera.data.video}
   />
 
   <section class="wb-container site-figures" aria-label="Our Impact at a Glance">
