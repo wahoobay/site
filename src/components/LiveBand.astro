@@ -1,15 +1,20 @@
 ---
-// The home page's live band: the reef camera's still with the live badge, the camera page's own title and description,
-// the ways to watch, and what the camera sees right now. It is the design's .wb-band on the dark ground
-// (data-theme="dark"): with the footer, the home page's only dark surface (CLAUDE.md; spec §4.3, Deep Field).
-// .wb-video clips its children and, from @wahoobay/design 0.3.0, is their containing block; the badge's corner of the
-// still is layout, in site.css (.site-band__still).
+// The home page's live band: the live camera with the live badge, the camera page's own title and description, the
+// ways to watch, and what the camera sees right now. Dan (2026-11-24): the band plays the camera, the fish-ID stream with
+// the fish it spots boxed, the same LivePlayer as /live/, in place of the still; only while the band is on screen
+// (onScreenOnly) and the tab is showing, since every home visit would otherwise stream video from the fish-ID app, the
+// budget line that grows with traffic (PRODUCT.md). Until it knows the camera's status, and without script, it is the
+// still. It is the design's .wb-band on the dark ground
+// (data-theme="dark"). It was the Deep Field home page's dark surface, with the footer; the Jump In home page is dark
+// throughout (CLAUDE.md), and the band is its Watch chapter.
+// The badge sits on the player's top left corner: the still box is positioned in site.css (.site-band__still).
 // The badge is the LiveBadge island, which follows the camera's stream ("Live", "Offline"), with
 // data-impeccable-ignore="pulsing-dot" while live, as on /live/ and in the design's docs (.impeccable/config.json).
 // LiveNow, compact (the species seen in the last hour and three water tiles), follows the words, so a screen reader
 // meets the band's heading first; the band's grid puts it under the still from 48rem, and under the words on phones.
-// It renders nothing while the camera is not live. The band has no player: the stream is /live/'s.
+// It renders nothing while the camera is not live.
 import LiveBadge from '../islands/LiveBadge';
+import LivePlayer from '../islands/LivePlayer';
 import LiveNow from '../islands/LiveNow';
 import { REEF_CAMERA } from '../lib/live.mjs';
 
@@ -22,15 +27,18 @@ interface Props {
   text: string;
   /** The fish-ID app's address for this build (src/lib/nav.mjs). */
   ai: string;
+  /** The camera's YouTube video (the camera page's `video`): the player's embed when the stream is out of reach. */
+  embedId: string;
 }
 
-const { still, heading, text, ai } = Astro.props;
+const { still, heading, text, ai, embedId } = Astro.props;
 ---
 <section class="wb-band" data-theme="dark" id="live" aria-labelledby="live-title">
   <div class="wb-container wb-band__inner">
-    <div class="wb-video site-band__still">
-      <img src={still} width="1600" height="1066" alt="The SeaHIVE reef camera" loading="lazy">
+    <div class="site-band__still">
+      <LivePlayer client:visible camera={REEF_CAMERA} ai={ai} embedId={embedId} title={`${heading}, live stream`} onScreenOnly />
       <LiveBadge client:load camera={REEF_CAMERA} />
+      <noscript><div class="wb-video"><img src={still} width="1600" height="1066" alt="The SeaHIVE reef camera" loading="lazy"></div></noscript>
     </div>
     <div class="site-band__words">
       <h2 id="live-title">{heading}</h2>

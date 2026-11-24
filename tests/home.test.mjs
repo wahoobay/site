@@ -1,10 +1,12 @@
-// Run after `npm run build`: the home page, in the Deep Field presentation (@wahoobay/design 0.2.1, spec §4.3): the
-// stage (the headline on a full-height photograph, the nav over its top), the dark live band, the four impact figures,
-// the photo doorways, the map teaser on the manatee photograph, the news teaser, the Instagram strip and the dark footer.
-// Ruling J (fix round 1): the clean aerial opens the page; the divers and the manatee, whose corners carry a watermark,
-// a credit or a signature, sit where the frame crops those corners away (the Get involved doorway, the map band).
-// The Instagram script runs against a small stand-in for the DOM (fix 5 and note 3): a picture that fails takes its card away, the strip goes when fewer than two cards
-// are left, and a caption is cut at a word boundary, never inside a word.
+// Run after `npm run build`: the home page in the Jump In brand (@wahoobay/design 0.5.0; PRODUCT.md, amended 2026-11-24,
+// pending Katie's review): dark throughout. The hero on deep water ("The reef is live.", Dan's choice of 2026-11-24), the
+// action ticker, the Visit section first (CLAUDE.md: visiting the park comes first), then the existing real content
+// restyled on the dark ground: the live band as the Watch chapter, the four figures, the photo doorways, the map teaser,
+// the news teaser and the Instagram strip with its follow link, then the dark footer.
+// Ruling J (fix round 1): the manatee, whose corner carries a signature, sits where the frame crops it away (the map band).
+// The inline scripts run against a small stand-in for the DOM: the Instagram strip (fix 5 and note 3: a picture that
+// fails takes its card away, the posts go when fewer than two cards are left, a caption is cut at a word boundary), and
+// the hero's pause button (WCAG 2.2.2).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -47,10 +49,26 @@ class Node {
   all() {
     return this.children.flatMap((c) => [c, ...c.all()]);
   }
+  setAttribute(name, value) {
+    this.attributes[name] = String(value);
+  }
+  getAttribute(name) {
+    return name in this.attributes ? this.attributes[name] : null;
+  }
+  get hidden() {
+    return 'hidden' in this.attributes;
+  }
+  set hidden(on) {
+    if (on) this.attributes.hidden = '';
+    else delete this.attributes.hidden;
+  }
   querySelectorAll(selector) {
-    const match = selector.startsWith('.')
-      ? (n) => n.className.split(/\s+/).includes(selector.slice(1))
-      : (n) => n.tagName === selector.toUpperCase();
+    const attr = selector.match(/^\[([a-z-]+)="([^"]*)"\]$/);
+    const match = attr
+      ? (n) => n.attributes[attr[1]] === attr[2]
+      : selector.startsWith('.')
+        ? (n) => n.className.split(/\s+/).includes(selector.slice(1))
+        : (n) => n.tagName === selector.toUpperCase();
     return this.all().filter(match);
   }
   querySelector(selector) {
@@ -64,6 +82,7 @@ async function run(posts) {
   const section = body.appendChild(new Node('section', { id: 'instagram' }));
   const list = section.appendChild(new Node('ul', { 'aria-busy': 'true' }));
   for (let i = 0; i < 4; i++) list.appendChild(new Node('li', { class: 'wb-card site-instagram__post' }));
+  section.appendChild(new Node('p', { class: 'site-instagram__follow' }));
   const document = {
     getElementById: (id) => body.all().find((n) => n.id === id) ?? null,
     createElement: (tag) => new Node(tag),
@@ -73,7 +92,8 @@ async function run(posts) {
   vm.runInNewContext(code, { window, document, setTimeout: () => 1, clearTimeout: () => {} });
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
   const cards = () => list.querySelectorAll('.site-instagram__post');
-  const present = () => body.children.includes(section);
+  // The section stays with its follow link; what goes, when there is nothing to show, is the list of posts.
+  const present = () => section.children.includes(list);
   return { section, list, cards, present };
 }
 
@@ -94,25 +114,170 @@ const frontMatterField = (file, name) => {
 const escapeHtml = (text) => text.replaceAll('&', '&amp;').replaceAll("'", '&#39;').replaceAll('"', '&quot;');
 const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-test('home opens on a full-height stage with the headline on the photograph', () => {
-  const html = home();
-  assert.match(html, /<section class="wb-stage[^"]*"/);
-  assert.match(html, /<h1 class="wb-stage__title"[^>]*>Art\. Conservation\. Education<\/h1>/);
-  // The nav is the site's <nav aria-label="Main"> (tests/build.test.mjs, tests/nav.test.mjs), laid over the stage.
-  assert.match(html, /<nav class="wb-nav wb-nav--over"/);
-  const stage = html.match(/<section class="wb-stage[^"]*"[\s\S]*?<\/section>/)?.[0] ?? '';
-  assert.match(stage, /<img class="wb-stage__photo[^"]*" src="\/WB-1\.jpg" srcset="\/WB-1-800\.jpg 800w, \/WB-1\.jpg 1600w"/);
-  assert.match(stage, /<img class="wb-stage__photo[^"]*"[^>]*\balt="The park from the air: palms along the seawall, the dock on the inlet and the bridge behind"/);
-  assert.match(stage, /<div class="wb-stage__scrim"><\/div>/);
-  assert.match(stage, /<p class="wb-stage__lead"[^>]*>Wahoo Bay is a public marine education park at the Hillsboro Inlet, inspiring ocean literacy through hands-on learning, immersive field experiences, and community conservation\.<\/p>/);
-  const actions = stage.match(/<div class="wb-stage__actions">([\s\S]*?)<\/div>/)?.[1] ?? '';
-  const buttons = [...actions.matchAll(/<a class="(wb-btn [^"]*)" href="([^"]+)">([^<]+)<\/a>/g)].map((m) => m.slice(1));
-  assert.deepEqual(buttons.map(([, href, label]) => [href, label]), [['/visit/', 'Explore Wahoo Bay'], ['/live/', 'Underwater Camera']]);
-  assert.match(buttons[0][0], /\bwb-btn--action\b/);
-  assert.match(buttons[1][0], /\bwb-btn--ghost\b/);
+// The hero's and the Visit section's words that are not migrated: Dan's Jump In choices (2026-11-24), each marked for
+// Katie in its component.
+const HEADLINE = 'The reef<br>is live.';
+const TAG = 'Live from the reef · Pompano Beach, FL';
+const LEAD = 'Swim and snorkel the Wahoo Bay reef in Pompano Beach, or watch and study it live from anywhere.';
+const TICKER = ['Visit', 'Swim', 'Snorkel', 'Jump in', 'Explore', 'Learn', 'Watch', 'Discover', 'Participate', 'Volunteer', 'Contribute', 'Protect'];
+// The six swimmers in the hero's water, by their Latin names, with their drawings (Dan, 2026-11-24: more and varied
+// species, only ones on our species list). Their labels are the site's species list's names (the explorer's,
+// /live/species/).
+const SCHOOL = [['Abudefduf saxatilis', ''], ['Acanthurus coeruleus', ''], ['Caranx ruber', ''], ['Aetobatus narinari', 'ray'], ['Ginglymostoma cirratum', 'shark'], ['Chelonia mydas', 'turtle']];
+const icon = (name) => readFileSync(`node_modules/@wahoobay/design/dist/icons/${name}.svg`, 'utf8').trim();
+const hero = () => home().match(/<section class="wb-hero[^"]*"[\s\S]*?<\/section>/)?.[0] ?? '';
+
+test('the home page is dark throughout; the reading pages stay light', () => {
+  assert.match(home(), /<html lang="en" data-theme="dark">/);
+  for (const file of ['dist/about/index.html', 'dist/visit/index.html', 'dist/learn/index.html', 'dist/404.html'])
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /<html\b[^>]*data-theme=/, file);
+  const installed = JSON.parse(readFileSync('node_modules/@wahoobay/design/package.json', 'utf8')).version;
+  assert.equal(installed, '0.5.0', 'the Jump In brand is @wahoobay/design 0.5.0');
 });
 
-test('the live band is the one dark surface and links to the camera, Fish ID and the reel', () => {
+test('home opens on the hero: the tag, "The reef is live.", the lead, Plan your visit first, then Watch live', () => {
+  const section = hero();
+  assert.match(section, /^<section class="wb-hero site-hero" aria-labelledby="hero-title">/);
+  assert.match(section, new RegExp(`<p class="wb-hero__tag">${escapeRe(TAG)}</p>\\s*<h1 class="wb-hero__title" id="hero-title">${escapeRe(HEADLINE)}</h1>`));
+  assert.match(section, new RegExp(`<p class="wb-hero__lead">${escapeRe(LEAD)}</p>`));
+  const actions = section.match(/<div class="wb-hero__actions">([\s\S]*?)<\/div>/)?.[1] ?? '';
+  const buttons = [...actions.matchAll(/<a class="(wb-btn [^"]*)" href="([^"]+)">([^<]+)<\/a>/g)].map((m) => m.slice(1));
+  assert.deepEqual(buttons.map(([, href, label]) => [href, label]), [['/visit/', 'Plan your visit'], ['/live/', 'Watch live']]);
+  assert.match(buttons[0][0], /\bwb-btn--action\b/, 'visiting is the primary action');
+  assert.match(buttons[1][0], /\bwb-btn--ghost\b/);
+  // The nav is the site's <nav aria-label="Main"> (tests/build.test.mjs, tests/nav.test.mjs), laid over the hero.
+  assert.match(home(), /<nav class="wb-nav wb-nav--over"/);
+  assert.equal(home().match(/<h1\b/g)?.length, 1, 'one h1');
+});
+
+test('the hero\'s water: six rays, ten bubbles and six swimmers in their detection boxes, named as the species list names them', () => {
+  const water = hero().match(/<div class="wb-hero__water" aria-hidden="true">([\s\S]*?)<\/div>\s*<div class="wb-container wb-hero__body">/)?.[1] ?? '';
+  assert.ok(water, 'the decorative layer, hidden from screen readers');
+  assert.equal(water.match(/<div class="wb-hero__rays">((?:<span><\/span>)+)<\/div>/)?.[1].match(/<span>/g).length, 6, 'six rays');
+  assert.equal(water.match(/<div class="wb-hero__bubbles">((?:<span><\/span>)+)<\/div>/)?.[1].match(/<span>/g).length, 10, 'ten bubbles');
+  const swimmers = [...water.matchAll(/<div class="wb-hero__fish(?: wb-hero__fish--([a-z]+))?"><div class="wb-detect"><span class="wb-detect__label">([^<]+)<\/span><\/div><\/div>/g)].map((m) => [m[2], m[1] ?? '']);
+  const json = (file) => JSON.parse(readFileSync(file, 'utf8'));
+  const list = unionSpecies(json('src/data/fish.json'), json('src/data/species.json'), json('src/data/media.json'));
+  assert.deepEqual(swimmers, SCHOOL.map(([latin, shape]) => [list.find((s) => s.latin === latin)?.common, shape]), 'the species list\'s names, each with its drawing');
+  assert.deepEqual(swimmers.map(([name]) => name), ['Sergeant Major', 'Blue Tang Surgeonfish', 'Bar Jack', 'Spotted Eagle Ray', 'Nurse Shark', 'Green Sea Turtle']);
+  // The component draws the geometry (@wahoobay/design 0.5.0): the page writes none.
+  assert.doesNotMatch(hero(), /\bstyle=/);
+});
+
+// WCAG 2.2.2: the hero's motion and the ticker's scroll start by themselves and last, so they can be paused. The button
+// is hidden until its script runs (a button that does nothing would be worse than none), then pauses and plays.
+test('the hero\'s pause button: hidden until its script runs, named for screen readers, its icon from the design', () => {
+  const button = hero().match(/<button class="wb-hero__pause"[\s\S]*?<\/button>/)?.[0] ?? '';
+  assert.match(button, /^<button class="wb-hero__pause" type="button" hidden>/);
+  assert.ok(button.includes(`<span data-icon="pause">${icon('pause')}</span>`), 'the pause icon');
+  assert.ok(button.includes(`<span data-icon="play" hidden>${icon('play')}</span>`), 'the play icon, hidden');
+  assert.match(button, /<span class="wb-sr-only">Pause motion<\/span><\/button>$/);
+});
+
+const pauseCode = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((c) => c.includes('wb-hero__pause')) ?? '';
+
+/** Runs the pause button's script against a stand-in for the hero's button. */
+function runPause() {
+  const root = new Node('html');
+  const body = root.appendChild(new Node('body'));
+  const button = body.appendChild(new Node('button', { class: 'wb-hero__pause', hidden: '' }));
+  const pause = button.appendChild(new Node('span', { 'data-icon': 'pause' }));
+  const play = button.appendChild(new Node('span', { 'data-icon': 'play', hidden: '' }));
+  const label = button.appendChild(new Node('span', { class: 'wb-sr-only' }));
+  label.textContent = 'Pause motion';
+  const document = { documentElement: root, querySelector: (sel) => root.querySelector(sel) };
+  vm.runInNewContext(pauseCode, { document });
+  return { root, button, pause, play, label };
+}
+
+test('the pause button shows itself, then pauses the motion on the root and plays it again, its name and icon following', () => {
+  assert.ok(pauseCode, 'the inline script');
+  const { root, button, pause, play, label } = runPause();
+  assert.equal(button.hidden, false, 'shown once the script can answer it');
+  assert.equal(root.getAttribute('data-motion'), null);
+  button.fire('click');
+  assert.equal(root.getAttribute('data-motion'), 'paused');
+  assert.equal(label.textContent, 'Play motion');
+  assert.deepEqual([pause.hidden, play.hidden], [true, false]);
+  button.fire('click');
+  assert.equal(root.getAttribute('data-motion'), null);
+  assert.equal(label.textContent, 'Pause motion');
+  assert.deepEqual([pause.hidden, play.hidden], [false, true]);
+});
+
+test('the ticker follows the hero: the twelve words, once for screen readers and again, hidden, for the loop', () => {
+  const ticker = home().match(/<section class="wb-ticker" aria-label="Things to do at Wahoo Bay">[\s\S]*?<\/section>/)?.[0] ?? '';
+  assert.ok(ticker, 'the ticker, labelled');
+  // The scroll is the brand's motion; the design sanctions this one waiver on the track (its docs and tests).
+  assert.match(ticker, /<div class="wb-ticker__track" data-impeccable-ignore="marquee">/);
+  const groups = [...ticker.matchAll(/<ul class="wb-ticker__group" role="list"( aria-hidden="true")?>([\s\S]*?)<\/ul>/g)];
+  assert.deepEqual(groups.map((g) => Boolean(g[1])), [false, true]);
+  for (const [, , words] of groups) assert.deepEqual([...words.matchAll(/<li class="wb-ticker__word">([^<]+)<\/li>/g)].map((m) => m[1]), TICKER);
+});
+
+// The detector reads the design's stylesheet, so it calls the ticker's scroll a marquee on every page that links
+// components.css, ticker or not, as it does the live badge's breath (pulsing-dot); the home page also marks its track,
+// as the design's docs do. It also calls Inter, the Jump In text face (Dan's choice, 2026-11-24), overused, in the built
+// stylesheet. The config ignores those three, each with its reason, Inter by name only, and nothing else.
+test('the detector config ignores pulsing-dot, marquee and Inter as an overused font, each with its reason, and nothing else', () => {
+  const { detector } = JSON.parse(readFileSync('.impeccable/config.json', 'utf8'));
+  assert.deepEqual(detector.ignoreRules, []);
+  assert.deepEqual(detector.ignoreFiles, []);
+  assert.deepEqual(detector.ignoreValues.map((v) => [v.rule, v.value, v.files]), [
+    ['pulsing-dot', '*', ['dist/**/*.html']],
+    ['marquee', '*', ['dist/**/*.html']],
+    ['overused-font', 'Inter', ['dist/_astro/*.css']],
+  ]);
+  const marquee = detector.ignoreValues.find((v) => v.rule === 'marquee');
+  assert.match(marquee.reason, /Jump In/);
+  assert.match(marquee.reason, /data-impeccable-ignore/);
+  assert.match(detector.ignoreValues.find((v) => v.rule === 'overused-font').reason, /Jump In[\s\S]*Dan/);
+});
+
+// The Visit section comes straight after the hero (CLAUDE.md). Its words are the Visit page's own (src/content/pages/
+// visit/index.md): its description, and its first three facts (open daily, the open snorkel, getting here); the fourth,
+// visiting virtually, is what the live band below says. The photo is the park from the air, the home page's only use of it.
+test('the Visit section: "Jump in.", the Visit page\'s description and first three facts, the park from the air, Plan your visit', () => {
+  const visit = home().match(/<section class="wb-container site-visit" id="visit" aria-labelledby="visit-title">[\s\S]*?<\/section>/)?.[0] ?? '';
+  assert.ok(visit, 'the Visit section');
+  const page = 'src/content/pages/visit/index.md';
+  assert.match(visit, /<h2 id="visit-title">Jump in\.<\/h2>/);
+  assert.match(visit, new RegExp(`<p class="wb-lead">${escapeRe(escapeHtml(frontMatterField(page, 'description')))}</p>`));
+  assert.match(visit, /<img class="wb-media site-visit__photo" src="\/WB-1\.jpg" srcset="\/WB-1-800\.jpg 800w, \/WB-1\.jpg 1600w"[^>]*\balt="The park from the air: palms along the seawall, the dock on the inlet and the bridge behind"/);
+  const facts = [...visit.matchAll(/<li class="wb-card"><div class="wb-card__body"><h3>([^<]+)<\/h3><p>([^<]+)<\/p><\/div><\/li>/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(facts, [
+    ['Open daily: 10 am – 4 pm.', 'Open swim daily, subject to change for private events. No lifeguard on duty — swim at your own risk.'],
+    ['Monthly open snorkel: 2nd Saturday.', 'Pompano Beach Parks and Recreation hosts a public open snorkel with rental gear available.'],
+    ['Getting here: 2700 N. Ocean Blvd.', 'Pompano Beach, FL 33062. Limited paid public parking is available on site.'],
+  ]);
+  assert.match(visit, /<div class="site-page__actions">\s*<a class="wb-btn wb-btn--action" href="\/visit\/">Plan your visit<\/a>\s*<\/div>/);
+});
+
+// CLAUDE.md, words and facts: never "dive" or "catch" in any form (neither is allowed at Wahoo Bay); the park's camera
+// is the SeaHIVE camera, and the park is never said to have two cameras. Read from everything a visitor or a screen
+// reader meets: the text, and the alt, aria-label and title attributes.
+test('the home page never says dive or catch in any form, nor two cameras', () => {
+  const page = home().replace(/<(script|style)\b[\s\S]*?<\/\1>/g, ' ').replace(/<!--[\s\S]*?-->/g, ' ');
+  const said = [...page.matchAll(/\b(?:alt|aria-label|title)="([^"]*)"/g)].map((m) => m[1]).join(' ') + ' ' + page.replace(/<[^>]*>/g, ' ');
+  assert.doesNotMatch(said, /\b(div(e|es|ed|er|ers|ing)|catch(es|ing)?|caught)\b/i);
+  assert.doesNotMatch(said, /\btwo cameras\b/i);
+});
+
+// The new words on the page (Dan's Jump In choices) are marked for Katie where they are written.
+test('the hero\'s, the ticker\'s and the Visit section\'s new words are marked for Katie in their components', () => {
+  const marked = (file, needle) => {
+    const source = readFileSync(file, 'utf8');
+    const at = source.indexOf(needle);
+    assert.ok(at > 0, `${file}: ${needle}`);
+    assert.match(source.slice(source.lastIndexOf('\n', source.lastIndexOf('\n', at) - 1), at), /katie: review/, `${file}: ${needle} is marked`);
+  };
+  for (const needle of ["'The reef<br>is live.'", `'${TAG}'`, `'${LEAD}'`, "'Plan your visit'"]) marked('src/components/Hero.astro', needle);
+  for (const needle of ["'Things to do at Wahoo Bay'", "'Visit', 'Swim'"]) marked('src/components/Ticker.astro', needle);
+  marked('src/components/VisitSection.astro', 'Jump in.');
+});
+
+// The live band is the Watch chapter: the camera page's own words over the still, on the dark ground like the page.
+test('the live band, the Watch chapter, links to the camera, Fish ID and the reel', () => {
   const band = home().match(/<section class="wb-band[^"]*" data-theme="dark"[\s\S]*?<\/section>/)[0];
   // The badge is the LiveBadge island (tests/live.test.mjs): drawn once the camera's status is known.
   assert.match(band, /<astro-island\b[^>]*LiveBadge/);
@@ -120,9 +285,9 @@ test('the live band is the one dark surface and links to the camera, Fish ID and
   assert.match(band, new RegExp(`href="${escapeRe(AI_URL)}"`));
   assert.match(band, /href="\/live\/highlights\/"/);
   assert.doesNotMatch(band, /min ago|°C/); // no sample data in production
-  // The badge sits on the still: .wb-video clips its children and, from @wahoobay/design 0.3.0, is their containing
-  // block (position: relative); the badge's corner is layout CSS (.site-band__still).
-  assert.match(band, /<div class="wb-video site-band__still">\s*<img\b[^>]*\bsrc="\/images\/learn\/wb-camera\.jpg"[^>]*>[\s\S]*?<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>\s*<\/div>/);
+  // The band plays the live camera (LivePlayer, tests/live.test.mjs), which shows the still until it knows the status;
+  // the badge sits on its corner in the band's still box (layout CSS, .site-band__still).
+  assert.match(band, /<div class="site-band__still">[\s\S]*?<astro-island\b[^>]*LivePlayer[\s\S]*?\bsrc="\/images\/learn\/wb-camera\.jpg"[\s\S]*?<astro-island\b[^>]*LiveBadge[\s\S]*?<\/astro-island>/);
   const design = readFileSync('node_modules/@wahoobay/design/dist/components.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(design, /\.wb-video\s*\{[^}]*position:\s*relative/, '@wahoobay/design 0.3.0 positions .wb-video');
   const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -133,10 +298,6 @@ test('the live band is the one dark surface and links to the camera, Fish ID and
   assert.match(band, new RegExp(`<p class="wb-lead">${escapeRe(escapeHtml(frontMatterField(camera, 'description')))}</p>`));
   const labels = [...band.matchAll(/<a class="wb-btn[^"]*"[^>]*>([^<]+)/g)].map((m) => m[1]);
   assert.deepEqual(labels, ['Watch live', 'Fish ID dashboard', 'Best of the reef']);
-  // The one dark surface in the page's main content; the page itself stays light.
-  const main = home().match(/<main\b[\s\S]*<\/main>/)?.[0] ?? '';
-  assert.equal(main.match(/data-theme="dark"/g)?.length, 1);
-  assert.doesNotMatch(home(), /<html\b[^>]*data-theme=/);
 });
 
 // Ruling 51: "Species Documented" is the explorer's count at build time (the species /live/species/ lists), not the
@@ -251,29 +412,34 @@ test('the news teaser is the three newest posts: one feature, then two cards, un
   });
 });
 
-test('the sections run stage, live band, figures, doorways, map teaser, news, Instagram', () => {
+test('the sections run hero, ticker, Visit, live band, figures, doorways, map teaser, news, Instagram', () => {
   const html = home();
   const at = (re) => html.search(re);
-  const order = [/<section class="wb-stage/, /<section class="wb-band/, /<div class="wb-figures">/, /<a class="wb-door"/, /<section class="site-map-teaser"/, /aria-labelledby="news-title"/, /id="instagram"/, /<footer\b/];
+  const order = [/<section class="wb-hero/, /<section class="wb-ticker/, /<section class="wb-container site-visit"/, /<section class="wb-band/, /<div class="wb-figures">/, /<a class="wb-door"/, /<section class="site-map-teaser"/, /aria-labelledby="news-title"/, /id="instagram"/, /<footer\b/];
   const positions = order.map(at);
   for (const [i, p] of positions.entries()) assert.ok(p >= 0, String(order[i]));
   assert.deepEqual([...positions].sort((a, b) => a - b), positions);
+  // Nothing between the hero and the Visit section but the ticker (CLAUDE.md: visiting comes first).
+  assert.match(html, /<\/section>\s*<section class="wb-ticker"[\s\S]*?<\/section>\s*<section class="wb-container site-visit"/);
+  assert.doesNotMatch(html, /class="wb-stage/, 'the stage is gone');
 });
 
 // The 320-360px capture (Task 2): with an auto track, the news grid grew to the 16:9 feature's height-derived width
 // and the page scrolled sideways. Every home grid that holds a photo link sets its tracks.
 test('the home grids set minmax(0, 1fr) tracks, so no photo link widens a phone screen', () => {
   const css = readFileSync('src/styles/site.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  for (const selector of ['.site-doors', '.site-news-teaser__grid', '.site-news-teaser__list']) {
+  for (const selector of ['.site-doors', '.site-news-teaser__grid', '.site-news-teaser__list', '.site-visit__facts']) {
     const body = css.match(new RegExp(`(?:^|\\})\\s*${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
     assert.match(body, /grid-template-columns:\s*minmax\(0, 1fr\);/, selector);
   }
 });
 
 // Ruling A: the detector cannot see a photograph or the scrim, so text set on one carries the low-contrast waiver right
-// after its class; so do the brand-blue figures (large text, 3:1). Nowhere else.
-const WAIVED = ['wb-stage__title', 'wb-stage__lead', 'wb-door__title', 'wb-door__text', 'wb-feature__title', 'wb-feature__text', 'wb-figure__value', 'wb-nav__link'];
-test('the low-contrast waiver sits on text on a photograph and on the figures, right after the class, and nowhere else', () => {
+// after its class: the doorways' and the news feature's titles and sentences. On the dark page nothing else needs one:
+// the figures (brand blue, 5.2:1 on the deep ground) and the nav over the hero (white on the water, 4.5:1 or better,
+// @wahoobay/design 0.5.0's tests) are measured and pass.
+const WAIVED = ['wb-door__title', 'wb-door__text', 'wb-feature__title', 'wb-feature__text'];
+test('the low-contrast waiver sits on text on a photograph, right after the class, and nowhere else', () => {
   const html = home();
   const waived = [...html.matchAll(/<[a-z0-9]+\b([^>]*)\bdata-impeccable-ignore="low-contrast"/g)].map((m) => m[1]);
   assert.ok(waived.length > 0);
@@ -282,19 +448,27 @@ test('the low-contrast waiver sits on text on a photograph and on the figures, r
     assert.ok(cls, `the waiver follows the class attribute: ${attrs}`);
     assert.ok(cls.split(/\s+/).some((c) => WAIVED.includes(c)), `waiver on .${cls}`);
   }
-  for (const cls of WAIVED.filter((c) => c !== 'wb-nav__link')) {
+  for (const cls of WAIVED) {
     const tags = [...html.matchAll(new RegExp(`<[a-z0-9]+ class="${cls}"[^>]*>`, 'g'))].map((m) => m[0]);
     assert.ok(tags.length > 0, cls);
     for (const tag of tags) assert.match(tag, new RegExp(`class="${cls}" data-impeccable-ignore="low-contrast"`), tag);
   }
-  assert.equal(html.match(/class="wb-figure__value" data-impeccable-ignore="low-contrast"/g)?.length, 4);
+  assert.doesNotMatch(html, /class="wb-figure__value" data-impeccable-ignore/, 'the figures are measured');
   const nav = html.match(/<nav\b[^>]*aria-label="Main"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? '';
-  const links = [...nav.matchAll(/<a class="(wb-nav__link[^"]*)"([^>]*)>/g)];
-  assert.equal(links.length, 7, 'six section links and Sign in');
-  for (const [tag, , rest] of links) assert.match(rest, /^ data-impeccable-ignore="low-contrast"/, tag);
+  assert.equal([...nav.matchAll(/<a class="wb-nav__link[^"]*"/g)].length, 7, 'six section links and Sign in');
+  assert.doesNotMatch(nav, /data-impeccable-ignore/, 'the nav over the hero is measured');
   for (const file of ['dist/about/index.html', 'dist/live/index.html', 'dist/404.html']) {
     assert.doesNotMatch(readFileSync(file, 'utf8'), /low-contrast/, `${file}: no waiver off the home page`);
   }
+});
+
+// The old home page's Instagram section asked visitors to follow the account ("Follow us on Instagram", its link's
+// label): the strip keeps that link, which stays when the posts cannot be shown.
+test('the Instagram strip ends with "Follow us on Instagram", the account the footer links, in a new tab', () => {
+  const section = home().match(/<section class="wb-container site-instagram" id="instagram"[\s\S]*?<\/section>/)?.[0] ?? '';
+  const footer = readFileSync('src/components/Footer.astro', 'utf8').match(/label: 'Instagram', href: '([^']+)'/)?.[1];
+  assert.ok(footer, 'the footer\'s Instagram link');
+  assert.match(section, new RegExp(`</ul>\\s*<p class="site-instagram__follow"><a class="wb-btn wb-btn--ghost" href="${escapeRe(footer)}" target="_blank" rel="noopener">Follow us on Instagram<span class="wb-sr-only"> \\(opens in a new tab\\)</span></a></p>`));
 });
 
 test('the script listens for a failed picture with addEventListener, not an onerror attribute', () => {
@@ -314,21 +488,29 @@ test('four posts fill four cards, each a caption link around its picture', async
   }
 });
 
-test('a picture that fails takes its card away; the strip goes when fewer than two cards are left', async () => {
-  const { cards, present } = await run([1, 2, 3, 4].map((n) => post(n)));
+test('a picture that fails takes its card away; the posts go when fewer than two cards are left', async () => {
+  const { cards, present, section } = await run([1, 2, 3, 4].map((n) => post(n)));
   cards()[1].querySelector('img').fire('error');
   assert.equal(cards().length, 3, 'the failed card is gone');
-  assert.ok(present(), 'three cards: the strip stays');
+  assert.ok(present(), 'three cards: the posts stay');
   cards()[0].querySelector('img').fire('error');
   assert.equal(cards().length, 2);
-  assert.ok(present(), 'two cards: the strip stays');
+  assert.ok(present(), 'two cards: the posts stay');
   cards()[0].querySelector('img').fire('error');
-  assert.ok(!present(), 'one card: the strip goes');
+  assert.ok(!present(), 'one card: the posts go');
+  assert.ok(section.children.some((n) => n.className === 'site-instagram__follow'), 'the follow link stays');
 });
 
-test('one post is not a strip: the section goes', async () => {
-  const { present } = await run([post(1)]);
+test('one post is not a strip: the posts go, the heading and the follow link stay', async () => {
+  const { present, section } = await run([post(1)]);
   assert.ok(!present());
+  assert.ok(section.children.some((n) => n.className === 'site-instagram__follow'));
+});
+
+test('no posts, or a failed answer: the posts go, the follow link stays', async () => {
+  const { present, section } = await run([]);
+  assert.ok(!present());
+  assert.ok(section.children.some((n) => n.className === 'site-instagram__follow'));
 });
 
 test('a long caption is cut at the last word boundary within 90 characters, then "…"; a short one is whole', async () => {

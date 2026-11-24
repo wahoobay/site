@@ -1,0 +1,37 @@
+---
+// The home page's Visit section, straight after the hero and the ticker (CLAUDE.md: visiting the park comes first). Its
+// words are the Visit page's own (src/content/pages/visit/index.md): its description as the lead, and the first three
+// facts of its list (open daily, the open snorkel, getting here; src/lib/visit.mjs) as the design's cards. The fourth,
+// visiting virtually, is what the live band below says. The photo is the park from the air (/WB-1.jpg, Ruling J), the
+// home page's only use of it (tests/heroes.test.mjs). site.css places it all (.site-visit).
+import { getEntry } from 'astro:content';
+import { visitFacts } from '../lib/visit.mjs';
+
+const page = await getEntry('pages', 'visit');
+if (!page) throw new Error('src/content/pages/visit/index.md is missing');
+const facts = visitFacts(page.body ?? '').slice(0, 3);
+if (facts.length < 3) throw new Error('src/content/pages/visit/index.md: the home page shows the first three facts of its list');
+---
+<section class="wb-container site-visit" id="visit" aria-labelledby="visit-title">
+  <div class="site-visit__words">
+    <!-- katie: review (new words, Dan's Jump In choice of 2026-11-24: the Visit section's heading) -->
+    <h2 id="visit-title">Jump in.</h2>
+    <p class="wb-lead">{page.data.description}</p>
+  </div>
+  <img
+    class="wb-media site-visit__photo"
+    src="/WB-1.jpg"
+    srcset="/WB-1-800.jpg 800w, /WB-1.jpg 1600w"
+    sizes="(min-width: 72rem) 70rem, 100vw"
+    width="1600"
+    height="900"
+    alt="The park from the air: palms along the seawall, the dock on the inlet and the bridge behind"
+    loading="lazy"
+  >
+  <ul class="site-visit__facts" role="list">
+    {facts.map(({ title, text }) => <li class="wb-card"><div class="wb-card__body"><h3>{title}</h3><p>{text}</p></div></li>)}
+  </ul>
+  <div class="site-page__actions">
+    <a class="wb-btn wb-btn--action" href="/visit/">Plan your visit</a>
+  </div>
+</section>

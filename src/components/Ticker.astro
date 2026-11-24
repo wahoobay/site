@@ -1,0 +1,17 @@
+---
+// The action ticker under the home page's hero (@wahoobay/design 0.5.0's .wb-ticker): the things to do at Wahoo Bay,
+// once for screen readers and again, aria-hidden, so the design can scroll the two as one seamless loop. The pointer
+// over it holds it, the hero's pause button stops it, and with reduced motion it does not move: the words wrap in one
+// list. The detector calls any endless horizontal scroll a marquee; the design sanctions this one waiver, on the track
+// (its docs page and tests), and the site uses it there and nowhere else.
+// katie: review (new words, from the Jump In design canvas: the ticker's name for screen readers)
+const label = 'Things to do at Wahoo Bay';
+// katie: review (new words, from the Jump In design canvas: the twelve things to do; never "dive" or "catch", CLAUDE.md)
+const words = ['Visit', 'Swim', 'Snorkel', 'Jump in', 'Explore', 'Learn', 'Watch', 'Discover', 'Participate', 'Volunteer', 'Contribute', 'Protect'];
+---
+<section class="wb-ticker" aria-label={label}>
+  <div class="wb-ticker__track" data-impeccable-ignore="marquee">
+    <ul class="wb-ticker__group" role="list">{words.map((word) => <li class="wb-ticker__word">{word}</li>)}</ul>
+    <ul class="wb-ticker__group" role="list" aria-hidden="true">{words.map((word) => <li class="wb-ticker__word">{word}</li>)}</ul>
+  </div>
+</section>

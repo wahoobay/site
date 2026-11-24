@@ -1,9 +1,14 @@
 ---
-// The home page, Deep Field (spec §4.3; @wahoobay/design 0.2.1): the stage (the headline on a full-height photograph,
-// the nav over its top), the dark live band, the four impact figures, the photo doorways, the map teaser on the park
-// aerial, the news teaser, the Instagram strip, then the dark footer.
+// The home page in the Jump In brand (@wahoobay/design 0.5.0; PRODUCT.md, amended 2026-11-24, pending Katie's review),
+// dark throughout: the hero on deep water with the nav over its top, the action ticker, the Visit section first
+// (CLAUDE.md: visiting the park comes first), then the real content on the dark ground: the live band (the Watch
+// chapter), the four impact figures, the photo doorways, the map teaser, the news teaser and the Instagram strip with its
+// follow link, then the dark footer.
 import { getEntry } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import Hero from '../components/Hero.astro';
+import Ticker from '../components/Ticker.astro';
+import VisitSection from '../components/VisitSection.astro';
 import LiveBand from '../components/LiveBand.astro';
 import Figures from '../components/Figures.astro';
 import Doorways from '../components/Doorways.astro';
@@ -13,48 +18,28 @@ import Instagram from '../components/Instagram.astro';
 import { aiUrl } from '../lib/nav.mjs';
 import { REEF_STILL } from '../lib/live.mjs';
 
-// The old home page's hero copy, verbatim (wahoobay-net-frontend, src/components/MainPage/HeroSection.js).
-const headline = 'Art. Conservation. Education';
+// The old home page's intro, verbatim (wahoobay-net-frontend, src/components/MainPage/HeroSection.js): the page's
+// description for search engines and link previews.
 const intro =
   'Wahoo Bay is a public marine education park at the Hillsboro Inlet, inspiring ocean literacy through hands-on learning, immersive field experiences, and community conservation.';
-
-// The stage opens on the park aerial (Ruling J): the clean photograph, with no watermark beside the nav's logo, and
-// the home page's only use of it. The headline and lead are white on the photograph over the design's scrim, so they
-// carry the low-contrast waiver (Ruling A), as in the design's docs: the detector sees neither the photograph nor the
-// scrim.
 
 // The live band's words are the camera page's own (src/content/live/camera.md).
 const camera = await getEntry('live', 'camera');
 if (!camera) throw new Error('src/content/live/camera.md is missing');
 ---
-<Base title="Wahoo Bay" description={intro} navOver footerTheme="dark">
-  <section class="wb-stage site-stage" aria-labelledby="stage-title">
-    <img
-      class="wb-stage__photo"
-      src="/WB-1.jpg"
-      srcset="/WB-1-800.jpg 800w, /WB-1.jpg 1600w"
-      sizes="100vw"
-      width="1600"
-      height="900"
-      alt="The park from the air: palms along the seawall, the dock on the inlet and the bridge behind"
-      fetchpriority="high"
-    >
-    <div class="wb-stage__scrim"></div>
-    <div class="wb-container wb-stage__body">
-      <h1 class="wb-stage__title" data-impeccable-ignore="low-contrast" id="stage-title">{headline}</h1>
-      <p class="wb-stage__lead" data-impeccable-ignore="low-contrast">{intro}</p>
-      <div class="wb-stage__actions">
-        <a class="wb-btn wb-btn--action wb-btn--wrap" href="/visit/">Explore Wahoo Bay</a>
-        <a class="wb-btn wb-btn--ghost wb-btn--wrap" href="/live/">Underwater Camera</a>
-      </div>
-    </div>
-  </section>
+<Base title="Wahoo Bay" description={intro} theme="dark" navOver footerTheme="dark">
+  <Hero />
+
+  <Ticker />
+
+  <VisitSection />
 
   <LiveBand
     still={REEF_STILL.src}
     heading={camera.data.title}
     text={camera.data.description}
     ai={aiUrl(import.meta.env.PUBLIC_AI_URL)}
+    embedId={camera.data.video}
   />
 
   <section class="wb-container site-figures" aria-label="Our Impact at a Glance">

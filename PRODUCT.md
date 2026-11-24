@@ -2,7 +2,7 @@
 
 <!-- impeccable:product-schema 1 -->
 
-Derived from the approved design, 2026-10-29: `wahoobay/infra`, `docs/superpowers/specs/2026-10-29-wahoobay-net-overhaul-design.md`, §1–§3 (approved by Dan Zimmerman on 2026-10-29), with its amendment of 2026-11-02 (the site's address is wahoobay.org). Not taken from an interview: every fact below is the design's, and a change to it is a change to that design first.
+Derived from the approved design, 2026-10-29: `wahoobay/infra`, `docs/superpowers/specs/2026-10-29-wahoobay-net-overhaul-design.md`, §1–§3 (approved by Dan Zimmerman on 2026-10-29), with its amendment of 2026-11-02 (the site's address is wahoobay.org) and the Jump In amendment of 2026-11-24 (Brand Commitments below; proposed by Dan, pending Katie's review). Not taken from an interview: every fact below is the design's, and a change to it is a change to that design first.
 
 ## Platform
 
@@ -48,8 +48,8 @@ A real park with its own reef under a live camera: the fish-ID system names the 
 ## Brand Commitments
 
 - One logo: the lockup and the mark alone, shipped in `@wahoobay/design` (`logo/wahoobay-logo.svg`, `logo/wahoobay-mark.svg`). Never recoloured except to white.
-- One brand colour, `#0088D6`, display only (3.8:1 on white): the logo, large headings and numbers, chart lines; never small text or button labels, which use action blue `#0072B5`.
-- Decided on mockups with Dan, 2026-10-29, and not open for revisiting: the Clear Water direction, the Seagrass accent, and dark pages only for the live cameras. The values live in `@wahoobay/design`.
+- One brand colour, `#0088D6`, display only (3.8:1 on white): the logo and the first chart series; never small text or button labels, which use the action colour (deep aqua `#0A6E66` on light, aqua `#7DF2DC` on dark).
+- The Jump In brand (2026-11-24, `@wahoobay/design` 0.5.0), replacing the Clear Water direction and the Seagrass accent decided on 2026-10-29: deep-water dark pages for the home page and the live-camera pages, light pages for reading (lessons, field experiences, forms); an aqua action colour and an amber accent for what is alive right now (the detection boxes, the live badge); Bricolage Grotesque for display and Inter for text; motion on the home page, all of it off under reduced motion. The values live in `@wahoobay/design`. Proposed by Dan; pending Katie's review.
 - There is no other brand material.
 
 ## Evidence on Hand
