@@ -1,16 +1,21 @@
 ---
 // The home page's hero in the Jump In brand (@wahoobay/design 0.5.0's .wb-hero; PRODUCT.md, amended 2026-11-24): the
-// headline on deep water, with light rays, bubbles and three fish swimming across in their detection boxes. The design
-// places and times every ray, bubble and fish; the page writes the empty elements and no geometry (no inline styles, CLAUDE.md).
-// The water is decoration (aria-hidden). The fish are drawn, not the camera's: their labels are the fish-ID catalogue's
-// names for three reef fish (src/data/fish.json, by Latin name), so a species renamed or dropped there fails the build.
-// A real SeaHIVE clip with its own detection boxes is to replace them (notes/2026-11-24-homepage-jump-in-handoff.md).
+// headline on deep water, with light rays, bubbles and six animals swimming across in their detection boxes. The design
+// places and times every ray, bubble and swimmer; the page writes the empty elements and no geometry (no inline styles,
+// CLAUDE.md). The water is decoration (aria-hidden). The animals are drawn, not the camera's, and the hero stays
+// illustrated rather than video (Dan, 2026-11-24): three reef fish, a spotted eagle ray, a nurse shark and a green sea
+// turtle, each with the design's drawing of its kind. Only species on our species list: each label is the list's name
+// for it (the explorer's, /live/species/, src/lib/explorer.mjs), found by Latin name, so a species renamed or dropped
+// there fails the build.
 // The pause button (WCAG 2.2.2): the motion starts by itself and lasts, so it can be paused. It is hidden until the
 // inline script runs; the script sets data-motion="paused" on the root, which holds the hero and the ticker (the
 // design's rule), and swaps the icon and the name. With reduced motion nothing moves and the design does not draw it.
 import pauseIcon from '@wahoobay/design/icons/pause.svg?raw';
 import playIcon from '@wahoobay/design/icons/play.svg?raw';
 import fish from '../data/fish.json';
+import javaSpecies from '../data/species.json';
+import media from '../data/media.json';
+import { unionSpecies } from '../lib/explorer.mjs';
 
 // katie: review (new words, Dan's Jump In choice of 2026-11-24: the headline)
 const headline = 'The reef<br>is live.';
@@ -25,19 +30,27 @@ const watch = { label: 'Watch live', href: '/live/' };
 
 const rays = Array.from({ length: 6 });
 const bubbles = Array.from({ length: 10 });
-// Sergeant major, blue tang, bar jack: common on the reef, and in the catalogue.
-const SCHOOL = ['Abudefduf saxatilis', 'Acanthurus coeruleus', 'Caranx ruber'];
-const school = SCHOOL.map((latin) => {
-  const found = fish.find((f) => f.latin === latin);
-  if (!found?.common) throw new Error(`src/data/fish.json has no ${latin}: the hero names its fish from the catalogue`);
-  return found.common;
+// One per lane, in the design's lanes: odd lanes swim right, even left, lanes 4 to 6 slow, for the big animals.
+const SCHOOL: [string, '' | 'ray' | 'shark' | 'turtle'][] = [
+  ['Abudefduf saxatilis', ''], // sergeant major
+  ['Acanthurus coeruleus', ''], // blue tang
+  ['Caranx ruber', ''], // bar jack
+  ['Aetobatus narinari', 'ray'], // spotted eagle ray
+  ['Ginglymostoma cirratum', 'shark'], // nurse shark
+  ['Chelonia mydas', 'turtle'], // green sea turtle
+];
+const list = unionSpecies(fish, javaSpecies, media);
+const school = SCHOOL.map(([latin, shape]) => {
+  const found = list.find((s) => s.latin === latin);
+  if (!found?.common) throw new Error(`${latin} is not on the species list: the hero draws only species on it`);
+  return { name: found.common, shape };
 });
 ---
 <section class="wb-hero site-hero" aria-labelledby="hero-title">
   <div class="wb-hero__water" aria-hidden="true">
     <div class="wb-hero__rays">{rays.map(() => <span></span>)}</div>
     <div class="wb-hero__bubbles">{bubbles.map(() => <span></span>)}</div>
-    <div class="wb-hero__school">{school.map((name) => <div class="wb-hero__fish"><div class="wb-detect"><span class="wb-detect__label">{name}</span></div></div>)}</div>
+    <div class="wb-hero__school">{school.map(({ name, shape }) => <div class:list={['wb-hero__fish', shape && `wb-hero__fish--${shape}`]}><div class="wb-detect"><span class="wb-detect__label">{name}</span></div></div>)}</div>
   </div>
   <div class="wb-container wb-hero__body">
     <p class="wb-hero__tag">{tag}</p>

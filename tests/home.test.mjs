@@ -120,8 +120,10 @@ const HEADLINE = 'The reef<br>is live.';
 const TAG = 'Live from the reef · Pompano Beach, FL';
 const LEAD = 'Swim and snorkel the Wahoo Bay reef in Pompano Beach, or watch it live from anywhere.';
 const TICKER = ['Visit', 'Swim', 'Snorkel', 'Jump in', 'Explore', 'Learn', 'Watch', 'Discover', 'Participate', 'Volunteer', 'Contribute', 'Protect'];
-// The three fish in the hero's water, by their Latin names; their labels are the fish-ID catalogue's common names.
-const SCHOOL = ['Abudefduf saxatilis', 'Acanthurus coeruleus', 'Caranx ruber'];
+// The six swimmers in the hero's water, by their Latin names, with their drawings (Dan, 2026-11-24: more and varied
+// species, only ones on our species list). Their labels are the site's species list's names (the explorer's,
+// /live/species/).
+const SCHOOL = [['Abudefduf saxatilis', ''], ['Acanthurus coeruleus', ''], ['Caranx ruber', ''], ['Aetobatus narinari', 'ray'], ['Ginglymostoma cirratum', 'shark'], ['Chelonia mydas', 'turtle']];
 const icon = (name) => readFileSync(`node_modules/@wahoobay/design/dist/icons/${name}.svg`, 'utf8').trim();
 const hero = () => home().match(/<section class="wb-hero[^"]*"[\s\S]*?<\/section>/)?.[0] ?? '';
 
@@ -148,15 +150,16 @@ test('home opens on the hero: the tag, "The reef is live.", the lead, Plan your 
   assert.equal(home().match(/<h1\b/g)?.length, 1, 'one h1');
 });
 
-test('the hero\'s water: six rays, ten bubbles and three fish in their detection boxes, named as the fish-ID catalogue names them', () => {
+test('the hero\'s water: six rays, ten bubbles and six swimmers in their detection boxes, named as the species list names them', () => {
   const water = hero().match(/<div class="wb-hero__water" aria-hidden="true">([\s\S]*?)<\/div>\s*<div class="wb-container wb-hero__body">/)?.[1] ?? '';
   assert.ok(water, 'the decorative layer, hidden from screen readers');
   assert.equal(water.match(/<div class="wb-hero__rays">((?:<span><\/span>)+)<\/div>/)?.[1].match(/<span>/g).length, 6, 'six rays');
   assert.equal(water.match(/<div class="wb-hero__bubbles">((?:<span><\/span>)+)<\/div>/)?.[1].match(/<span>/g).length, 10, 'ten bubbles');
-  const labels = [...water.matchAll(/<div class="wb-hero__fish"><div class="wb-detect"><span class="wb-detect__label">([^<]+)<\/span><\/div><\/div>/g)].map((m) => m[1]);
-  const fish = JSON.parse(readFileSync('src/data/fish.json', 'utf8'));
-  assert.deepEqual(labels, SCHOOL.map((latin) => fish.find((f) => f.latin === latin)?.common), 'the catalogue\'s common names');
-  assert.deepEqual(labels, ['Sergeant Major', 'Blue Tang', 'Bar Jack']);
+  const swimmers = [...water.matchAll(/<div class="wb-hero__fish(?: wb-hero__fish--([a-z]+))?"><div class="wb-detect"><span class="wb-detect__label">([^<]+)<\/span><\/div><\/div>/g)].map((m) => [m[2], m[1] ?? '']);
+  const json = (file) => JSON.parse(readFileSync(file, 'utf8'));
+  const list = unionSpecies(json('src/data/fish.json'), json('src/data/species.json'), json('src/data/media.json'));
+  assert.deepEqual(swimmers, SCHOOL.map(([latin, shape]) => [list.find((s) => s.latin === latin)?.common, shape]), 'the species list\'s names, each with its drawing');
+  assert.deepEqual(swimmers.map(([name]) => name), ['Sergeant Major', 'Blue Tang Surgeonfish', 'Bar Jack', 'Spotted Eagle Ray', 'Nurse Shark', 'Green Sea Turtle']);
   // The component draws the geometry (@wahoobay/design 0.5.0): the page writes none.
   assert.doesNotMatch(hero(), /\bstyle=/);
 });
