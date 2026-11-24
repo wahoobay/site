@@ -1,17 +1,21 @@
 ---
 // The home page's Instagram strip: the four latest posts from the Wahoo Bay API (the old home page's
-// InstagramFeedSection.js). The build ships four empty cards; the inline script fills them in the browser, and takes
-// the whole section away when there is nothing to show: no fetch, a failed or non-OK response, a refused envelope,
-// no posts, or no answer within ten seconds. A card whose picture fails to load is taken away, and the strip goes
-// when fewer than two cards are left. It is the site's only client script (is:inline keeps it in the page).
+// InstagramFeedSection.js), then its "Follow us on Instagram" link (that page's label for it), to the account the
+// footer links. The build ships four empty cards; the inline script fills them in the browser, and takes the posts
+// away when there is nothing to show: no fetch, a failed or non-OK response, a refused envelope, no posts, or no answer
+// within ten seconds. A card whose picture fails to load is taken away, and the posts go when fewer than two cards are
+// left. The heading and the follow link stay. It and the hero's pause button are the home page's own scripts (is:inline
+// keeps each in the page).
 // Captions are set as text, never parsed as HTML, and cut at a word boundary; links and pictures must be https.
 const cards = [1, 2, 3, 4];
+const account = 'https://www.instagram.com/wahoobaypompano/';
 ---
 <section class="wb-container site-instagram" id="instagram" aria-labelledby="instagram-title">
   <h2 id="instagram-title">From Instagram</h2>
   <ul class="site-instagram__grid" role="list" aria-busy="true">
     {cards.map(() => <li class="wb-card site-instagram__post"></li>)}
   </ul>
+  <p class="site-instagram__follow"><a class="wb-btn wb-btn--ghost" href={account} target="_blank" rel="noopener">Follow us on Instagram<span class="wb-sr-only"> (opens in a new tab)</span></a></p>
   <script is:inline>
     (function () {
       var section = document.getElementById('instagram');
@@ -20,12 +24,13 @@ const cards = [1, 2, 3, 4];
       var cards = section.querySelectorAll('.site-instagram__post');
       var settled = false;
       var gone = false;
+      // Takes the posts away; the heading and the follow link stay.
       function hide() {
         settled = true;
         gone = true;
-        section.remove();
+        list.remove();
       }
-      // Takes one card away; fewer than two cards are not a strip, so then the section goes too.
+      // Takes one card away; fewer than two cards are not a strip, so then the posts go too.
       function drop(card) {
         if (gone) return;
         card.remove();

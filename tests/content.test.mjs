@@ -381,7 +381,7 @@ test('a course page\'s first document is its primary action; any others are ghos
   }
 });
 
-test('the live pages embed YouTube without cookies or autoplay, and they alone are dark', () => {
+test('the live pages embed YouTube without cookies or autoplay; they and the home page alone are dark', () => {
   const live = readFileSync('dist/live/index.html', 'utf8');
   const highlights = readFileSync('dist/live/highlights/index.html', 'utf8');
   assert.ok(live.includes('https://www.youtube-nocookie.com/embed/oBTGY6Ax870"'), '/live/ embeds the SeaHIVE stream');
@@ -397,12 +397,13 @@ test('the live pages embed YouTube without cookies or autoplay, and they alone a
   assert.ok(hrefIn(mainOf(highlights), '/live/'), '/live/highlights/ links back to /live/ from its body');
   assert.match(live, /<astro-island\b[^>]*LiveBadge/, '/live/ has the live badge (tests/live.test.mjs)');
   assert.doesNotMatch(highlights, /class="wb-live"/, 'the highlights are not live');
-  // CLAUDE.md: the dark theme is for the live-camera pages and, on the home page only, the live band and the footer.
-  const dark = new Set(['dist/live/index.html', 'dist/live/highlights/index.html']);
+  // CLAUDE.md: the dark theme is for the home page and the live-camera pages (the Jump In brand, PRODUCT.md). The home
+  // page's live band and footer kept their own data-theme="dark" from the Deep Field page, where they were its dark parts.
+  const dark = new Set(['dist/index.html', 'dist/live/index.html', 'dist/live/highlights/index.html']);
   for (const file of filesUnder('dist').filter((f) => f.endsWith('.html'))) {
     const html = readFileSync(file, 'utf8');
     const isDark = /<html\b[^>]*\bdata-theme="dark"/.test(html);
-    assert.equal(isDark, dark.has(file), `${file}: a dark page is a live page`);
+    assert.equal(isDark, dark.has(file), `${file}: a dark page is the home page or a live page`);
     const darkParts = [...html.matchAll(/<([a-z]+)\b[^>]*\bdata-theme="dark"[^>]*>/g)]
       .map(([tag, name]) => (name === 'html' ? null : `${name}.${tag.match(/\bclass="([^" ]+)/)?.[1]}`))
       .filter(Boolean);
@@ -411,19 +412,24 @@ test('the live pages embed YouTube without cookies or autoplay, and they alone a
 });
 
 // Step 2b: the live band's islands (the badge and the right-now panels, tests/live.test.mjs) bring Astro's island loader
-// to the home page, before the band's first island; the Instagram strip's is still the page's only script of its own.
+// to the home page, before the band's first island. The page's own scripts are the Instagram strip's and, from the Jump
+// In home page (2026-11-24), the hero's pause button's (WCAG 2.2.2), which only sets attributes and its own name.
 const ISLAND_LOADER = /\bastro:(?:load|visible|only)\b|customElements\.define\(\s*[`"']astro-island[`"']/;
-test('the home page has one script of its own, the Instagram strip\'s; the other pages have none but their islands\'', () => {
+test('the home page has two scripts of its own, the Instagram strip\'s and the pause button\'s; the other pages have none but their islands\'', () => {
   const html = readFileSync('dist/index.html', 'utf8');
-  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  const own = scripts.filter((code) => !ISLAND_LOADER.test(code));
-  assert.equal(own.length, 1, 'exactly one script besides the island loader');
-  assert.ok(html.indexOf('<script') > html.indexOf('<section class="wb-band'), 'the loader comes with the band\'s islands');
-  const code = own[0] ?? '';
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => ({ code: m[1], at: m.index }));
+  const own = scripts.filter(({ code }) => !ISLAND_LOADER.test(code));
+  assert.equal(own.length, 2, 'exactly two scripts besides the island loader');
+  const loader = scripts.find(({ code }) => ISLAND_LOADER.test(code));
+  assert.ok(loader && loader.at > html.indexOf('<section class="wb-band'), 'the loader comes with the band\'s islands');
+  const pause = own.find(({ code }) => code.includes('wb-hero__pause'))?.code ?? '';
+  assert.ok(pause, 'the pause button\'s');
+  assert.doesNotMatch(pause, /innerHTML|insertAdjacentHTML|document\.write|fetch\(/, 'it writes no HTML and fetches nothing');
+  const code = own.find(({ code }) => code.includes('instagram'))?.code ?? '';
   assert.ok(code.includes('https://api.wahoobay.net/api/v1/instagram/posts/latest'), 'it fetches the Instagram posts');
   assert.ok(code.includes('textContent'), 'it writes the caption as text');
   assert.doesNotMatch(code, /innerHTML|insertAdjacentHTML|document\.write/, 'it never parses API data as HTML');
-  assert.match(code, /\.remove\(\)/, 'it removes the section when there is nothing to show');
+  assert.match(code, /\.remove\(\)/, 'it removes the posts when there is nothing to show');
   const strip = html.match(/<section\b[^>]*id="instagram"[\s\S]*?<\/section>/)?.[0] ?? '';
   assert.equal(strip.match(/class="wb-card site-instagram__post"/g)?.length, 4, 'four empty cards');
   // The exceptions are the islands' pages, which have Astro's loader for their island: the park map

@@ -25,7 +25,7 @@
     "@astrojs/markdown-satteri": "0.4.6",
     "@astrojs/react": "7.1.2",
     "@astrojs/sitemap": "3.7.4",
-    "@wahoobay/design": "github:wahoobay/design#v0.4.1",
+    "@wahoobay/design": "github:wahoobay/design#feat/jump-in-brand",
     "astro": "7.4.4",
     "mapbox-gl": "3.33.0",
     "react": "19.3.1",

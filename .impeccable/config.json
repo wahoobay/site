@@ -11,6 +11,24 @@
         ],
         "createdAt": "2026-10-30T07:18:56.692Z",
         "reason": "Controller ruling, Task 4 (2026-10-29): spec 4.3 mandates the breathing live badge; the rule fires on the design system's .wb-live::before stylesheet rule on every page that links components.css, including pages with no badge. Live pages mark each badge with data-impeccable-ignore, as the design docs do."
+      },
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          "dist/**/*.html"
+        ],
+        "createdAt": "2026-11-24T15:20:00.000Z",
+        "reason": "The Jump In brand (PRODUCT.md, amended 2026-11-24): the home page's action ticker scrolls, the brand's home-page motion; it holds under the pointer and with the hero's pause button, and does not move with reduced motion. The rule fires on the design system's .wb-ticker__track stylesheet rule on every page that links components.css, including pages with no ticker. The home page marks its ticker track with data-impeccable-ignore, as the design docs do, which pin that waiver in their tests."
+      },
+      {
+        "rule": "overused-font",
+        "value": "Inter",
+        "files": [
+          "dist/_astro/*.css"
+        ],
+        "createdAt": "2026-11-24T15:30:00.000Z",
+        "reason": "The Jump In brand (PRODUCT.md, amended 2026-11-24): Inter is the text face and Bricolage Grotesque the display face, Dan's choice of 2026-11-24 (notes/2026-11-24-homepage-jump-in-handoff.md), shipped by @wahoobay/design 0.5.0 as --wb-font-sans. The rule reads the built stylesheet; the face is a brand decision, not a default."
       }
     ]
   }

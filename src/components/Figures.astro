@@ -1,7 +1,6 @@
 ---
-// The four impact figures (src/content/figures.json), large in brand blue: the design's .wb-figures. Brand blue on white
-// is large text here (3:1, as the design's tile numbers), which the detector cannot tell from its clamp() size, so each
-// number carries the low-contrast waiver, as in the design's docs (Ruling A).
+// The four impact figures (src/content/figures.json), large in brand blue: the design's .wb-figures. On the dark home
+// page brand blue is 5.2:1 on the deep ground, so the numbers need no waiver (on white they did: Ruling A).
 // A figure `from: explorer` (species documented) is the explorer's species count at build time (Ruling 51; the
 // sources are src/lib/figures.ts's, and the Support page's list takes the same one): the species /live/species/ lists.
 import { getCollection } from 'astro:content';
@@ -15,6 +14,6 @@ const fmt = new Intl.NumberFormat('en-US');
 ---
 <div class="wb-figures">
   {figures.map(({ label, value }) => (
-    <div class="wb-figure"><b class="wb-figure__value" data-impeccable-ignore="low-contrast">{fmt.format(value)}</b><span class="wb-figure__label">{label}</span></div>
+    <div class="wb-figure"><b class="wb-figure__value">{fmt.format(value)}</b><span class="wb-figure__label">{label}</span></div>
   ))}
 </div>
